@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace Core\Media\Image;
 
-use Core\Mod\Tenant\Models\Workspace;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ImageOptimizer
 {
+    /**
+     * GD typically needs 5-6x the image size in memory.
+     */
+    protected const MEMORY_SAFETY_FACTOR = 6;
+
+    /**
+     * Minimum memory buffer to maintain (in bytes).
+     */
+    protected const MEMORY_BUFFER = 32 * 1024 * 1024; // 32MB
+
     protected string $driver;
 
     protected int $defaultQuality;
@@ -100,6 +110,22 @@ class ImageOptimizer
         $imageInfo = @getimagesize($absolutePath);
         if (! $imageInfo) {
             throw new \InvalidArgumentException("Not a valid image: {$absolutePath}");
+        }
+
+        // Check memory before processing
+        $width = $imageInfo[0];
+        $height = $imageInfo[1];
+
+        if (! $this->hasEnoughMemory($width, $height)) {
+            Log::warning('ImageOptimizer: Insufficient memory for image processing', [
+                'path' => $absolutePath,
+                'width' => $width,
+                'height' => $height,
+                'estimated_memory' => $this->formatBytes($this->estimateRequiredMemory($width, $height)),
+                'available_memory' => $this->formatBytes($this->getAvailableMemory()),
+            ]);
+
+            return $this->createNoOpResult($absolutePath);
         }
 
         $mimeType = $imageInfo['mime'];
@@ -226,6 +252,92 @@ class ImageOptimizer
     }
 
     /**
+     * Check if there is enough memory to process an image.
+     */
+    protected function hasEnoughMemory(int $width, int $height): bool
+    {
+        $required = $this->estimateRequiredMemory($width, $height);
+        $available = $this->getAvailableMemory();
+
+        return $available > ($required + self::MEMORY_BUFFER);
+    }
+
+    /**
+     * Estimate the memory required to process an image.
+     *
+     * Based on image dimensions assuming 4 bytes per pixel (RGBA).
+     */
+    protected function estimateRequiredMemory(int $width, int $height): int
+    {
+        // 4 bytes per pixel (RGBA) * safety factor for GD operations
+        return $width * $height * 4 * self::MEMORY_SAFETY_FACTOR;
+    }
+
+    /**
+     * Get available memory in bytes.
+     */
+    protected function getAvailableMemory(): int
+    {
+        $limit = $this->parseMemoryLimit(ini_get('memory_limit'));
+
+        if ($limit < 0) {
+            // No memory limit
+            return PHP_INT_MAX;
+        }
+
+        return $limit - memory_get_usage(true);
+    }
+
+    /**
+     * Parse PHP memory limit string to bytes.
+     */
+    protected function parseMemoryLimit(string $limit): int
+    {
+        if ($limit === '-1') {
+            return -1;
+        }
+
+        $limit = strtolower(trim($limit));
+        $value = (int) $limit;
+
+        $unit = substr($limit, -1);
+
+        switch ($unit) {
+            case 'g':
+                $value *= 1024 * 1024 * 1024;
+                break;
+            case 'm':
+                $value *= 1024 * 1024;
+                break;
+            case 'k':
+                $value *= 1024;
+                break;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Format bytes to human-readable size.
+     */
+    protected function formatBytes(int $bytes): string
+    {
+        if ($bytes < 1024) {
+            return $bytes.'B';
+        }
+
+        if ($bytes < 1024 * 1024) {
+            return round($bytes / 1024, 1).'KB';
+        }
+
+        if ($bytes < 1024 * 1024 * 1024) {
+            return round($bytes / (1024 * 1024), 1).'MB';
+        }
+
+        return round($bytes / (1024 * 1024 * 1024), 2).'GB';
+    }
+
+    /**
      * Create a no-op result (no optimization performed).
      */
     protected function createNoOpResult(string $path): OptimizationResult
@@ -268,19 +380,24 @@ class ImageOptimizer
 
     /**
      * Get optimization statistics for a workspace.
+     *
+     * @param  Model|null  $workspace  Optional workspace model to filter by
      */
-    public function getStats(?Workspace $workspace = null): array
+    public function getStats(?Model $workspace = null): array
     {
         return ImageOptimization::getWorkspaceStats($workspace);
     }
 
     /**
      * Track optimization in database.
+     *
+     * @param  Model|null  $workspace  Optional workspace model
+     * @param  Model|null  $optimizable  Optional related model
      */
     public function recordOptimization(
         OptimizationResult $result,
-        ?Workspace $workspace = null,
-        $optimizable = null,
+        ?Model $workspace = null,
+        ?Model $optimizable = null,
         ?string $originalPath = null
     ): ImageOptimization {
         return ImageOptimization::create([
@@ -292,7 +409,7 @@ class ImageOptimizer
             'driver' => $result->driver,
             'quality' => $this->defaultQuality,
             'workspace_id' => $workspace?->id,
-            'optimizable_type' => $optimizable ? get_class($optimizable) : null,
+            'optimizable_type' => $optimizable !== null ? get_class($optimizable) : null,
             'optimizable_id' => $optimizable?->id,
         ]);
     }

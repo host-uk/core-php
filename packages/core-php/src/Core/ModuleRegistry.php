@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Event;
  * Scans module directories, extracts $listens declarations,
  * and wires up lazy listeners for each event-module pair.
  *
+ * Listeners are registered in priority order (higher priority runs first).
+ *
  * Usage:
  *     $registry = new ModuleRegistry(new ModuleScanner());
  *     $registry->register([app_path('Core'), app_path('Mod')]);
@@ -29,6 +31,8 @@ class ModuleRegistry
     /**
      * Scan paths and register lazy listeners for all declared events.
      *
+     * Listeners are sorted by priority (highest first) before registration.
+     *
      * @param  array<string>  $paths  Directories containing modules
      */
     public function register(array $paths): void
@@ -40,8 +44,10 @@ class ModuleRegistry
         $this->mappings = $this->scanner->scan($paths);
 
         foreach ($this->mappings as $event => $listeners) {
-            foreach ($listeners as $moduleClass => $method) {
-                Event::listen($event, new LazyModuleListener($moduleClass, $method));
+            $sorted = $this->sortByPriority($listeners);
+
+            foreach ($sorted as $moduleClass => $config) {
+                Event::listen($event, new LazyModuleListener($moduleClass, $config['method']));
             }
         }
 
@@ -49,9 +55,22 @@ class ModuleRegistry
     }
 
     /**
+     * Sort listeners by priority (highest first).
+     *
+     * @param  array<string, array{method: string, priority: int}>  $listeners
+     * @return array<string, array{method: string, priority: int}>
+     */
+    private function sortByPriority(array $listeners): array
+    {
+        uasort($listeners, fn ($a, $b) => $b['priority'] <=> $a['priority']);
+
+        return $listeners;
+    }
+
+    /**
      * Get all scanned mappings.
      *
-     * @return array<string, array<string, string>> Event => [Module => method]
+     * @return array<string, array<string, array{method: string, priority: int}>> Event => [Module => config]
      */
     public function getMappings(): array
     {
@@ -61,7 +80,7 @@ class ModuleRegistry
     /**
      * Get modules that listen to a specific event.
      *
-     * @return array<string, string> Module => method
+     * @return array<string, array{method: string, priority: int}> Module => config
      */
     public function getListenersFor(string $event): array
     {
@@ -108,6 +127,8 @@ class ModuleRegistry
      * Add additional paths to scan and register.
      *
      * Used by packages to register their module paths.
+     * Note: Priority ordering only applies within the newly added paths.
+     * For full priority control, use register() with all paths.
      *
      * @param  array<string>  $paths  Directories containing modules
      */
@@ -116,14 +137,16 @@ class ModuleRegistry
         $newMappings = $this->scanner->scan($paths);
 
         foreach ($newMappings as $event => $listeners) {
-            foreach ($listeners as $moduleClass => $method) {
+            $sorted = $this->sortByPriority($listeners);
+
+            foreach ($sorted as $moduleClass => $config) {
                 // Skip if already registered
                 if (isset($this->mappings[$event][$moduleClass])) {
                     continue;
                 }
 
-                $this->mappings[$event][$moduleClass] = $method;
-                Event::listen($event, new LazyModuleListener($moduleClass, $method));
+                $this->mappings[$event][$moduleClass] = $config;
+                Event::listen($event, new LazyModuleListener($moduleClass, $config['method']));
             }
         }
     }

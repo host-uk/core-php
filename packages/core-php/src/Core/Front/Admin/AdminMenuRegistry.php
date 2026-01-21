@@ -5,23 +5,44 @@ declare(strict_types=1);
 namespace Core\Front\Admin;
 
 use Core\Front\Admin\Contracts\AdminMenuProvider;
+use Core\Front\Admin\Contracts\DynamicMenuProvider;
+use Core\Mod\Tenant\Models\User;
 use Core\Mod\Tenant\Models\Workspace;
 use Core\Mod\Tenant\Services\EntitlementService;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Registry for admin menu items.
  *
  * Modules register themselves during boot. The registry builds the complete
- * menu structure at render time, handling entitlement checks and sorting.
+ * menu structure at render time, handling entitlement checks, permission
+ * checks, caching, and sorting.
  */
 class AdminMenuRegistry
 {
+    /**
+     * Cache key prefix for menu items.
+     */
+    protected const CACHE_PREFIX = 'admin_menu';
+
+    /**
+     * Default cache TTL in seconds (5 minutes).
+     */
+    protected const DEFAULT_CACHE_TTL = 300;
+
     /**
      * Registered menu providers.
      *
      * @var array<AdminMenuProvider>
      */
     protected array $providers = [];
+
+    /**
+     * Registered dynamic menu providers.
+     *
+     * @var array<DynamicMenuProvider>
+     */
+    protected array $dynamicProviders = [];
 
     /**
      * Pre-defined menu groups with metadata.
@@ -55,9 +76,22 @@ class AdminMenuRegistry
         ],
     ];
 
+    /**
+     * Whether caching is enabled.
+     */
+    protected bool $cachingEnabled = true;
+
+    /**
+     * Cache TTL in seconds.
+     */
+    protected int $cacheTtl;
+
     public function __construct(
         protected EntitlementService $entitlements,
-    ) {}
+    ) {
+        $this->cacheTtl = (int) config('core.admin_menu.cache_ttl', self::DEFAULT_CACHE_TTL);
+        $this->cachingEnabled = (bool) config('core.admin_menu.cache_enabled', true);
+    }
 
     /**
      * Register a menu provider.
@@ -65,6 +99,35 @@ class AdminMenuRegistry
     public function register(AdminMenuProvider $provider): void
     {
         $this->providers[] = $provider;
+
+        // Also register as dynamic provider if it implements the interface
+        if ($provider instanceof DynamicMenuProvider) {
+            $this->dynamicProviders[] = $provider;
+        }
+    }
+
+    /**
+     * Register a dynamic menu provider.
+     */
+    public function registerDynamic(DynamicMenuProvider $provider): void
+    {
+        $this->dynamicProviders[] = $provider;
+    }
+
+    /**
+     * Enable or disable caching.
+     */
+    public function setCachingEnabled(bool $enabled): void
+    {
+        $this->cachingEnabled = $enabled;
+    }
+
+    /**
+     * Set cache TTL in seconds.
+     */
+    public function setCacheTtl(int $seconds): void
+    {
+        $this->cacheTtl = $seconds;
     }
 
     /**
@@ -72,13 +135,117 @@ class AdminMenuRegistry
      *
      * @param  Workspace|null  $workspace  Current workspace for entitlement checks
      * @param  bool  $isAdmin  Whether user is admin (Hades)
+     * @param  User|null  $user  The authenticated user for permission checks
      * @return array<int, array>
      */
-    public function build(?Workspace $workspace, bool $isAdmin = false): array
+    public function build(?Workspace $workspace, bool $isAdmin = false, ?User $user = null): array
     {
-        // Collect all items from all providers
-        $allItems = $this->collectItems($workspace, $isAdmin);
+        // Get static items (potentially cached)
+        $staticItems = $this->getStaticItems($workspace, $isAdmin, $user);
 
+        // Get dynamic items (never cached)
+        $dynamicItems = $this->getDynamicItems($workspace, $isAdmin, $user);
+
+        // Merge static and dynamic items
+        $allItems = $this->mergeItems($staticItems, $dynamicItems);
+
+        // Build the menu structure
+        return $this->buildMenuStructure($allItems, $workspace, $isAdmin);
+    }
+
+    /**
+     * Get static menu items, using cache if enabled.
+     *
+     * @return array<string, array<int, array{priority: int, item: \Closure}>>
+     */
+    protected function getStaticItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
+    {
+        if (! $this->cachingEnabled) {
+            return $this->collectItems($workspace, $isAdmin, $user);
+        }
+
+        $cacheKey = $this->buildCacheKey($workspace, $isAdmin, $user);
+
+        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($workspace, $isAdmin, $user) {
+            return $this->collectItems($workspace, $isAdmin, $user);
+        });
+    }
+
+    /**
+     * Get dynamic menu items from dynamic providers.
+     *
+     * @return array<string, array<int, array{priority: int, item: \Closure}>>
+     */
+    protected function getDynamicItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
+    {
+        $grouped = [];
+
+        foreach ($this->dynamicProviders as $provider) {
+            $items = $provider->dynamicMenuItems($user, $workspace, $isAdmin);
+
+            foreach ($items as $registration) {
+                $group = $registration['group'] ?? 'services';
+                $entitlement = $registration['entitlement'] ?? null;
+                $requiresAdmin = $registration['admin'] ?? false;
+                $permissions = $registration['permissions'] ?? [];
+
+                // Skip if requires admin and user isn't admin
+                if ($requiresAdmin && ! $isAdmin) {
+                    continue;
+                }
+
+                // Skip if entitlement check fails
+                if ($entitlement && $workspace) {
+                    if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
+                        continue;
+                    }
+                }
+
+                // Skip if no workspace and entitlement required
+                if ($entitlement && ! $workspace) {
+                    continue;
+                }
+
+                // Skip if permission check fails
+                if (! empty($permissions) && ! $this->checkPermissions($user, $permissions, $workspace)) {
+                    continue;
+                }
+
+                $grouped[$group][] = [
+                    'priority' => $registration['priority'] ?? 50,
+                    'item' => $registration['item'],
+                    'dynamic' => true,
+                ];
+            }
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Merge static and dynamic items.
+     *
+     * @param  array<string, array>  $static
+     * @param  array<string, array>  $dynamic
+     * @return array<string, array>
+     */
+    protected function mergeItems(array $static, array $dynamic): array
+    {
+        foreach ($dynamic as $group => $items) {
+            if (! isset($static[$group])) {
+                $static[$group] = [];
+            }
+            $static[$group] = array_merge($static[$group], $items);
+        }
+
+        return $static;
+    }
+
+    /**
+     * Build the final menu structure from collected items.
+     */
+    protected function buildMenuStructure(array $allItems, ?Workspace $workspace, bool $isAdmin): array
+    {
         // Build flat structure with dividers
         $menu = [];
         $firstGroup = true;
@@ -169,19 +336,48 @@ class AdminMenuRegistry
     }
 
     /**
-     * Collect items from all providers, filtering by entitlements.
+     * Build the cache key for menu items.
+     */
+    protected function buildCacheKey(?Workspace $workspace, bool $isAdmin, ?User $user): string
+    {
+        $parts = [
+            self::CACHE_PREFIX,
+            'w' . ($workspace?->id ?? 'null'),
+            'a' . ($isAdmin ? '1' : '0'),
+            'u' . ($user?->id ?? 'null'),
+        ];
+
+        // Add dynamic cache key modifiers
+        foreach ($this->dynamicProviders as $provider) {
+            $dynamicKey = $provider->dynamicCacheKey($user, $workspace);
+            if ($dynamicKey !== null) {
+                $parts[] = md5($dynamicKey);
+            }
+        }
+
+        return implode(':', $parts);
+    }
+
+    /**
+     * Collect items from all providers, filtering by entitlements and permissions.
      *
      * @return array<string, array<int, array{priority: int, item: \Closure}>>
      */
-    protected function collectItems(?Workspace $workspace, bool $isAdmin): array
+    protected function collectItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
     {
         $grouped = [];
 
         foreach ($this->providers as $provider) {
+            // Check provider-level permissions first
+            if (! $provider->canViewMenu($user, $workspace)) {
+                continue;
+            }
+
             foreach ($provider->adminMenuItems() as $registration) {
                 $group = $registration['group'] ?? 'services';
                 $entitlement = $registration['entitlement'] ?? null;
                 $requiresAdmin = $registration['admin'] ?? false;
+                $permissions = $registration['permissions'] ?? [];
 
                 // Skip if requires admin and user isn't admin
                 if ($requiresAdmin && ! $isAdmin) {
@@ -200,6 +396,11 @@ class AdminMenuRegistry
                     continue;
                 }
 
+                // Skip if item-level permission check fails
+                if (! empty($permissions) && ! $this->checkPermissions($user, $permissions, $workspace)) {
+                    continue;
+                }
+
                 $grouped[$group][] = [
                     'priority' => $registration['priority'] ?? 50,
                     'item' => $registration['item'],
@@ -208,6 +409,78 @@ class AdminMenuRegistry
         }
 
         return $grouped;
+    }
+
+    /**
+     * Check if a user has all required permissions.
+     *
+     * @param  User|null  $user
+     * @param  array<string>  $permissions
+     * @param  Workspace|null  $workspace
+     * @return bool
+     */
+    protected function checkPermissions(?User $user, array $permissions, ?Workspace $workspace): bool
+    {
+        if (empty($permissions)) {
+            return true;
+        }
+
+        if ($user === null) {
+            return false;
+        }
+
+        foreach ($permissions as $permission) {
+            // Check using Laravel's authorization
+            if (method_exists($user, 'can') && ! $user->can($permission, $workspace)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Invalidate cached menu for a specific context.
+     *
+     * @param  Workspace|null  $workspace
+     * @param  User|null  $user
+     */
+    public function invalidateCache(?Workspace $workspace = null, ?User $user = null): void
+    {
+        if ($workspace !== null && $user !== null) {
+            // Invalidate specific cache keys
+            foreach ([true, false] as $isAdmin) {
+                $cacheKey = $this->buildCacheKey($workspace, $isAdmin, $user);
+                Cache::forget($cacheKey);
+            }
+        } else {
+            // Flush all admin menu caches using tags if available
+            if (method_exists(Cache::getStore(), 'tags')) {
+                Cache::tags([self::CACHE_PREFIX])->flush();
+            }
+        }
+    }
+
+    /**
+     * Invalidate all cached menus for a workspace.
+     */
+    public function invalidateWorkspaceCache(Workspace $workspace): void
+    {
+        // We can't easily clear pattern-based cache keys with all drivers,
+        // so we rely on TTL expiration for non-tagged caches
+        if (method_exists(Cache::getStore(), 'tags')) {
+            Cache::tags([self::CACHE_PREFIX, 'workspace:' . $workspace->id])->flush();
+        }
+    }
+
+    /**
+     * Invalidate all cached menus for a user.
+     */
+    public function invalidateUserCache(User $user): void
+    {
+        if (method_exists(Cache::getStore(), 'tags')) {
+            Cache::tags([self::CACHE_PREFIX, 'user:' . $user->id])->flush();
+        }
     }
 
     /**
@@ -235,13 +508,19 @@ class AdminMenuRegistry
      *
      * @param  Workspace|null  $workspace  Current workspace for entitlement checks
      * @param  bool  $isAdmin  Whether user is admin (Hades)
+     * @param  User|null  $user  The authenticated user for permission checks
      * @return array<string, array> Service items indexed by service key
      */
-    public function getAllServiceItems(?Workspace $workspace, bool $isAdmin = false): array
+    public function getAllServiceItems(?Workspace $workspace, bool $isAdmin = false, ?User $user = null): array
     {
         $services = [];
 
         foreach ($this->providers as $provider) {
+            // Check provider-level permissions
+            if (! $provider->canViewMenu($user, $workspace)) {
+                continue;
+            }
+
             foreach ($provider->adminMenuItems() as $registration) {
                 if (($registration['group'] ?? 'services') !== 'services') {
                     continue;
@@ -254,6 +533,7 @@ class AdminMenuRegistry
 
                 $entitlement = $registration['entitlement'] ?? null;
                 $requiresAdmin = $registration['admin'] ?? false;
+                $permissions = $registration['permissions'] ?? [];
 
                 // Skip if requires admin and user isn't admin
                 if ($requiresAdmin && ! $isAdmin) {
@@ -265,6 +545,11 @@ class AdminMenuRegistry
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }
+                }
+
+                // Skip if permission check fails
+                if (! empty($permissions) && ! $this->checkPermissions($user, $permissions, $workspace)) {
+                    continue;
                 }
 
                 // Evaluate the closure and store by service key
@@ -289,11 +574,17 @@ class AdminMenuRegistry
      * @param  string  $serviceKey  The service identifier (e.g., 'commerce', 'support')
      * @param  Workspace|null  $workspace  Current workspace for entitlement checks
      * @param  bool  $isAdmin  Whether user is admin (Hades)
+     * @param  User|null  $user  The authenticated user for permission checks
      * @return array|null The service menu item with children, or null if not found
      */
-    public function getServiceItem(string $serviceKey, ?Workspace $workspace, bool $isAdmin = false): ?array
+    public function getServiceItem(string $serviceKey, ?Workspace $workspace, bool $isAdmin = false, ?User $user = null): ?array
     {
         foreach ($this->providers as $provider) {
+            // Check provider-level permissions
+            if (! $provider->canViewMenu($user, $workspace)) {
+                continue;
+            }
+
             foreach ($provider->adminMenuItems() as $registration) {
                 // Only check services group items with matching service key
                 if (($registration['group'] ?? 'services') !== 'services') {
@@ -306,6 +597,7 @@ class AdminMenuRegistry
 
                 $entitlement = $registration['entitlement'] ?? null;
                 $requiresAdmin = $registration['admin'] ?? false;
+                $permissions = $registration['permissions'] ?? [];
 
                 // Skip if requires admin and user isn't admin
                 if ($requiresAdmin && ! $isAdmin) {
@@ -317,6 +609,11 @@ class AdminMenuRegistry
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }
+                }
+
+                // Skip if permission check fails
+                if (! empty($permissions) && ! $this->checkPermissions($user, $permissions, $workspace)) {
+                    continue;
                 }
 
                 // Evaluate the closure and return the item

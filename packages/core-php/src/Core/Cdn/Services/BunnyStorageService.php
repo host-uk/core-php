@@ -25,6 +25,21 @@ class BunnyStorageService
 
     protected ?Client $privateClient = null;
 
+    /**
+     * Default maximum file size in bytes (100MB).
+     */
+    protected const DEFAULT_MAX_FILE_SIZE = 104857600;
+
+    /**
+     * Maximum retry attempts for failed uploads.
+     */
+    protected const MAX_RETRY_ATTEMPTS = 3;
+
+    /**
+     * Base delay in milliseconds for exponential backoff.
+     */
+    protected const RETRY_BASE_DELAY_MS = 100;
+
     public function __construct(
         protected ConfigService $config,
     ) {}
@@ -114,20 +129,74 @@ class BunnyStorageService
             return false;
         }
 
-        try {
-            $client->upload($localPath, $remotePath);
+        if (! file_exists($localPath)) {
+            Log::error('BunnyStorage: Local file not found', ['local' => $localPath]);
 
-            return true;
-        } catch (\Exception $e) {
-            Log::error('BunnyStorage: Upload failed', [
+            return false;
+        }
+
+        $fileSize = filesize($localPath);
+        $maxSize = $this->getMaxFileSize();
+
+        if ($fileSize === false || $fileSize > $maxSize) {
+            Log::error('BunnyStorage: File size exceeds limit', [
                 'local' => $localPath,
-                'remote' => $remotePath,
-                'zone' => $zone,
-                'error' => $e->getMessage(),
+                'size' => $fileSize,
+                'max_size' => $maxSize,
             ]);
 
             return false;
         }
+
+        return $this->executeWithRetry(function () use ($client, $localPath, $remotePath, $zone) {
+            $client->upload($localPath, $remotePath);
+
+            return true;
+        }, [
+            'local' => $localPath,
+            'remote' => $remotePath,
+            'zone' => $zone,
+        ], 'Upload');
+    }
+
+    /**
+     * Get the maximum allowed file size in bytes.
+     */
+    protected function getMaxFileSize(): int
+    {
+        return (int) $this->config->get('cdn.bunny.max_file_size', self::DEFAULT_MAX_FILE_SIZE);
+    }
+
+    /**
+     * Execute an operation with exponential backoff retry.
+     */
+    protected function executeWithRetry(callable $operation, array $context, string $operationName): bool
+    {
+        $lastException = null;
+
+        for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
+            try {
+                return $operation();
+            } catch (\Exception $e) {
+                $lastException = $e;
+
+                if ($attempt < self::MAX_RETRY_ATTEMPTS) {
+                    $delayMs = self::RETRY_BASE_DELAY_MS * (2 ** ($attempt - 1));
+                    usleep($delayMs * 1000);
+
+                    Log::warning("BunnyStorage: {$operationName} attempt {$attempt} failed, retrying", array_merge($context, [
+                        'attempt' => $attempt,
+                        'next_delay_ms' => $delayMs * 2,
+                    ]));
+                }
+            }
+        }
+
+        Log::error("BunnyStorage: {$operationName} failed after " . self::MAX_RETRY_ATTEMPTS . ' attempts', array_merge($context, [
+            'error' => $lastException?->getMessage() ?? 'Unknown error',
+        ]));
+
+        return false;
     }
 
     /**
@@ -141,19 +210,27 @@ class BunnyStorageService
             return false;
         }
 
-        try {
-            $client->putContents($remotePath, $contents);
+        $contentSize = strlen($contents);
+        $maxSize = $this->getMaxFileSize();
 
-            return true;
-        } catch (\Exception $e) {
-            Log::error('BunnyStorage: putContents failed', [
+        if ($contentSize > $maxSize) {
+            Log::error('BunnyStorage: Content size exceeds limit', [
                 'remote' => $remotePath,
-                'zone' => $zone,
-                'error' => $e->getMessage(),
+                'size' => $contentSize,
+                'max_size' => $maxSize,
             ]);
 
             return false;
         }
+
+        return $this->executeWithRetry(function () use ($client, $remotePath, $contents) {
+            $client->putContents($remotePath, $contents);
+
+            return true;
+        }, [
+            'remote' => $remotePath,
+            'zone' => $zone,
+        ], 'putContents');
     }
 
     /**

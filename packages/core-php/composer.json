@@ -23,11 +23,19 @@
             "Core\\Plug\\": "src/Plug/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Core\\Tests\\": "tests/",
+            "Mod\\": "tests/Fixtures/Mod/",
+            "Plug\\": "tests/Fixtures/Plug/",
+            "Website\\": "tests/Fixtures/Website/"
+        }
+    },
     "extra": {
         "laravel": {
             "providers": [
                 "Core\\LifecycleEventProvider",
-                "Core\\Website\\Boot"
+                "Core\\Lang\\LangServiceProvider"
             ]
         }
     },

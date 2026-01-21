@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core;
 
+use Core\Events\EventAuditLog;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -13,6 +14,7 @@ use Illuminate\Support\ServiceProvider;
  * enabling lazy loading of modules based on actual usage.
  *
  * Handles both plain classes and ServiceProviders correctly.
+ * Integrates with EventAuditLog for debugging and monitoring.
  *
  * Usage:
  *     Event::listen(
@@ -33,11 +35,22 @@ class LazyModuleListener
      * Handle the event by instantiating the module and calling its method.
      *
      * This is the callable interface for Laravel's event dispatcher.
+     * Records execution to EventAuditLog when enabled.
      */
     public function __invoke(object $event): void
     {
-        $module = $this->resolveModule();
-        $module->{$this->method}($event);
+        $eventClass = $event::class;
+
+        EventAuditLog::recordStart($eventClass, $this->moduleClass);
+
+        try {
+            $module = $this->resolveModule();
+            $module->{$this->method}($event);
+            EventAuditLog::recordSuccess($eventClass, $this->moduleClass);
+        } catch (\Throwable $e) {
+            EventAuditLog::recordFailure($eventClass, $this->moduleClass, $e);
+            throw $e;
+        }
     }
 
     /**

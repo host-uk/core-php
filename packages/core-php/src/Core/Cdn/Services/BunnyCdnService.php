@@ -33,6 +33,26 @@ class BunnyCdnService
     }
 
     /**
+     * Sanitize an error message to remove sensitive data like API keys.
+     */
+    protected function sanitizeErrorMessage(string $message): string
+    {
+        $sensitiveKeys = array_filter([
+            $this->apiKey,
+            $this->config->get('cdn.bunny.storage.public.api_key'),
+            $this->config->get('cdn.bunny.storage.private.api_key'),
+        ]);
+
+        foreach ($sensitiveKeys as $key) {
+            if ($key !== '' && str_contains($message, $key)) {
+                $message = str_replace($key, '[REDACTED]', $message);
+            }
+        }
+
+        return $message;
+    }
+
+    /**
      * Check if the service is configured.
      */
     public function isConfigured(): bool
@@ -84,7 +104,7 @@ class BunnyCdnService
 
             return true;
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: Purge exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: Purge exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return false;
         }
@@ -106,7 +126,7 @@ class BunnyCdnService
 
             return $response->successful();
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: PurgeAll exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: PurgeAll exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return false;
         }
@@ -132,7 +152,7 @@ class BunnyCdnService
         } catch (\Exception $e) {
             Log::error('BunnyCDN: PurgeByTag exception', [
                 'tag' => $tag,
-                'error' => $e->getMessage(),
+                'error' => $this->sanitizeErrorMessage($e->getMessage()),
             ]);
 
             return false;
@@ -182,7 +202,7 @@ class BunnyCdnService
 
             return null;
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: GetStats exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: GetStats exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return null;
         }
@@ -237,7 +257,7 @@ class BunnyCdnService
 
             return null;
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: ListStorageFiles exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: ListStorageFiles exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return null;
         }
@@ -267,7 +287,7 @@ class BunnyCdnService
 
             return $response->successful();
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: UploadFile exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: UploadFile exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return false;
         }
@@ -296,7 +316,7 @@ class BunnyCdnService
 
             return $response->successful();
         } catch (\Exception $e) {
-            Log::error('BunnyCDN: DeleteFile exception', ['error' => $e->getMessage()]);
+            Log::error('BunnyCDN: DeleteFile exception', ['error' => $this->sanitizeErrorMessage($e->getMessage())]);
 
             return false;
         }

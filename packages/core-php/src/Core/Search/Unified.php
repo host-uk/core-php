@@ -36,6 +36,16 @@ class Unified
     public const TYPE_PLAN = 'plan';
 
     /**
+     * Default cache TTL for search results in seconds.
+     */
+    protected const CACHE_TTL = 60;
+
+    /**
+     * Maximum allowed wildcards in a search query.
+     */
+    protected const MAX_WILDCARDS = 3;
+
+    /**
      * Perform unified search across all sources.
      */
     public function search(string $query, array $types = [], int $limit = 50): Collection
@@ -46,9 +56,30 @@ class Unified
             return collect();
         }
 
+        $cacheKey = $this->buildCacheKey($query, $types, $limit);
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($query, $types, $limit) {
+            return $this->executeSearch($query, $types, $limit);
+        });
+    }
+
+    /**
+     * Build a cache key for the search query.
+     */
+    protected function buildCacheKey(string $query, array $types, int $limit): string
+    {
+        $typesHash = empty($types) ? 'all' : md5(implode(',', $types));
+
+        return "unified_search:{$typesHash}:{$limit}:".md5($query);
+    }
+
+    /**
+     * Execute the actual search across all sources.
+     */
+    protected function executeSearch(string $query, array $types, int $limit): Collection
+    {
         $results = collect();
 
-        // Determine which types to search
         $searchAll = empty($types);
 
         if ($searchAll || in_array(self::TYPE_MCP_TOOL, $types)) {
@@ -79,11 +110,29 @@ class Unified
             $results = $results->merge($this->searchPlans($query));
         }
 
-        // Sort by relevance score and limit
         return $results
             ->sortByDesc('score')
             ->take($limit)
             ->values();
+    }
+
+    /**
+     * Escape special LIKE wildcards and limit wildcard count to prevent DoS.
+     *
+     * SQL LIKE wildcards (% and _) in user input are escaped to prevent
+     * expensive full-table scans from malicious patterns like "%%%%".
+     */
+    protected function escapeLikeQuery(string $query): string
+    {
+        $wildcardCount = substr_count($query, '%') + substr_count($query, '_');
+
+        if ($wildcardCount > self::MAX_WILDCARDS) {
+            $query = str_replace(['%', '_'], '', $query);
+        } else {
+            $query = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
+        }
+
+        return $query;
     }
 
     /**
@@ -160,25 +209,12 @@ class Unified
     }
 
     /**
-     * Search API endpoints from scramble config.
+     * Search API endpoints from config.
      */
     protected function searchApiEndpoints(string $query): Collection
     {
         $results = collect();
-
-        // Define known endpoints (in production, parse from OpenAPI spec)
-        $endpoints = [
-            ['method' => 'GET', 'path' => '/api/v1/workspaces', 'description' => 'List all workspaces'],
-            ['method' => 'POST', 'path' => '/api/v1/workspaces', 'description' => 'Create a new workspace'],
-            ['method' => 'GET', 'path' => '/api/v1/workspaces/{id}', 'description' => 'Get workspace details'],
-            ['method' => 'PUT', 'path' => '/api/v1/workspaces/{id}', 'description' => 'Update workspace'],
-            ['method' => 'DELETE', 'path' => '/api/v1/workspaces/{id}', 'description' => 'Delete workspace'],
-            ['method' => 'GET', 'path' => '/api/v1/biolinks', 'description' => 'List bio links'],
-            ['method' => 'POST', 'path' => '/api/v1/biolinks', 'description' => 'Create bio link'],
-            ['method' => 'GET', 'path' => '/api/v1/links', 'description' => 'List short links'],
-            ['method' => 'POST', 'path' => '/api/v1/links', 'description' => 'Create short link'],
-            ['method' => 'GET', 'path' => '/api/v1/analytics/summary', 'description' => 'Get analytics summary'],
-        ];
+        $endpoints = $this->loadApiEndpoints();
 
         foreach ($endpoints as $endpoint) {
             $path = strtolower($endpoint['path']);
@@ -215,10 +251,12 @@ class Unified
             return collect();
         }
 
+        $escaped = $this->escapeLikeQuery($query);
+
         try {
-            return Pattern::where('name', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%")
-                ->orWhere('category', 'like', "%{$query}%")
+            return Pattern::where('name', 'like', "%{$escaped}%")
+                ->orWhere('description', 'like', "%{$escaped}%")
+                ->orWhere('category', 'like', "%{$escaped}%")
                 ->limit(20)
                 ->get()
                 ->map(fn ($pattern) => [
@@ -251,10 +289,12 @@ class Unified
             return collect();
         }
 
+        $escaped = $this->escapeLikeQuery($query);
+
         try {
-            return Asset::where('name', 'like', "%{$query}%")
-                ->orWhere('slug', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%")
+            return Asset::where('name', 'like', "%{$escaped}%")
+                ->orWhere('slug', 'like', "%{$escaped}%")
+                ->orWhere('description', 'like', "%{$escaped}%")
                 ->limit(20)
                 ->get()
                 ->map(fn ($asset) => [
@@ -288,9 +328,11 @@ class Unified
             return collect();
         }
 
+        $escaped = $this->escapeLikeQuery($query);
+
         try {
-            return UpstreamTodo::where('title', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%")
+            return UpstreamTodo::where('title', 'like', "%{$escaped}%")
+                ->orWhere('description', 'like', "%{$escaped}%")
                 ->limit(20)
                 ->get()
                 ->map(fn ($todo) => [
@@ -320,10 +362,16 @@ class Unified
      */
     protected function searchPlans(string $query): Collection
     {
+        if (! class_exists(AgentPlan::class)) {
+            return collect();
+        }
+
+        $escaped = $this->escapeLikeQuery($query);
+
         try {
-            return AgentPlan::where('title', 'like', "%{$query}%")
-                ->orWhere('slug', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%")
+            return AgentPlan::where('title', 'like', "%{$escaped}%")
+                ->orWhere('slug', 'like', "%{$escaped}%")
+                ->orWhere('description', 'like', "%{$escaped}%")
                 ->limit(20)
                 ->get()
                 ->map(fn ($plan) => [
@@ -406,6 +454,14 @@ class Unified
 
             return $servers;
         });
+    }
+
+    /**
+     * Load API endpoints from config.
+     */
+    protected function loadApiEndpoints(): array
+    {
+        return config('core.search.api_endpoints', []);
     }
 
     /**

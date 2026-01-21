@@ -1,9 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Core\Storage;
 
+use Core\Storage\Events\RedisFallbackActivated;
 use Illuminate\Cache\DatabaseStore;
 use Illuminate\Cache\RedisStore;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,7 +20,7 @@ class ResilientRedisStore extends RedisStore
 {
     protected ?DatabaseStore $fallbackStore = null;
 
-    protected bool $redisFailed = false;
+    protected bool $fallbackActivated = false;
 
     /**
      * Get the fallback database store.
@@ -35,16 +39,60 @@ class ResilientRedisStore extends RedisStore
     }
 
     /**
+     * Handle Redis failure by logging and optionally dispatching an event.
+     *
+     * @throws \Throwable When silent_fallback is disabled
+     */
+    protected function handleRedisFailure(\Throwable $e): void
+    {
+        $silentFallback = config('core.storage.silent_fallback', true);
+
+        if (! $silentFallback) {
+            throw $e;
+        }
+
+        $this->logFallback($e);
+        $this->dispatchFallbackEvent($e);
+    }
+
+    /**
      * Log the fallback (once per request).
      */
     protected function logFallback(\Throwable $e): void
     {
-        if (! $this->redisFailed) {
-            $this->redisFailed = true;
-            Log::warning('[Cache] Redis unavailable, using database fallback', [
-                'error' => $e->getMessage(),
-            ]);
+        if ($this->fallbackActivated) {
+            return;
         }
+
+        $logLevel = config('core.storage.fallback_log_level', 'warning');
+
+        Log::log($logLevel, '[Cache] Redis unavailable, using database fallback', [
+            'error' => $e->getMessage(),
+            'exception_class' => get_class($e),
+        ]);
+    }
+
+    /**
+     * Dispatch the fallback event for monitoring/alerting (once per request).
+     */
+    protected function dispatchFallbackEvent(\Throwable $e): void
+    {
+        if ($this->fallbackActivated) {
+            return;
+        }
+
+        $this->fallbackActivated = true;
+
+        if (! config('core.storage.dispatch_fallback_events', true)) {
+            return;
+        }
+
+        $dispatcher = app(Dispatcher::class);
+        $dispatcher->dispatch(new RedisFallbackActivated(
+            context: 'cache_operation',
+            errorMessage: $e->getMessage(),
+            fallbackDriver: 'database'
+        ));
     }
 
     /**
@@ -55,7 +103,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::get($key);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->get($key);
         }
@@ -69,7 +117,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::many($keys);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->many($keys);
         }
@@ -83,7 +131,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::put($key, $value, $seconds);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->put($key, $value, $seconds);
         }
@@ -97,7 +145,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::putMany($values, $seconds);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->putMany($values, $seconds);
         }
@@ -111,7 +159,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::increment($key, $value);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->increment($key, $value);
         }
@@ -125,7 +173,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::decrement($key, $value);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->decrement($key, $value);
         }
@@ -139,7 +187,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::forever($key, $value);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->forever($key, $value);
         }
@@ -153,7 +201,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::forget($key);
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->forget($key);
         }
@@ -167,7 +215,7 @@ class ResilientRedisStore extends RedisStore
         try {
             return parent::flush();
         } catch (\Throwable $e) {
-            $this->logFallback($e);
+            $this->handleRedisFailure($e);
 
             return $this->getFallbackStore()->flush();
         }

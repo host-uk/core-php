@@ -153,10 +153,10 @@ class StorageUrlResolver
         $expires = time() + $expiry;
         $path = '/'.ltrim($path, '/');
 
-        // BunnyCDN token authentication format
-        // hash = base64(sha256(token + path + expires))
+        // BunnyCDN token authentication format (using HMAC for security)
+        // See: https://docs.bunny.net/docs/cdn-token-authentication
         $hashableBase = $token.$path.$expires;
-        $hash = base64_encode(hash('sha256', $hashableBase, true));
+        $hash = base64_encode(hash_hmac('sha256', $hashableBase, $token, true));
 
         // URL-safe base64
         $hash = str_replace(['+', '/'], ['-', '_'], $hash);

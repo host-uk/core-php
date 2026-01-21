@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Tests\Feature;
 
+use Core\Events\EventAuditLog;
 use Core\Events\WebRoutesRegistering;
 use Core\LazyModuleListener;
 use Core\Tests\TestCase;
@@ -11,6 +12,18 @@ use Illuminate\Support\ServiceProvider;
 
 class LazyModuleListenerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        EventAuditLog::reset();
+    }
+
+    protected function tearDown(): void
+    {
+        EventAuditLog::reset();
+        parent::tearDown();
+    }
+
     public function test_listener_stores_module_class(): void
     {
         $listener = new LazyModuleListener(
@@ -174,5 +187,95 @@ class LazyModuleListenerTest extends TestCase
         $listener($event);
 
         $this->assertCount(1, $event->viewRequests());
+    }
+
+    public function test_listener_records_to_audit_log_when_enabled(): void
+    {
+        EventAuditLog::enable();
+
+        $moduleClass = new class
+        {
+            public function onWebRoutes(WebRoutesRegistering $event): void
+            {
+                // Handler executes successfully
+            }
+        };
+
+        $this->app->instance($moduleClass::class, $moduleClass);
+
+        $listener = new LazyModuleListener(
+            $moduleClass::class,
+            'onWebRoutes'
+        );
+
+        $event = new WebRoutesRegistering;
+        $listener($event);
+
+        $entries = EventAuditLog::entries();
+
+        $this->assertCount(1, $entries);
+        $this->assertEquals(WebRoutesRegistering::class, $entries[0]['event']);
+        $this->assertEquals($moduleClass::class, $entries[0]['handler']);
+        $this->assertFalse($entries[0]['failed']);
+    }
+
+    public function test_listener_records_failures_to_audit_log(): void
+    {
+        EventAuditLog::enable();
+
+        $moduleClass = new class
+        {
+            public function onWebRoutes(WebRoutesRegistering $event): void
+            {
+                throw new \RuntimeException('Handler failed');
+            }
+        };
+
+        $this->app->instance($moduleClass::class, $moduleClass);
+
+        $listener = new LazyModuleListener(
+            $moduleClass::class,
+            'onWebRoutes'
+        );
+
+        $event = new WebRoutesRegistering;
+
+        try {
+            $listener($event);
+        } catch (\RuntimeException) {
+            // Expected
+        }
+
+        $failures = EventAuditLog::failures();
+
+        $this->assertCount(1, $failures);
+        $this->assertEquals('Handler failed', $failures[0]['error']);
+    }
+
+    public function test_listener_rethrows_exceptions_after_recording(): void
+    {
+        EventAuditLog::enable();
+
+        $moduleClass = new class
+        {
+            public function onWebRoutes(WebRoutesRegistering $event): void
+            {
+                throw new \RuntimeException('Handler failed');
+            }
+        };
+
+        $this->app->instance($moduleClass::class, $moduleClass);
+
+        $listener = new LazyModuleListener(
+            $moduleClass::class,
+            'onWebRoutes'
+        );
+
+        $event = new WebRoutesRegistering;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Handler failed');
+
+        $listener($event);
     }
 }

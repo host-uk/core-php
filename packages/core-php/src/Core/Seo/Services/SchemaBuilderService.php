@@ -6,6 +6,7 @@ namespace Core\Seo\Services;
 
 use Core\Mod\Content\Models\ContentItem;
 use Core\Mod\Tenant\Models\Workspace;
+use Core\Seo\Validation\SchemaValidator;
 
 /**
  * Schema.org structured data builder.
@@ -224,11 +225,13 @@ class SchemaBuilderService
 
     /**
      * Generate JSON-LD script tag.
+     *
+     * Uses JSON_HEX_TAG to prevent XSS via </script> in content.
      */
     public function toScriptTag(array $schema): string
     {
         return '<script type="application/ld+json">'.
-            json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT).
+            json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG).
             '</script>';
     }
 
@@ -255,5 +258,15 @@ class SchemaBuilderService
         $minutes = count($steps) * 2;
 
         return "PT{$minutes}M";
+    }
+
+    /**
+     * Validate schema against schema.org specifications.
+     *
+     * @return array{valid: bool, errors: array<string>, warnings: array<string>}
+     */
+    public function validate(array $schema): array
+    {
+        return SchemaValidator::validate($schema);
     }
 }

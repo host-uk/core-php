@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Core\Tests\Feature;
 
 use Core\Front\Admin\AdminMenuRegistry;
+use Core\Front\Admin\Concerns\HasMenuPermissions;
 use Core\Front\Admin\Contracts\AdminMenuProvider;
+use Core\Mod\Tenant\Models\User;
+use Core\Mod\Tenant\Models\Workspace;
+use Core\Mod\Tenant\Services\EntitlementService;
 use Core\Tests\TestCase;
-use Mod\Tenant\Services\EntitlementResult;
-use Mod\Tenant\Services\EntitlementService;
 use Mockery;
 
 class AdminMenuRegistryTest extends TestCase
@@ -22,6 +24,7 @@ class AdminMenuRegistryTest extends TestCase
         parent::setUp();
         $this->entitlements = Mockery::mock(EntitlementService::class);
         $this->registry = new AdminMenuRegistry($this->entitlements);
+        $this->registry->setCachingEnabled(false);
     }
 
     public function test_build_returns_empty_array_when_no_providers_registered(): void
@@ -269,6 +272,8 @@ class AdminMenuRegistryTest extends TestCase
     protected function createMockProvider(array $items): AdminMenuProvider
     {
         return new class($items) implements AdminMenuProvider {
+            use HasMenuPermissions;
+
             public function __construct(private array $items) {}
 
             public function adminMenuItems(): array

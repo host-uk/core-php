@@ -260,9 +260,12 @@ class ConfigService
         }
 
         // Check as prefix - single EXISTS query
+        // Escape LIKE wildcards to prevent unintended pattern matching
+        $escapedPrefix = str_replace(['%', '_', '\\'], ['\\%', '\\_', '\\\\'], $keyOrPrefix);
+
         return ConfigResolved::where('workspace_id', $workspaceId)
             ->where('channel_id', $channelId)
-            ->where('key_code', 'LIKE', "{$keyOrPrefix}.%")
+            ->where('key_code', 'LIKE', "{$escapedPrefix}.%")
             ->whereNotNull('value')
             ->exists();
     }
@@ -274,6 +277,8 @@ class ConfigService
      * Fires ConfigChanged event for invalidation hooks.
      *
      * @param  string|Channel|null  $channel  Channel code or object
+     *
+     * @throws \InvalidArgumentException If key is unknown or value type is invalid
      */
     public function set(
         string $keyCode,
@@ -288,6 +293,9 @@ class ConfigService
         if ($key === null) {
             throw new \InvalidArgumentException("Unknown config key: {$keyCode}");
         }
+
+        // Validate value type against schema
+        $this->validateValueType($value, $key->type, $keyCode);
 
         $channelId = $this->resolveChannelId($channel, null);
 
@@ -410,9 +418,12 @@ class ConfigService
         $workspaceId = $workspace?->id;
         $channelId = $this->resolveChannelId($channel, $workspace);
 
+        // Escape LIKE wildcards to prevent unintended pattern matching
+        $escapedCategory = str_replace(['%', '_', '\\'], ['\\%', '\\_', '\\\\'], $category);
+
         $resolved = ConfigResolved::where('workspace_id', $workspaceId)
             ->where('channel_id', $channelId)
-            ->where('key_code', 'LIKE', "{$category}.%")
+            ->where('key_code', 'LIKE', "{$escapedCategory}.%")
             ->get();
 
         $values = [];
@@ -640,5 +651,33 @@ class ConfigService
     public function hasProvided(string $code): bool
     {
         return ConfigResolver::has($code);
+    }
+
+    /**
+     * Validate that a value matches the expected config type.
+     *
+     * @throws \InvalidArgumentException If value type is invalid
+     */
+    protected function validateValueType(mixed $value, ConfigType $type, string $keyCode): void
+    {
+        // Null is allowed for any type (represents unset)
+        if ($value === null) {
+            return;
+        }
+
+        $valid = match ($type) {
+            ConfigType::STRING => is_string($value) || is_numeric($value),
+            ConfigType::BOOL => is_bool($value) || in_array($value, [0, 1, '0', '1', 'true', 'false'], true),
+            ConfigType::INT => is_int($value) || (is_string($value) && ctype_digit(ltrim($value, '-'))),
+            ConfigType::FLOAT => is_float($value) || is_int($value) || is_numeric($value),
+            ConfigType::ARRAY, ConfigType::JSON => is_array($value),
+        };
+
+        if (! $valid) {
+            $actualType = get_debug_type($value);
+            throw new \InvalidArgumentException(
+                "Invalid value type for config key '{$keyCode}': expected {$type->value}, got {$actualType}"
+            );
+        }
     }
 }

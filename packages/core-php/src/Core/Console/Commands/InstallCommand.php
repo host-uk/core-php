@@ -28,6 +28,18 @@ class InstallCommand extends Command
     protected $description = 'Install and configure Core PHP Framework';
 
     /**
+     * Track completed installation steps for rollback.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $completedSteps = [];
+
+    /**
+     * Original .env content for rollback.
+     */
+    protected ?string $originalEnvContent = null;
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -37,35 +49,105 @@ class InstallCommand extends Command
         $this->info('  '.str_repeat('=', strlen(__('core::core.installer.title'))));
         $this->info('');
 
-        // Step 1: Environment file
-        if (! $this->setupEnvironment()) {
+        // Preserve original state for rollback
+        $this->preserveOriginalState();
+
+        try {
+            // Step 1: Environment file
+            if (! $this->setupEnvironment()) {
+                return self::FAILURE;
+            }
+
+            // Step 2: Application settings
+            $this->configureApplication();
+
+            // Step 3: Database
+            if ($this->option('no-interaction') || $this->confirm(__('core::core.installer.prompts.run_migrations'), true)) {
+                $this->runMigrations();
+            }
+
+            // Step 4: Generate app key if needed
+            $this->generateAppKey();
+
+            // Step 5: Create storage link
+            $this->createStorageLink();
+
+            // Done!
+            $this->info('');
+            $this->info('  '.__('core::core.installer.complete'));
+            $this->info('');
+            $this->info('  '.__('core::core.installer.next_steps').':');
+            $this->info('    1. Run: valet link core');
+            $this->info('    2. Visit: http://core.test');
+            $this->info('');
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->error('');
+            $this->error('  Installation failed: '.$e->getMessage());
+            $this->error('');
+
+            $this->rollback();
+
             return self::FAILURE;
         }
+    }
 
-        // Step 2: Application settings
-        $this->configureApplication();
+    /**
+     * Preserve original state for potential rollback.
+     */
+    protected function preserveOriginalState(): void
+    {
+        $envPath = base_path('.env');
+        if (File::exists($envPath)) {
+            $this->originalEnvContent = File::get($envPath);
+        }
+    }
 
-        // Step 3: Database
-        if ($this->option('no-interaction') || $this->confirm(__('core::core.installer.prompts.run_migrations'), true)) {
-            $this->runMigrations();
+    /**
+     * Rollback changes on installation failure.
+     */
+    protected function rollback(): void
+    {
+        $this->warn('  Rolling back changes...');
+
+        // Restore original .env if we modified it
+        if (isset($this->completedSteps['env_created']) && $this->completedSteps['env_created']) {
+            $envPath = base_path('.env');
+            if ($this->originalEnvContent !== null) {
+                File::put($envPath, $this->originalEnvContent);
+                $this->info('  [✓] Restored original .env file');
+            } else {
+                File::delete($envPath);
+                $this->info('  [✓] Removed created .env file');
+            }
         }
 
-        // Step 4: Generate app key if needed
-        $this->generateAppKey();
+        // Restore original .env content if we only modified values
+        if (isset($this->completedSteps['env_modified']) && $this->completedSteps['env_modified'] && $this->originalEnvContent !== null) {
+            File::put(base_path('.env'), $this->originalEnvContent);
+            $this->info('  [✓] Restored original .env configuration');
+        }
 
-        // Step 5: Create storage link
-        $this->createStorageLink();
+        // Remove storage link if we created it
+        if (isset($this->completedSteps['storage_link']) && $this->completedSteps['storage_link']) {
+            $publicStorage = public_path('storage');
+            if (File::exists($publicStorage) && is_link($publicStorage)) {
+                File::delete($publicStorage);
+                $this->info('  [✓] Removed storage symlink');
+            }
+        }
 
-        // Done!
-        $this->info('');
-        $this->info('  '.__('core::core.installer.complete'));
-        $this->info('');
-        $this->info('  '.__('core::core.installer.next_steps').':');
-        $this->info('    1. Run: valet link core');
-        $this->info('    2. Visit: http://core.test');
-        $this->info('');
+        // Remove SQLite file if we created it
+        if (isset($this->completedSteps['sqlite_created']) && $this->completedSteps['sqlite_created']) {
+            $sqlitePath = database_path('database.sqlite');
+            if (File::exists($sqlitePath)) {
+                File::delete($sqlitePath);
+                $this->info('  [✓] Removed SQLite database file');
+            }
+        }
 
-        return self::SUCCESS;
+        $this->info('  Rollback complete.');
     }
 
     /**
@@ -89,6 +171,7 @@ class InstallCommand extends Command
         }
 
         File::copy($envExamplePath, $envPath);
+        $this->completedSteps['env_created'] = true;
         $this->info('  [✓] '.__('core::core.installer.env_created'));
 
         return true;
@@ -127,6 +210,7 @@ class InstallCommand extends Command
             $sqlitePath = database_path('database.sqlite');
             if (! File::exists($sqlitePath)) {
                 File::put($sqlitePath, '');
+                $this->completedSteps['sqlite_created'] = true;
                 $this->info('  [✓] Created SQLite database');
             }
         } else {
@@ -142,9 +226,42 @@ class InstallCommand extends Command
             $this->updateEnv('DB_DATABASE', $dbName);
             $this->updateEnv('DB_USERNAME', $dbUser);
             $this->updateEnv('DB_PASSWORD', $dbPass ?? '');
+
+            // Display masked confirmation (never show actual credentials)
+            $this->info('');
+            $this->info('  Database settings configured:');
+            $this->info("    Driver:   {$dbConnection}");
+            $this->info("    Host:     {$dbHost}");
+            $this->info("    Port:     {$dbPort}");
+            $this->info("    Database: {$dbName}");
+            $this->info('    Username: '.$this->maskValue($dbUser));
+            $this->info('    Password: '.$this->maskValue($dbPass ?? '', true));
         }
 
+        $this->completedSteps['env_modified'] = true;
         $this->info('  [✓] '.__('core::core.installer.config_saved'));
+    }
+
+    /**
+     * Mask a sensitive value for display.
+     */
+    protected function maskValue(string $value, bool $isPassword = false): string
+    {
+        if ($value === '') {
+            return $isPassword ? '[not set]' : '[empty]';
+        }
+
+        if ($isPassword) {
+            return str_repeat('*', min(strlen($value), 8));
+        }
+
+        $length = strlen($value);
+        if ($length <= 2) {
+            return str_repeat('*', $length);
+        }
+
+        // Show first and last character with asterisks in between
+        return $value[0].str_repeat('*', $length - 2).$value[$length - 1];
     }
 
     /**
@@ -189,6 +306,7 @@ class InstallCommand extends Command
         }
 
         $this->call('storage:link');
+        $this->completedSteps['storage_link'] = true;
         $this->info('  [✓] '.__('core::core.installer.storage_link_created'));
     }
 
@@ -210,11 +328,12 @@ class InstallCommand extends Command
             $value = "\"{$value}\"";
         }
 
-        // Check if key exists
-        if (preg_match("/^{$key}=/m", $content)) {
+        // Check if key exists (escape regex special chars in key)
+        $escapedKey = preg_quote($key, '/');
+        if (preg_match("/^{$escapedKey}=/m", $content)) {
             // Update existing key
             $content = preg_replace(
-                "/^{$key}=.*/m",
+                "/^{$escapedKey}=.*/m",
                 "{$key}={$value}",
                 $content
             );

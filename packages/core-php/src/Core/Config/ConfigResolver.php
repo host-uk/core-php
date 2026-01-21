@@ -211,6 +211,16 @@ class ConfigResolver
     }
 
     /**
+     * Maximum recursion depth for JSON sub-key resolution.
+     */
+    protected const MAX_SUBKEY_DEPTH = 10;
+
+    /**
+     * Current recursion depth for sub-key resolution.
+     */
+    protected int $subKeyDepth = 0;
+
+    /**
      * Try to resolve a JSON sub-key (e.g., "website.title" from "website" JSON).
      */
     protected function resolveJsonSubKey(
@@ -218,33 +228,44 @@ class ConfigResolver
         ?Workspace $workspace,
         string|Channel|null $channel,
     ): ConfigResult {
-        $parts = explode('.', $keyCode);
-
-        // Try progressively shorter parent keys
-        for ($i = count($parts) - 1; $i > 0; $i--) {
-            $parentKey = implode('.', array_slice($parts, 0, $i));
-            $subPath = implode('.', array_slice($parts, $i));
-
-            $parentResult = $this->resolve($parentKey, $workspace, $channel);
-
-            if ($parentResult->found && is_array($parentResult->value)) {
-                $subValue = data_get($parentResult->value, $subPath);
-
-                if ($subValue !== null) {
-                    return ConfigResult::found(
-                        key: $keyCode,
-                        value: $subValue,
-                        type: $parentResult->type, // Inherit parent type
-                        locked: $parentResult->locked,
-                        resolvedFrom: $parentResult->resolvedFrom,
-                        profileId: $parentResult->profileId,
-                        channelId: $parentResult->channelId,
-                    );
-                }
-            }
+        // Guard against stack overflow from deep nesting
+        if ($this->subKeyDepth >= self::MAX_SUBKEY_DEPTH) {
+            return ConfigResult::unconfigured($keyCode);
         }
 
-        return ConfigResult::unconfigured($keyCode);
+        $this->subKeyDepth++;
+
+        try {
+            $parts = explode('.', $keyCode);
+
+            // Try progressively shorter parent keys
+            for ($i = count($parts) - 1; $i > 0; $i--) {
+                $parentKey = implode('.', array_slice($parts, 0, $i));
+                $subPath = implode('.', array_slice($parts, $i));
+
+                $parentResult = $this->resolve($parentKey, $workspace, $channel);
+
+                if ($parentResult->found && is_array($parentResult->value)) {
+                    $subValue = data_get($parentResult->value, $subPath);
+
+                    if ($subValue !== null) {
+                        return ConfigResult::found(
+                            key: $keyCode,
+                            value: $subValue,
+                            type: $parentResult->type, // Inherit parent type
+                            locked: $parentResult->locked,
+                            resolvedFrom: $parentResult->resolvedFrom,
+                            profileId: $parentResult->profileId,
+                            channelId: $parentResult->channelId,
+                        );
+                    }
+                }
+            }
+
+            return ConfigResult::unconfigured($keyCode);
+        } finally {
+            $this->subKeyDepth--;
+        }
     }
 
     /**

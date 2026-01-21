@@ -12,18 +12,29 @@ use ReflectionClass;
  * Reads the static $listens property from Boot classes without
  * instantiating them, enabling lazy loading of modules.
  *
+ * Supports priority via array syntax:
+ *     public static array $listens = [
+ *         WebRoutesRegistering::class => 'onWebRoutes',           // Default priority 0
+ *         AdminPanelBooting::class => ['onAdmin', 10],            // Priority 10 (higher = runs first)
+ *     ];
+ *
  * Usage:
  *     $scanner = new ModuleScanner();
  *     $mappings = $scanner->scan([app_path('Core'), app_path('Mod')]);
- *     // Returns: [EventClass => [ModuleClass => 'methodName']]
+ *     // Returns: [EventClass => [ModuleClass => ['method' => 'name', 'priority' => 0]]]
  */
 class ModuleScanner
 {
     /**
+     * Default priority for listeners without explicit priority.
+     */
+    public const DEFAULT_PRIORITY = 0;
+
+    /**
      * Scan directories for Boot.php files with $listens declarations.
      *
      * @param  array<string>  $paths  Directories to scan
-     * @return array<string, array<string, string>> Event => [Module => method] mappings
+     * @return array<string, array<string, array{method: string, priority: int}>> Event => [Module => config] mappings
      */
     public function scan(array $paths): array
     {
@@ -43,8 +54,8 @@ class ModuleScanner
 
                 $listens = $this->extractListens($class);
 
-                foreach ($listens as $event => $method) {
-                    $mappings[$event][$class] = $method;
+                foreach ($listens as $event => $config) {
+                    $mappings[$event][$class] = $config;
                 }
             }
         }
@@ -55,7 +66,11 @@ class ModuleScanner
     /**
      * Extract the $listens array from a class without instantiation.
      *
-     * @return array<string, string> Event => method mappings
+     * Supports two formats:
+     *   - Simple: EventClass::class => 'methodName'
+     *   - With priority: EventClass::class => ['methodName', priority]
+     *
+     * @return array<string, array{method: string, priority: int}> Event => config mappings
      */
     public function extractListens(string $class): array
     {
@@ -78,10 +93,37 @@ class ModuleScanner
                 return [];
             }
 
-            return $listens;
+            return $this->normalizeListens($listens);
         } catch (\ReflectionException) {
             return [];
         }
+    }
+
+    /**
+     * Normalize listener declarations to consistent format.
+     *
+     * @param  array<string, string|array{0: string, 1?: int}>  $listens  Raw listener declarations
+     * @return array<string, array{method: string, priority: int}>  Normalized declarations
+     */
+    private function normalizeListens(array $listens): array
+    {
+        $normalized = [];
+
+        foreach ($listens as $event => $value) {
+            if (is_string($value)) {
+                $normalized[$event] = [
+                    'method' => $value,
+                    'priority' => self::DEFAULT_PRIORITY,
+                ];
+            } elseif (is_array($value) && isset($value[0])) {
+                $normalized[$event] = [
+                    'method' => $value[0],
+                    'priority' => (int) ($value[1] ?? self::DEFAULT_PRIORITY),
+                ];
+            }
+        }
+
+        return $normalized;
     }
 
     /**
@@ -118,8 +160,12 @@ class ModuleScanner
             return "Mod\\{$namespace}";
         }
 
-        if (str_contains($basePath, '/Mod')) {
-            return "Mod\\{$namespace}";
+        if (str_contains($basePath, '/Website')) {
+            return "Website\\{$namespace}";
+        }
+
+        if (str_contains($basePath, '/Plug')) {
+            return "Plug\\{$namespace}";
         }
 
         // Fallback - try to determine from directory name

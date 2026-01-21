@@ -37,6 +37,23 @@ class ModuleScannerTest extends TestCase
         $this->assertArrayHasKey(WebRoutesRegistering::class, $result);
     }
 
+    public function test_scan_returns_normalized_format_with_method_and_priority(): void
+    {
+        $result = $this->scanner->scan([$this->getFixturePath('Mod')]);
+
+        $this->assertArrayHasKey(WebRoutesRegistering::class, $result);
+        $listeners = $result[WebRoutesRegistering::class];
+
+        // Each listener should have method and priority keys
+        foreach ($listeners as $moduleClass => $config) {
+            $this->assertIsArray($config);
+            $this->assertArrayHasKey('method', $config);
+            $this->assertArrayHasKey('priority', $config);
+            $this->assertIsString($config['method']);
+            $this->assertIsInt($config['priority']);
+        }
+    }
+
     public function test_scan_finds_modules_in_website_path(): void
     {
         $result = $this->scanner->scan([$this->getFixturePath('Mod')]);
@@ -160,6 +177,30 @@ PHP);
 
         $this->assertIsArray($result);
         $this->assertEmpty($result);
+    }
+
+    public function test_extract_listens_parses_priority_from_array_syntax(): void
+    {
+        require_once $this->getFixturePath('Mod/HighPriority/Boot.php');
+
+        $result = $this->scanner->extractListens(\Mod\HighPriority\Boot::class);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey(WebRoutesRegistering::class, $result);
+        $this->assertEquals('onWebRoutes', $result[WebRoutesRegistering::class]['method']);
+        $this->assertEquals(100, $result[WebRoutesRegistering::class]['priority']);
+    }
+
+    public function test_extract_listens_uses_default_priority_for_string_syntax(): void
+    {
+        require_once $this->getFixturePath('Mod/Example/Boot.php');
+
+        $result = $this->scanner->extractListens(\Mod\Example\Boot::class);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey(WebRoutesRegistering::class, $result);
+        $this->assertEquals('onWebRoutes', $result[WebRoutesRegistering::class]['method']);
+        $this->assertEquals(0, $result[WebRoutesRegistering::class]['priority']);
     }
 
     public function test_scan_skips_modules_without_listens(): void

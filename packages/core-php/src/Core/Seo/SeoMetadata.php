@@ -46,6 +46,8 @@ class SeoMetadata extends Model
 
     /**
      * Generate JSON-LD script tag.
+     *
+     * Uses JSON_HEX_TAG to prevent XSS via </script> in content.
      */
     public function getJsonLdAttribute(): string
     {
@@ -54,7 +56,7 @@ class SeoMetadata extends Model
         }
 
         return '<script type="application/ld+json">'.
-            json_encode($this->schema_markup, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).
+            json_encode($this->schema_markup, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG).
             '</script>';
     }
 

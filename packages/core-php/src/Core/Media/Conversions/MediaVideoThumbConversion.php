@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Core\Media\Conversions;
 
-use Core\Mod\Social\Abstracts\Image;
-use Core\Mod\Social\Abstracts\MediaConversion;
-use Core\Mod\Social\Support\ImageResizer;
-use Core\Mod\Social\Support\MediaConversionData;
-use Core\Mod\Social\Support\TemporaryFile;
+use Core\Media\Abstracts\Image;
+use Core\Media\Abstracts\MediaConversion;
+use Core\Media\Support\ImageResizer;
+use Core\Media\Support\MediaConversionData;
+use Core\Media\Support\TemporaryFile;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use Illuminate\Support\Facades\File;
@@ -82,8 +82,8 @@ class MediaVideoThumbConversion extends MediaConversion
 
         // Extract frame using FFmpeg
         $ffmpeg = FFMpeg::create([
-            'ffmpeg.binaries' => config('social.ffmpeg_path', '/usr/bin/ffmpeg'),
-            'ffprobe.binaries' => config('social.ffprobe_path', '/usr/bin/ffprobe'),
+            'ffmpeg.binaries' => config('media.ffmpeg_path', '/usr/bin/ffmpeg'),
+            'ffprobe.binaries' => config('media.ffprobe_path', '/usr/bin/ffprobe'),
         ]);
 
         $video = $ffmpeg->open($temporaryFile->path());
@@ -99,7 +99,7 @@ class MediaVideoThumbConversion extends MediaConversion
 
         // Sometimes the frame is not saved, so we retry with the first frame
         // This is a workaround for edge cases in FFmpeg
-        if ($this->atSecond !== 0 && ! File::exists($thumbFilepath)) {
+        if ($this->atSecond !== 0.0 && ! File::exists($thumbFilepath)) {
             $frame = $video->frame(TimeCode::fromSeconds(0));
             $frame->save($thumbFilepath);
         }
@@ -121,8 +121,8 @@ class MediaVideoThumbConversion extends MediaConversion
      */
     private function isFFmpegInstalled(): bool
     {
-        $ffmpegPath = config('social.ffmpeg_path', '/usr/bin/ffmpeg');
-        $ffprobePath = config('social.ffprobe_path', '/usr/bin/ffprobe');
+        $ffmpegPath = config('media.ffmpeg_path', '/usr/bin/ffmpeg');
+        $ffprobePath = config('media.ffprobe_path', '/usr/bin/ffprobe');
 
         return file_exists($ffmpegPath) &&
             file_exists($ffprobePath) &&

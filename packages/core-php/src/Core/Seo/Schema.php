@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core\Seo;
 
 use Core\Mod\Content\Models\ContentItem;
+use Core\Seo\Validation\SchemaValidator;
 
 /**
  * JSON-LD Schema Generator.
@@ -391,11 +392,42 @@ class Schema
 
     /**
      * Render schema as JSON-LD script tag.
+     *
+     * Uses JSON_HEX_TAG to prevent XSS via </script> in content.
      */
     public function toScriptTag(array $schema): string
     {
-        $json = json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        $json = json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG);
 
         return '<script type="application/ld+json">'.$json.'</script>';
+    }
+
+    /**
+     * Validate schema against schema.org specifications.
+     *
+     * @return array{valid: bool, errors: array<string>}
+     */
+    public function validate(array $schema): array
+    {
+        return SchemaValidator::validate($schema);
+    }
+
+    /**
+     * Generate schema with validation.
+     *
+     * @throws \InvalidArgumentException if schema validation fails
+     */
+    public function generateValidatedSchema(ContentItem $item, array $options = []): array
+    {
+        $schema = $this->generateSchema($item, $options);
+        $result = $this->validate($schema);
+
+        if (! $result['valid']) {
+            throw new \InvalidArgumentException(
+                'Schema validation failed: '.implode(', ', $result['errors'])
+            );
+        }
+
+        return $schema;
     }
 }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Core\Media\Conversions;
 
-use Core\Mod\Social\Abstracts\MediaConversion;
-use Core\Mod\Social\Support\ImageResizer;
-use Core\Mod\Social\Support\MediaConversionData;
+use Core\Media\Abstracts\MediaConversion;
+use Core\Media\Support\ImageResizer;
+use Core\Media\Support\MediaConversionData;
 
 /**
  * Image resizing media conversion.

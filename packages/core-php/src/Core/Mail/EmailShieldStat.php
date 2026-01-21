@@ -80,23 +80,30 @@ class EmailShieldStat extends Model
     /**
      * Increment a specific counter for today's date.
      *
+     * Uses insertOrIgnore + increment for atomic operation.
+     * insertOrIgnore ensures row exists without overwriting data.
+     * increment is atomic at the database level.
+     *
      * @param  string  $counter  The counter column to increment
      */
     protected static function incrementCounter(string $counter): void
     {
         $today = now()->format('Y-m-d');
 
-        // Use firstOrCreate to avoid race conditions, then increment
-        $record = static::query()->firstOrCreate(
-            ['date' => $today],
-            [
-                'valid_count' => 0,
-                'invalid_count' => 0,
-                'disposable_count' => 0,
-            ]
-        );
+        // Ensure row exists (insertOrIgnore is no-op if row already exists)
+        static::query()->insertOrIgnore([
+            'date' => $today,
+            'valid_count' => 0,
+            'invalid_count' => 0,
+            'disposable_count' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $record->increment($counter);
+        // Atomic increment
+        static::query()
+            ->where('date', $today)
+            ->increment($counter);
     }
 
     /**
@@ -125,5 +132,40 @@ class EmailShieldStat extends Model
             'total_disposable' => $totalDisposable,
             'total_checked' => $totalValid + $totalInvalid + $totalDisposable,
         ];
+    }
+
+    /**
+     * Delete records older than the specified number of days.
+     *
+     * @param  int  $days  Number of days to retain (default: 90)
+     * @return int Number of records deleted
+     */
+    public static function pruneOldRecords(int $days = 90): int
+    {
+        $cutoffDate = now()->subDays($days)->format('Y-m-d');
+
+        return static::query()
+            ->where('date', '<', $cutoffDate)
+            ->delete();
+    }
+
+    /**
+     * Get the date of the oldest record.
+     */
+    public static function getOldestRecordDate(): ?Carbon
+    {
+        $oldest = static::query()
+            ->orderBy('date', 'asc')
+            ->first();
+
+        return $oldest?->date;
+    }
+
+    /**
+     * Get the total number of stat records.
+     */
+    public static function getRecordCount(): int
+    {
+        return static::query()->count();
     }
 }

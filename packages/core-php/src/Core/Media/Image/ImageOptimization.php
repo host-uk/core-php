@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Core\Media\Image;
 
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,10 +35,17 @@ class ImageOptimization extends Model
 
     /**
      * The workspace this optimization belongs to.
+     *
+     * Returns a relationship to the Workspace model if it exists,
+     * otherwise returns null.
      */
-    public function workspace(): BelongsTo
+    public function workspace(): ?BelongsTo
     {
-        return $this->belongsTo(Workspace::class);
+        if (! class_exists('Core\\Mod\\Tenant\\Models\\Workspace')) {
+            return null;
+        }
+
+        return $this->belongsTo('Core\\Mod\\Tenant\\Models\\Workspace');
     }
 
     /**
@@ -52,9 +58,15 @@ class ImageOptimization extends Model
 
     /**
      * Scope to a specific workspace.
+     *
+     * @param  Model|null  $workspace  The workspace model to filter by
      */
-    public function scopeForWorkspace($query, Workspace $workspace)
+    public function scopeForWorkspace($query, ?Model $workspace)
     {
+        if ($workspace === null) {
+            return $query;
+        }
+
         return $query->where('workspace_id', $workspace->id);
     }
 
@@ -112,8 +124,10 @@ class ImageOptimization extends Model
 
     /**
      * Get total savings statistics for a workspace.
+     *
+     * @param  Model|null  $workspace  Optional workspace model to filter by
      */
-    public static function getWorkspaceStats(?Workspace $workspace = null): array
+    public static function getWorkspaceStats(?Model $workspace = null): array
     {
         $query = static::query();
 

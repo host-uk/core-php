@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Core\Storage;
 
+use Core\Storage\Events\RedisFallbackActivated;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
@@ -73,29 +75,52 @@ class CacheResilienceProvider extends ServiceProvider
 
     /**
      * Check if Redis is available and responding.
+     *
+     * Supports both phpredis extension and Predis library.
      */
     protected function isRedisAvailable(): bool
     {
         try {
-            $redis = new \Redis;
             $host = config('database.redis.default.host', '127.0.0.1');
             $port = (int) config('database.redis.default.port', 6379);
+            $password = config('database.redis.default.password');
             $timeout = 1.0; // 1 second timeout
 
-            // Try to connect with short timeout
+            // Try phpredis extension first (faster)
+            if (extension_loaded('redis')) {
+                return $this->checkPhpRedis($host, $port, $password, $timeout);
+            }
+
+            // Fall back to Predis library
+            if (class_exists(\Predis\Client::class)) {
+                return $this->checkPredis($host, $port, $password, $timeout);
+            }
+
+            // No Redis client available
+            return false;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Check Redis availability using phpredis extension.
+     */
+    protected function checkPhpRedis(string $host, int $port, ?string $password, float $timeout): bool
+    {
+        try {
+            $redis = new \Redis;
+
             if (! @$redis->connect($host, $port, $timeout)) {
                 return false;
             }
 
-            // Authenticate if password is set
-            $password = config('database.redis.default.password');
             if ($password && ! @$redis->auth($password)) {
                 $redis->close();
 
                 return false;
             }
 
-            // Verify with PING
             $pong = @$redis->ping();
             $redis->close();
 
@@ -106,13 +131,45 @@ class CacheResilienceProvider extends ServiceProvider
     }
 
     /**
+     * Check Redis availability using Predis library.
+     */
+    protected function checkPredis(string $host, int $port, ?string $password, float $timeout): bool
+    {
+        try {
+            $options = [
+                'scheme' => 'tcp',
+                'host' => $host,
+                'port' => $port,
+                'timeout' => $timeout,
+            ];
+
+            if ($password) {
+                $options['password'] = $password;
+            }
+
+            $client = new \Predis\Client($options, [
+                'exceptions' => true,
+            ]);
+
+            $pong = $client->ping();
+            $client->disconnect();
+
+            return $pong->getPayload() === 'PONG';
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * Switch cache and session to use database.
      */
     protected function applyDatabaseFallback(): void
     {
-        // Log once so we know fallback is active
+        $logLevel = config('core.storage.fallback_log_level', 'warning');
+
+        // Log so we know fallback is active
         if (! $this->app->runningInConsole()) {
-            Log::warning('[CacheResilience] Redis unavailable, using database for cache/session');
+            Log::log($logLevel, '[CacheResilience] Redis unavailable at boot, using database for cache/session');
         }
 
         // Override cache driver
@@ -127,6 +184,29 @@ class CacheResilienceProvider extends ServiceProvider
         if (config('queue.default') === 'redis') {
             config(['queue.default' => 'database']);
         }
+
+        // Dispatch event for monitoring/alerting
+        $this->dispatchFallbackEvent();
+    }
+
+    /**
+     * Dispatch the fallback event for monitoring/alerting.
+     */
+    protected function dispatchFallbackEvent(): void
+    {
+        if (! config('core.storage.dispatch_fallback_events', true)) {
+            return;
+        }
+
+        // Dispatch after the app is booted to ensure event listeners are registered
+        $this->app->booted(function () {
+            $dispatcher = $this->app->make(Dispatcher::class);
+            $dispatcher->dispatch(new RedisFallbackActivated(
+                context: 'boot',
+                errorMessage: 'Redis unavailable during application boot',
+                fallbackDriver: 'database'
+            ));
+        });
     }
 
     /**
