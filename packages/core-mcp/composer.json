@@ -1,0 +1,23 @@
+{
+    "name": "host-uk/core-mcp",
+    "description": "MCP (Model Context Protocol) tools module for Core PHP framework",
+    "keywords": ["laravel", "mcp", "ai", "tools", "claude"],
+    "license": "EUPL-1.2",
+    "require": {
+        "php": "^8.2",
+        "host-uk/core": "@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Core\\Mod\\Mcp\\": "src/Mod/Mcp/",
+            "Core\\Website\\Mcp\\": "src/Website/Mcp/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": []
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

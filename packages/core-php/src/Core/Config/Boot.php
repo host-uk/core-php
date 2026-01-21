@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Core\Config;
+
+use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
+
+/**
+ * Hierarchical Configuration Module Service Provider.
+ *
+ * Provides workspace-aware config with inheritance and FINAL locks.
+ *
+ * Usage:
+ *   $config = app(ConfigService::class);
+ *   $value = $config->get('cdn.bunny.api_key', $workspace);
+ *   if ($config->isConfigured('cdn.bunny', $workspace)) { ... }
+ */
+class Boot extends ServiceProvider
+{
+    /**
+     * Register services.
+     */
+    public function register(): void
+    {
+        $this->app->singleton(ConfigResolver::class);
+
+        $this->app->singleton(ConfigService::class, function ($app) {
+            return new ConfigService($app->make(ConfigResolver::class));
+        });
+
+        // Alias for convenience
+        $this->app->alias(ConfigService::class, 'config.service');
+    }
+
+    /**
+     * Bootstrap services.
+     */
+    public function boot(): void
+    {
+        // Load migrations
+        $this->loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Load views
+        $this->loadViewsFrom(__DIR__.'/View/Blade', 'core.config');
+
+        // Load routes
+        $this->loadRoutesFrom(__DIR__.'/Routes/admin.php');
+
+        // Register Livewire components
+        Livewire::component('app.core.config.view.modal.admin.workspace-config', View\Modal\Admin\WorkspaceConfig::class);
+        Livewire::component('app.core.config.view.modal.admin.config-panel', View\Modal\Admin\ConfigPanel::class);
+
+        // Register console commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                Console\ConfigPrimeCommand::class,
+                Console\ConfigListCommand::class,
+            ]);
+        }
+
+        // Boot key registry after app is ready (deferred to avoid DB during boot)
+        $this->app->booted(function () {
+            // Skip during migrations, seeding, or when DB isn't ready
+            if ($this->app->runningInConsole() && $this->isDbUnavailable()) {
+                return;
+            }
+
+            ConfigResolver::bootKeys();
+        });
+    }
+
+    /**
+     * Check if database is unavailable (migration context).
+     */
+    protected function isDbUnavailable(): bool
+    {
+        // Check if we're running migrate or db commands
+        $command = $_SERVER['argv'][1] ?? '';
+
+        return in_array($command, ['migrate', 'migrate:fresh', 'migrate:reset', 'db:seed', 'db:wipe']);
+    }
+}

@@ -1,0 +1,36 @@
+{
+    "name": "host-uk/core",
+    "description": "Modular monolith framework for Laravel - event-driven architecture with lazy module loading",
+    "keywords": ["laravel", "modular", "monolith", "framework", "events", "modules"],
+    "license": "EUPL-1.2",
+    "authors": [
+        {
+            "name": "Host UK",
+            "email": "dev@host.uk.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0|^12.0",
+        "laravel/pennant": "^1.0",
+        "livewire/livewire": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Core\\": "src/Core/",
+            "Core\\Website\\": "src/Website/",
+            "Core\\Mod\\": "src/Mod/",
+            "Core\\Plug\\": "src/Plug/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Core\\LifecycleEventProvider",
+                "Core\\Website\\Boot"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

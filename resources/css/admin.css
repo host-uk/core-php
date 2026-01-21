@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* Include admin views for class detection */
+@source "../../packages/core-admin";
+@source "../../packages/core-php/src/Core/Front";
