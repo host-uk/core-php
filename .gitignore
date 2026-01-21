@@ -1,4 +1,5 @@
 /vendor
+/packages/*/vendor
 composer.lock
 .DS_Store
 .idea/
@@ -12,5 +13,7 @@ bootstrap/cache
 public/build
 /storage/*.key
 /storage/pail
+/storage/logs
+/storage/framework
 .phpunit.result.cache
 .phpunit.cache
