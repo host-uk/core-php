@@ -1,4 +1,4 @@
-# Core Architecture: The "Snide" Module Protocol
+# Core Architecture: The Core Module Protocol
 # ================================================
 * **A highly opinionated, encapsulated module structure for Laravel.**
 * **Designed to prevent monolithic spaghetti by enforcing strict boundaries.**
@@ -62,10 +62,10 @@ Run via: `php artisan test app/Mod/{Name}/Tests`
 3.  **Self-Contained:** A module should be able to be extracted into a composer package with minimal effort.
 
 
-# Core Architecture: The "Snide" View Protocol (Modern Flexy)
-# ==========================================================
+# Core Architecture: The Core View Protocol (Modern Flexy)
+# =========================================================
 * **A strict architectural guideline for implementing Server-Side MVVM in Laravel.**
-* **Part of the "Snide" opinionated Laravel framework.**
+* **Part of the Core PHP Framework.**
 
 ## **Philosophy**
 
@@ -74,7 +74,7 @@ Run via: `php artisan test app/Mod/{Name}/Tests`
 3. **The Template is Dumb:** The template file (.blade.php) contains ONLY HTML and simple variable interpolation. No complex logic, no database calls, no calculations.
 
 ## **Directory Structure**
-Inside a Snide Module (`app/Mod/{Name}/`):
+Inside a Core Module (`app/Mod/{Name}/`):
 
 ```text
 View/

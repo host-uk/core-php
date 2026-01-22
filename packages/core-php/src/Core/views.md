@@ -1,7 +1,7 @@
-# Core Architecture: The "Snide" View Protocol (Modern Flexy)
-# ==========================================================
+# Core Architecture: The Core View Protocol (Modern Flexy)
+# =========================================================
 * **A strict architectural guideline for implementing Server-Side MVVM in Laravel.**
-* **Part of the "Snide" opinionated Laravel framework.**
+* **Part of the Core PHP Framework.**
 
 ## **Philosophy**
 
@@ -10,7 +10,7 @@
 3. **The Template is Dumb:** The template file (.blade.php) contains ONLY HTML and simple variable interpolation. No complex logic, no database calls, no calculations.
 
 ## **Directory Structure**
-Inside a Snide Module (`app/Mod/{Name}/`):
+Inside a Core Module (`app/Mod/{Name}/`):
 
 ```text
 View/

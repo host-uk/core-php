@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -42,13 +48,12 @@ class Boot extends ServiceProvider
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             SecurityHeaders::class,
             'auth',
-            // TODO: RequireNamespaceOwner or similar
         ]);
     }
 
     public function register(): void
     {
-        // TODO: ClientMenuRegistry if needed
+        //
     }
 
     public function boot(): void

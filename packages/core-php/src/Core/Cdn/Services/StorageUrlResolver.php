@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -149,7 +155,7 @@ class StorageUrlResolver
             return null;
         }
 
-        $pullZone = config('cdn.bunny.private.pull_zone', 'hostuk.b-cdn.net');
+        $pullZone = config('cdn.bunny.private.pull_zone');
         $expires = time() + $expiry;
         $path = '/'.ltrim($path, '/');
 

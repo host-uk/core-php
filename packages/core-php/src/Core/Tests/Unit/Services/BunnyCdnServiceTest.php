@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 use Core\Cdn\Services\BunnyCdnService;
 use Core\Config\ConfigService;

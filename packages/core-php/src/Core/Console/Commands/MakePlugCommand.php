@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -171,6 +177,18 @@ use Core\Plug\Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
+/*
+|--------------------------------------------------------------------------
+| {$name} OAuth Authentication
+|--------------------------------------------------------------------------
+|
+| This is a generated template file. Replace the placeholder implementations
+| below with your provider's actual API integration.
+|
+| See the Plug documentation for implementation guidance.
+|
+*/
+
 /**
  * {$name} OAuth Authentication.
  *
@@ -235,7 +253,8 @@ class Auth
             \$params['state'] = \$state;
         }
 
-        // TODO: Replace with actual provider OAuth URL
+        // TODO: [USER] Replace with your provider's OAuth authorization URL
+        // Example: return 'https://api.twitter.com/oauth/authorize?' . http_build_query(\$params);
         return 'https://example.com/oauth/authorize?'.http_build_query(\$params);
     }
 
@@ -244,7 +263,8 @@ class Auth
      */
     public function exchangeCode(string \$code): Response
     {
-        // TODO: Implement token exchange with provider API
+        // TODO: [USER] Implement token exchange with your provider's API
+        // Make a POST request to the provider's token endpoint with the authorization code
         return \$this->ok([
             'access_token' => '',
             'refresh_token' => '',
@@ -257,7 +277,8 @@ class Auth
      */
     public function refreshToken(string \$refreshToken): Response
     {
-        // TODO: Implement token refresh with provider API
+        // TODO: [USER] Implement token refresh with your provider's API
+        // Use the refresh token to obtain a new access token
         return \$this->ok([
             'access_token' => '',
             'refresh_token' => '',
@@ -270,7 +291,8 @@ class Auth
      */
     public function revokeToken(string \$accessToken): Response
     {
-        // TODO: Implement token revocation with provider API
+        // TODO: [USER] Implement token revocation with your provider's API
+        // Call the provider's revocation endpoint to invalidate the token
         return \$this->ok(['revoked' => true]);
     }
 
@@ -309,6 +331,18 @@ use Core\Plug\Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
+/*
+|--------------------------------------------------------------------------
+| {$name} Post Operation
+|--------------------------------------------------------------------------
+|
+| This is a generated template file. Replace the placeholder implementations
+| below with your provider's actual API integration.
+|
+| See the Plug documentation for implementation guidance.
+|
+*/
+
 /**
  * {$name} Post Operation.
  *
@@ -325,8 +359,8 @@ class Post
      */
     public function create(string \$content, array \$options = []): Response
     {
-        // TODO: Implement post creation with provider API
-        // Example:
+        // TODO: [USER] Implement post creation with your provider's API
+        // Example implementation:
         // \$response = \$this->http()
         //     ->withToken(\$this->accessToken())
         //     ->post('https://api.example.com/posts', [
@@ -348,7 +382,7 @@ class Post
      */
     public function schedule(string \$content, \DateTimeInterface \$publishAt, array \$options = []): Response
     {
-        // TODO: Implement scheduled posting
+        // TODO: [USER] Implement scheduled posting with your provider's API
         return \$this->ok([
             'id' => '',
             'scheduled_at' => \$publishAt->format('c'),
@@ -390,6 +424,18 @@ use Core\Plug\Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
+/*
+|--------------------------------------------------------------------------
+| {$name} Delete Operation
+|--------------------------------------------------------------------------
+|
+| This is a generated template file. Replace the placeholder implementations
+| below with your provider's actual API integration.
+|
+| See the Plug documentation for implementation guidance.
+|
+*/
+
 /**
  * {$name} Delete Operation.
  *
@@ -406,8 +452,8 @@ class Delete
      */
     public function post(string \$postId): Response
     {
-        // TODO: Implement post deletion with provider API
-        // Example:
+        // TODO: [USER] Implement post deletion with your provider's API
+        // Example implementation:
         // \$response = \$this->http()
         //     ->withToken(\$this->accessToken())
         //     ->delete("https://api.example.com/posts/{\$postId}");
@@ -452,6 +498,18 @@ use Core\Plug\Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
+/*
+|--------------------------------------------------------------------------
+| {$name} Media Operation
+|--------------------------------------------------------------------------
+|
+| This is a generated template file. Replace the placeholder implementations
+| below with your provider's actual API integration.
+|
+| See the Plug documentation for implementation guidance.
+|
+*/
+
 /**
  * {$name} Media Operation.
  *
@@ -468,8 +526,8 @@ class Media
      */
     public function upload(string \$filePath, array \$options = []): Response
     {
-        // TODO: Implement media upload with provider API
-        // Example:
+        // TODO: [USER] Implement media upload with your provider's API
+        // Example implementation:
         // \$response = \$this->http()
         //     ->withToken(\$this->accessToken())
         //     ->attach('media', file_get_contents(\$filePath), basename(\$filePath))
@@ -488,7 +546,7 @@ class Media
      */
     public function uploadFromUrl(string \$url, array \$options = []): Response
     {
-        // TODO: Implement URL-based media upload
+        // TODO: [USER] Implement URL-based media upload with your provider's API
         return \$this->ok([
             'media_id' => '',
             'url' => '',

@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -19,8 +25,5 @@ Route::middleware('client')->group(function () {
     // Dashboard
     Route::get('/dashboard', Dashboard::class)->name('client.dashboard');
 
-    // TODO: Bio editor routes
-    // TODO: Analytics routes
-    // TODO: Settings routes
-    // TODO: Boost purchase routes
+    // Additional routes can be registered via ClientRoutesRegistering event
 });

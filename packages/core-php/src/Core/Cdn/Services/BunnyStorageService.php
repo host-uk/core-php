@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -14,8 +20,8 @@ use Illuminate\Support\Facades\Storage;
  * BunnyCDN Storage Zone service for direct file operations.
  *
  * Manages file uploads/downloads to BunnyCDN storage zones:
- * - Public zone (host-uk): General assets, media
- * - Private zone (hostuk): DRM/gated content
+ * - Public zone: General assets, media
+ * - Private zone: DRM/gated content
  *
  * Supports vBucket scoping for workspace-isolated CDN paths.
  */

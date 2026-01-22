@@ -1,4 +1,10 @@
 <?php
+/*
+ * Core PHP Framework
+ *
+ * Licensed under the European Union Public Licence (EUPL) v1.2.
+ * See LICENSE file for details.
+ */
 
 declare(strict_types=1);
 
@@ -74,15 +80,13 @@ class Boot
     protected static function basePath(): string
     {
         // Check for monorepo structure (packages/core-php/src/Core/Boot.php)
+        // The monorepo root has app/ directory while the package root doesn't
         $monorepoBase = dirname(__DIR__, 4);
-        if (file_exists($monorepoBase.'/composer.json')) {
-            $composer = json_decode(file_get_contents($monorepoBase.'/composer.json'), true);
-            if (($composer['name'] ?? '') !== 'host-uk/core') {
-                return $monorepoBase;
-            }
+        if (file_exists($monorepoBase.'/composer.json') && is_dir($monorepoBase.'/app')) {
+            return $monorepoBase;
         }
 
-        // Standard vendor structure (vendor/host-uk/core/src/Core/Boot.php)
+        // Standard vendor structure (vendor/*/core/src/Core/Boot.php)
         return dirname(__DIR__, 5);
     }
 }
