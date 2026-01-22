@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Core\Config\Console;
 
 use Core\Config\ConfigService;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Console\Command;
 
 class ConfigPrimeCommand extends Command
@@ -36,7 +35,13 @@ class ConfigPrimeCommand extends Command
         }
 
         if ($workspaceSlug) {
-            $workspace = Workspace::where('slug', $workspaceSlug)->first();
+            if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+                $this->error('Tenant module not installed. Cannot prime workspace config.');
+
+                return self::FAILURE;
+            }
+
+            $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
 
             if (! $workspace) {
                 $this->error("Workspace not found: {$workspaceSlug}");
@@ -53,7 +58,15 @@ class ConfigPrimeCommand extends Command
 
         $this->info('Priming config cache for all workspaces...');
 
-        $this->withProgressBar(Workspace::all(), function ($workspace) use ($config) {
+        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            $this->warn('Tenant module not installed. Only priming system config.');
+            $config->prime(null);
+            $this->info('System config cached.');
+
+            return self::SUCCESS;
+        }
+
+        $this->withProgressBar(\Core\Mod\Tenant\Models\Workspace::all(), function ($workspace) use ($config) {
             $config->prime($workspace);
         });
 

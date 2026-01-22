@@ -12,9 +12,6 @@ namespace Core\Front\Admin;
 
 use Core\Front\Admin\Contracts\AdminMenuProvider;
 use Core\Front\Admin\Contracts\DynamicMenuProvider;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-use Core\Mod\Tenant\Services\EntitlementService;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -92,9 +89,19 @@ class AdminMenuRegistry
      */
     protected int $cacheTtl;
 
-    public function __construct(
-        protected EntitlementService $entitlements,
-    ) {
+    /**
+     * EntitlementService instance (Core\Mod\Tenant\Services\EntitlementService when available).
+     */
+    protected ?object $entitlements = null;
+
+    public function __construct(?object $entitlements = null)
+    {
+        if ($entitlements === null && class_exists(\Core\Mod\Tenant\Services\EntitlementService::class)) {
+            $this->entitlements = app(\Core\Mod\Tenant\Services\EntitlementService::class);
+        } else {
+            $this->entitlements = $entitlements;
+        }
+
         $this->cacheTtl = (int) config('core.admin_menu.cache_ttl', self::DEFAULT_CACHE_TTL);
         $this->cachingEnabled = (bool) config('core.admin_menu.cache_enabled', true);
     }
@@ -139,12 +146,12 @@ class AdminMenuRegistry
     /**
      * Build the complete menu structure.
      *
-     * @param  Workspace|null  $workspace  Current workspace for entitlement checks
+     * @param  object|null  $workspace  Current workspace for entitlement checks (Workspace model instance)
      * @param  bool  $isAdmin  Whether user is admin (Hades)
-     * @param  User|null  $user  The authenticated user for permission checks
+     * @param  object|null  $user  The authenticated user for permission checks (User model instance)
      * @return array<int, array>
      */
-    public function build(?Workspace $workspace, bool $isAdmin = false, ?User $user = null): array
+    public function build(?object $workspace, bool $isAdmin = false, ?object $user = null): array
     {
         // Get static items (potentially cached)
         $staticItems = $this->getStaticItems($workspace, $isAdmin, $user);
@@ -162,9 +169,12 @@ class AdminMenuRegistry
     /**
      * Get static menu items, using cache if enabled.
      *
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  bool  $isAdmin
+     * @param  object|null  $user  User model instance
      * @return array<string, array<int, array{priority: int, item: \Closure}>>
      */
-    protected function getStaticItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
+    protected function getStaticItems(?object $workspace, bool $isAdmin, ?object $user): array
     {
         if (! $this->cachingEnabled) {
             return $this->collectItems($workspace, $isAdmin, $user);
@@ -180,9 +190,12 @@ class AdminMenuRegistry
     /**
      * Get dynamic menu items from dynamic providers.
      *
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  bool  $isAdmin
+     * @param  object|null  $user  User model instance
      * @return array<string, array<int, array{priority: int, item: \Closure}>>
      */
-    protected function getDynamicItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
+    protected function getDynamicItems(?object $workspace, bool $isAdmin, ?object $user): array
     {
         $grouped = [];
 
@@ -201,7 +214,7 @@ class AdminMenuRegistry
                 }
 
                 // Skip if entitlement check fails
-                if ($entitlement && $workspace) {
+                if ($entitlement && $workspace && $this->entitlements !== null) {
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }
@@ -249,8 +262,13 @@ class AdminMenuRegistry
 
     /**
      * Build the final menu structure from collected items.
+     *
+     * @param  array  $allItems
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  bool  $isAdmin
+     * @return array
      */
-    protected function buildMenuStructure(array $allItems, ?Workspace $workspace, bool $isAdmin): array
+    protected function buildMenuStructure(array $allItems, ?object $workspace, bool $isAdmin): array
     {
         // Build flat structure with dividers
         $menu = [];
@@ -343,8 +361,13 @@ class AdminMenuRegistry
 
     /**
      * Build the cache key for menu items.
+     *
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  bool  $isAdmin
+     * @param  object|null  $user  User model instance
+     * @return string
      */
-    protected function buildCacheKey(?Workspace $workspace, bool $isAdmin, ?User $user): string
+    protected function buildCacheKey(?object $workspace, bool $isAdmin, ?object $user): string
     {
         $parts = [
             self::CACHE_PREFIX,
@@ -367,9 +390,12 @@ class AdminMenuRegistry
     /**
      * Collect items from all providers, filtering by entitlements and permissions.
      *
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  bool  $isAdmin
+     * @param  object|null  $user  User model instance
      * @return array<string, array<int, array{priority: int, item: \Closure}>>
      */
-    protected function collectItems(?Workspace $workspace, bool $isAdmin, ?User $user): array
+    protected function collectItems(?object $workspace, bool $isAdmin, ?object $user): array
     {
         $grouped = [];
 
@@ -391,7 +417,7 @@ class AdminMenuRegistry
                 }
 
                 // Skip if entitlement check fails
-                if ($entitlement && $workspace) {
+                if ($entitlement && $workspace && $this->entitlements !== null) {
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }
@@ -420,12 +446,12 @@ class AdminMenuRegistry
     /**
      * Check if a user has all required permissions.
      *
-     * @param  User|null  $user
+     * @param  object|null  $user  User model instance
      * @param  array<string>  $permissions
-     * @param  Workspace|null  $workspace
+     * @param  object|null  $workspace  Workspace model instance
      * @return bool
      */
-    protected function checkPermissions(?User $user, array $permissions, ?Workspace $workspace): bool
+    protected function checkPermissions(?object $user, array $permissions, ?object $workspace): bool
     {
         if (empty($permissions)) {
             return true;
@@ -448,10 +474,10 @@ class AdminMenuRegistry
     /**
      * Invalidate cached menu for a specific context.
      *
-     * @param  Workspace|null  $workspace
-     * @param  User|null  $user
+     * @param  object|null  $workspace  Workspace model instance
+     * @param  object|null  $user  User model instance
      */
-    public function invalidateCache(?Workspace $workspace = null, ?User $user = null): void
+    public function invalidateCache(?object $workspace = null, ?object $user = null): void
     {
         if ($workspace !== null && $user !== null) {
             // Invalidate specific cache keys
@@ -469,8 +495,10 @@ class AdminMenuRegistry
 
     /**
      * Invalidate all cached menus for a workspace.
+     *
+     * @param  object  $workspace  Workspace model instance
      */
-    public function invalidateWorkspaceCache(Workspace $workspace): void
+    public function invalidateWorkspaceCache(object $workspace): void
     {
         // We can't easily clear pattern-based cache keys with all drivers,
         // so we rely on TTL expiration for non-tagged caches
@@ -481,8 +509,10 @@ class AdminMenuRegistry
 
     /**
      * Invalidate all cached menus for a user.
+     *
+     * @param  object  $user  User model instance
      */
-    public function invalidateUserCache(User $user): void
+    public function invalidateUserCache(object $user): void
     {
         if (method_exists(Cache::getStore(), 'tags')) {
             Cache::tags([self::CACHE_PREFIX, 'user:' . $user->id])->flush();
@@ -512,12 +542,12 @@ class AdminMenuRegistry
     /**
      * Get all service menu items indexed by service key.
      *
-     * @param  Workspace|null  $workspace  Current workspace for entitlement checks
+     * @param  object|null  $workspace  Current workspace for entitlement checks (Workspace model instance)
      * @param  bool  $isAdmin  Whether user is admin (Hades)
-     * @param  User|null  $user  The authenticated user for permission checks
+     * @param  object|null  $user  The authenticated user for permission checks (User model instance)
      * @return array<string, array> Service items indexed by service key
      */
-    public function getAllServiceItems(?Workspace $workspace, bool $isAdmin = false, ?User $user = null): array
+    public function getAllServiceItems(?object $workspace, bool $isAdmin = false, ?object $user = null): array
     {
         $services = [];
 
@@ -547,7 +577,7 @@ class AdminMenuRegistry
                 }
 
                 // Skip if entitlement check fails
-                if ($entitlement && $workspace) {
+                if ($entitlement && $workspace && $this->entitlements !== null) {
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }
@@ -578,12 +608,12 @@ class AdminMenuRegistry
      * Get a specific service's menu item including its children (tabs).
      *
      * @param  string  $serviceKey  The service identifier (e.g., 'commerce', 'support')
-     * @param  Workspace|null  $workspace  Current workspace for entitlement checks
+     * @param  object|null  $workspace  Current workspace for entitlement checks (Workspace model instance)
      * @param  bool  $isAdmin  Whether user is admin (Hades)
-     * @param  User|null  $user  The authenticated user for permission checks
+     * @param  object|null  $user  The authenticated user for permission checks (User model instance)
      * @return array|null The service menu item with children, or null if not found
      */
-    public function getServiceItem(string $serviceKey, ?Workspace $workspace, bool $isAdmin = false, ?User $user = null): ?array
+    public function getServiceItem(string $serviceKey, ?object $workspace, bool $isAdmin = false, ?object $user = null): ?array
     {
         foreach ($this->providers as $provider) {
             // Check provider-level permissions
@@ -611,7 +641,7 @@ class AdminMenuRegistry
                 }
 
                 // Skip if entitlement check fails
-                if ($entitlement && $workspace) {
+                if ($entitlement && $workspace && $this->entitlements !== null) {
                     if ($this->entitlements->can($workspace, $entitlement)->isDenied()) {
                         continue;
                     }

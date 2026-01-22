@@ -12,7 +12,6 @@ namespace Core\Config\Console;
 
 use Core\Config\ConfigService;
 use Core\Config\Models\ConfigKey;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Console\Command;
 
 class ConfigListCommand extends Command
@@ -33,7 +32,13 @@ class ConfigListCommand extends Command
         $workspace = null;
 
         if ($workspaceSlug) {
-            $workspace = Workspace::where('slug', $workspaceSlug)->first();
+            if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+                $this->error('Tenant module not installed. Cannot filter by workspace.');
+
+                return self::FAILURE;
+            }
+
+            $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
 
             if (! $workspace) {
                 $this->error("Workspace not found: {$workspaceSlug}");

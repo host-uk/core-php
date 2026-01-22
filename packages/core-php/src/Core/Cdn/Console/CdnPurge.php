@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Cdn\Console;
 
-use Core\Mod\Tenant\Models\Workspace;
-use Core\Plug\Cdn\Bunny\Purge;
 use Illuminate\Console\Command;
 
 class CdnPurge extends Command
@@ -35,12 +33,18 @@ class CdnPurge extends Command
      */
     protected $description = 'Purge content from CDN edge cache';
 
-    protected Purge $purger;
+    /**
+     * Purger instance (Core\Plug\Cdn\Bunny\Purge when available).
+     */
+    protected ?object $purger = null;
 
     public function __construct()
     {
         parent::__construct();
-        $this->purger = new Purge;
+
+        if (class_exists(\Core\Plug\Cdn\Bunny\Purge::class)) {
+            $this->purger = new \Core\Plug\Cdn\Bunny\Purge;
+        }
     }
 
     /**
@@ -48,6 +52,12 @@ class CdnPurge extends Command
      */
     public function handle(): int
     {
+        if ($this->purger === null) {
+            $this->error('CDN Purge requires Core\Plug\Cdn\Bunny\Purge class. Plug module not installed.');
+
+            return self::FAILURE;
+        }
+
         $workspaceArg = $this->argument('workspace');
         $urls = $this->option('url');
         $tag = $this->option('tag');
@@ -84,9 +94,13 @@ class CdnPurge extends Command
 
         // Purge by workspace
         if (empty($workspaceArg)) {
+            $workspaceOptions = ['all', 'Select specific URLs'];
+            if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+                $workspaceOptions = array_merge($workspaceOptions, \Core\Mod\Tenant\Models\Workspace::pluck('slug')->toArray());
+            }
             $workspaceArg = $this->choice(
                 'What would you like to purge?',
-                array_merge(['all', 'Select specific URLs'], Workspace::pluck('slug')->toArray()),
+                $workspaceOptions,
                 0
             );
 
@@ -203,7 +217,13 @@ class CdnPurge extends Command
 
     protected function purgeAllWorkspaces(bool $dryRun): int
     {
-        $workspaces = Workspace::all();
+        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            $this->error('Workspace purge requires Tenant module to be installed.');
+
+            return self::FAILURE;
+        }
+
+        $workspaces = \Core\Mod\Tenant\Models\Workspace::all();
 
         if ($workspaces->isEmpty()) {
             $this->error('No workspaces found');
@@ -255,13 +275,19 @@ class CdnPurge extends Command
 
     protected function purgeWorkspace(string $slug, bool $dryRun): int
     {
-        $workspace = Workspace::where('slug', $slug)->first();
+        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            $this->error('Workspace purge requires Tenant module to be installed.');
+
+            return self::FAILURE;
+        }
+
+        $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $slug)->first();
 
         if (! $workspace) {
             $this->error("Workspace not found: {$slug}");
             $this->newLine();
             $this->info('Available workspaces:');
-            Workspace::pluck('slug')->each(fn ($s) => $this->line("  - {$s}"));
+            \Core\Mod\Tenant\Models\Workspace::pluck('slug')->each(fn ($s) => $this->line("  - {$s}"));
 
             return self::FAILURE;
         }

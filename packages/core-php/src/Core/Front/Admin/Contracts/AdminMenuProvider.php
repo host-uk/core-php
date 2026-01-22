@@ -10,14 +10,39 @@ declare(strict_types=1);
 
 namespace Core\Front\Admin\Contracts;
 
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-
 /**
  * Interface for modules that provide admin menu items.
  *
- * Modules implement this interface and register themselves with AdminMenuRegistry
- * during boot. The registry collects all items and builds the final menu structure.
+ * Modules implement this interface to contribute navigation items to the admin
+ * panel sidebar. The `AdminMenuRegistry` collects items from all registered
+ * providers and builds the final menu structure with proper ordering, grouping,
+ * and permission filtering.
+ *
+ * ## Menu Item Structure
+ *
+ * Each item returned by `adminMenuItems()` specifies:
+ *
+ * - **group** - Where in the menu hierarchy (`dashboard`, `webhost`, `services`, `settings`, `admin`)
+ * - **priority** - Order within group (lower = earlier)
+ * - **entitlement** - Optional feature code for workspace-level access
+ * - **permissions** - Optional array of required user permissions
+ * - **admin** - Whether item requires Hades/admin user
+ * - **item** - Closure returning the actual menu item data (lazy-evaluated)
+ *
+ * ## Lazy Evaluation
+ *
+ * The `item` closure is only called when the menu is rendered, after permission
+ * checks pass. This avoids unnecessary work for filtered items and allows
+ * route-dependent data (like `active` state) to be computed at render time.
+ *
+ * ## Registration
+ *
+ * Providers are typically registered via `AdminMenuRegistry::register()` during
+ * the AdminPanelBooting event or in a service provider's boot method.
+ *
+ * @package Core\Front\Admin\Contracts
+ *
+ * @see DynamicMenuProvider For uncached, real-time menu items
  */
 interface AdminMenuProvider
 {
@@ -81,9 +106,9 @@ interface AdminMenuProvider
      * Override this method to implement custom permission logic beyond
      * simple permission key checks.
      *
-     * @param  User|null  $user  The authenticated user
-     * @param  Workspace|null  $workspace  The current workspace context
+     * @param  object|null  $user  The authenticated user (User model instance)
+     * @param  object|null  $workspace  The current workspace context (Workspace model instance)
      * @return bool
      */
-    public function canViewMenu(?User $user, ?Workspace $workspace): bool;
+    public function canViewMenu(?object $user, ?object $workspace): bool;
 }

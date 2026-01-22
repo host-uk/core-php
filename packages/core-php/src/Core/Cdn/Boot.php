@@ -20,8 +20,6 @@ use Core\Cdn\Services\BunnyStorageService;
 use Core\Cdn\Services\FluxCdnService;
 use Core\Cdn\Services\StorageOffload;
 use Core\Cdn\Services\StorageUrlResolver;
-use Core\Plug\Cdn\CdnManager;
-use Core\Plug\Storage\StorageManager;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -45,9 +43,13 @@ class Boot extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/config.php', 'cdn');
         $this->mergeConfigFrom(__DIR__.'/offload.php', 'offload');
 
-        // Register Plug managers as singletons
-        $this->app->singleton(CdnManager::class);
-        $this->app->singleton(StorageManager::class);
+        // Register Plug managers as singletons (when available)
+        if (class_exists(\Core\Plug\Cdn\CdnManager::class)) {
+            $this->app->singleton(\Core\Plug\Cdn\CdnManager::class);
+        }
+        if (class_exists(\Core\Plug\Storage\StorageManager::class)) {
+            $this->app->singleton(\Core\Plug\Storage\StorageManager::class);
+        }
 
         // Register legacy services as singletons (for backward compatibility)
         $this->app->singleton(BunnyCdnService::class);

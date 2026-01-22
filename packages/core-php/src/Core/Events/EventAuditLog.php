@@ -15,16 +15,50 @@ use Illuminate\Support\Facades\Log;
 /**
  * Tracks lifecycle event execution for debugging and monitoring.
  *
- * Records when events fire and which handlers respond. This is useful for:
- * - Debugging module loading issues
- * - Performance monitoring
- * - Understanding application bootstrap flow
+ * EventAuditLog records when lifecycle events fire and which handlers respond,
+ * including timing information and success/failure status. This is invaluable for:
  *
- * Usage:
- *     EventAuditLog::enable();           // Enable logging
- *     EventAuditLog::enableLog();        // Also write to Laravel log
- *     // ... events fire ...
- *     $entries = EventAuditLog::entries(); // Get recorded entries
+ * - **Debugging** - Understanding why modules aren't loading
+ * - **Performance** - Identifying slow event handlers
+ * - **Monitoring** - Tracking application bootstrap flow
+ * - **Diagnostics** - Finding failed handlers in production
+ *
+ * ## Enabling Audit Logging
+ *
+ * Logging is disabled by default for performance. Enable it when needed:
+ *
+ * ```php
+ * EventAuditLog::enable();      // Enable in-memory logging
+ * EventAuditLog::enableLog();   // Also write to Laravel log channel
+ * ```
+ *
+ * ## Retrieving Entries
+ *
+ * ```php
+ * $entries = EventAuditLog::entries();           // All entries
+ * $failures = EventAuditLog::failures();         // Only failed handlers
+ * $webEntries = EventAuditLog::entriesFor(WebRoutesRegistering::class);
+ * $summary = EventAuditLog::summary();           // Statistics
+ * ```
+ *
+ * ## Entry Structure
+ *
+ * Each entry contains:
+ * - `event` - Event class name
+ * - `handler` - Handler module class name
+ * - `duration_ms` - Execution time in milliseconds
+ * - `failed` - Whether the handler threw an exception
+ * - `error` - Error message (if failed)
+ * - `timestamp` - Unix timestamp with microseconds
+ *
+ * ## Integration with LazyModuleListener
+ *
+ * The `LazyModuleListener` automatically records to EventAuditLog when
+ * enabled, so you don't need to manually instrument event handlers.
+ *
+ * @package Core\Events
+ *
+ * @see LazyModuleListener For automatic audit logging integration
  */
 class EventAuditLog
 {

@@ -19,7 +19,6 @@ use Core\Config\Models\ConfigKey;
 use Core\Config\Models\ConfigProfile;
 use Core\Config\Models\ConfigResolved;
 use Core\Config\Models\ConfigValue;
-use Core\Mod\Tenant\Models\Workspace;
 
 /**
  * Configuration service - main API.
@@ -37,7 +36,10 @@ use Core\Mod\Tenant\Models\Workspace;
  */
 class ConfigService
 {
-    protected ?Workspace $workspace = null;
+    /**
+     * Current workspace context (Workspace model instance or null for system scope).
+     */
+    protected ?object $workspace = null;
 
     protected ?Channel $channel = null;
 
@@ -47,8 +49,10 @@ class ConfigService
 
     /**
      * Set the current context (called by middleware).
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
-    public function setContext(?Workspace $workspace, ?Channel $channel = null): void
+    public function setContext(?object $workspace, ?Channel $channel = null): void
     {
         $this->workspace = $workspace;
         $this->channel = $channel;
@@ -56,8 +60,10 @@ class ConfigService
 
     /**
      * Get current workspace context.
+     *
+     * @return object|null  Workspace model instance or null
      */
-    public function getWorkspace(): ?Workspace
+    public function getWorkspace(): ?object
     {
         return $this->workspace;
     }
@@ -79,8 +85,10 @@ class ConfigService
      * Get config for a specific workspace (admin use only).
      *
      * Use this when you need another workspace's settings - requires explicit intent.
+     *
+     * @param  object  $workspace  Workspace model instance
      */
-    public function getForWorkspace(string $key, Workspace $workspace, mixed $default = null): mixed
+    public function getForWorkspace(string $key, object $workspace, mixed $default = null): mixed
     {
         $result = $this->resolve($key, $workspace, null);
 
@@ -96,11 +104,12 @@ class ConfigService
      * 3. Hash lookup again
      * 4. Compute via resolver if still not found (lazy prime)
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @param  string|Channel|null  $channel  Channel code or object
      */
     public function resolve(
         string $key,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
         string|Channel|null $channel = null,
     ): ConfigResult {
         $workspaceId = $workspace?->id;
@@ -207,10 +216,12 @@ class ConfigService
 
     /**
      * Try to resolve a JSON sub-key (e.g., "website.title" from "website" JSON).
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
     protected function resolveJsonSubKey(
         string $keyCode,
-        ?Workspace $workspace,
+        ?object $workspace,
         string|Channel|null $channel,
     ): ConfigResult {
         $parts = explode('.', $keyCode);
@@ -394,9 +405,10 @@ class ConfigService
     /**
      * Get all config values for a workspace.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return array<string, mixed>
      */
-    public function all(?Workspace $workspace = null, string|Channel|null $channel = null): array
+    public function all(?object $workspace = null, string|Channel|null $channel = null): array
     {
         $workspaceId = $workspace?->id;
         $channelId = $this->resolveChannelId($channel, $workspace);
@@ -414,11 +426,12 @@ class ConfigService
     /**
      * Get all config values for a category.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return array<string, mixed>
      */
     public function category(
         string $category,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
         string|Channel|null $channel = null,
     ): array {
         $workspaceId = $workspace?->id;
@@ -447,8 +460,10 @@ class ConfigService
      * Call after workspace creation, config changes, or on schedule.
      *
      * Populates both hash (process-scoped) and database (persistent).
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
-    public function prime(?Workspace $workspace = null, string|Channel|null $channel = null): void
+    public function prime(?object $workspace = null, string|Channel|null $channel = null): void
     {
         $workspaceId = $workspace?->id;
         $channelId = $this->resolveChannelId($channel, $workspace);
@@ -500,7 +515,10 @@ class ConfigService
             ->delete();
 
         // Re-compute this key for the affected scope
-        $workspace = $workspaceId !== null ? Workspace::find($workspaceId) : null;
+        $workspace = null;
+        if ($workspaceId !== null && class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            $workspace = \Core\Mod\Tenant\Models\Workspace::find($workspaceId);
+        }
         $channel = $channelId ? Channel::find($channelId) : null;
 
         $result = $this->resolver->resolve($keyCode, $workspace, $channel);
@@ -526,18 +544,21 @@ class ConfigService
      * Prime cache for all workspaces.
      *
      * Run this from a scheduled command or queue job.
+     * Requires Core\Mod\Tenant module to prime workspace-level config.
      */
     public function primeAll(): void
     {
         // Prime system config
         $this->prime(null);
 
-        // Prime each workspace
-        Workspace::chunk(100, function ($workspaces) {
-            foreach ($workspaces as $workspace) {
-                $this->prime($workspace);
-            }
-        });
+        // Prime each workspace (requires Tenant module)
+        if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            \Core\Mod\Tenant\Models\Workspace::chunk(100, function ($workspaces) {
+                foreach ($workspaces as $workspace) {
+                    $this->prime($workspace);
+                }
+            });
+        }
     }
 
     /**
@@ -545,8 +566,10 @@ class ConfigService
      *
      * Clears both hash and database. Next read will lazy-prime.
      * Fires ConfigInvalidated event.
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
-    public function invalidateWorkspace(?Workspace $workspace = null): void
+    public function invalidateWorkspace(?object $workspace = null): void
     {
         $workspaceId = $workspace?->id;
 

@@ -23,29 +23,83 @@ use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
 /**
- * Manages lifecycle events for lazy module loading.
+ * Orchestrates lifecycle events for lazy module loading.
  *
- * This provider:
- * 1. Scans modules for $listens declarations during register()
- * 2. Wires up lazy listeners for each event-module pair
- * 3. Fires lifecycle events at appropriate times during boot()
+ * The LifecycleEventProvider is the entry point for the event-driven module system.
+ * It coordinates module discovery, listener registration, and event firing at
+ * appropriate points during the application lifecycle.
  *
- * Modules declare interest via static $listens arrays:
+ * ## Lifecycle Phases
  *
+ * **Registration Phase (register())**
+ * - Registers ModuleScanner and ModuleRegistry as singletons
+ * - Scans configured paths for Boot classes with `$listens` declarations
+ * - Wires lazy listeners for each event-module pair
+ *
+ * **Boot Phase (boot())**
+ * - Fires queue worker event if in queue context
+ * - Schedules FrameworkBooted event via `$app->booted()`
+ *
+ * **Event Firing (static fire* methods)**
+ * - Called by frontage modules (Web, Admin, Api, etc.) at appropriate times
+ * - Fire events, collect requests, and process them with appropriate middleware
+ *
+ * ## Module Declaration
+ *
+ * Modules declare interest in events via static `$listens` arrays in their Boot class:
+ *
+ * ```php
+ * class Boot
+ * {
  *     public static array $listens = [
  *         WebRoutesRegistering::class => 'onWebRoutes',
  *         AdminPanelBooting::class => 'onAdmin',
+ *         ConsoleBooting::class => ['onConsole', 10],  // With priority
  *     ];
  *
- * The module is only instantiated when its events fire.
+ *     public function onWebRoutes(WebRoutesRegistering $event): void
+ *     {
+ *         $event->routes(fn () => require __DIR__.'/Routes/web.php');
+ *         $event->views('mymodule', __DIR__.'/Views');
+ *     }
+ * }
+ * ```
+ *
+ * The module is only instantiated when its registered events actually fire,
+ * enabling efficient lazy loading based on request context.
+ *
+ * ## Default Scan Paths
+ *
+ * By default, scans these directories under `app_path()`:
+ * - `Core` - Core system modules
+ * - `Mod` - Feature modules
+ * - `Website` - Website/domain-specific modules
+ *
+ * @package Core
+ *
+ * @see ModuleScanner For module discovery
+ * @see ModuleRegistry For listener registration
+ * @see LazyModuleListener For lazy instantiation
  */
 class LifecycleEventProvider extends ServiceProvider
 {
     /**
      * Directories to scan for modules with $listens declarations.
+     *
+     * @var array<string>
      */
     protected array $scanPaths = [];
 
+    /**
+     * Register module infrastructure and wire lazy listeners.
+     *
+     * This method:
+     * 1. Registers ModuleScanner and ModuleRegistry as singletons
+     * 2. Configures default scan paths (Core, Mod, Website)
+     * 3. Triggers module scanning and listener registration
+     *
+     * Runs early in the application lifecycle before boot().
+     */
     public function register(): void
     {
         // Register infrastructure
@@ -66,6 +120,15 @@ class LifecycleEventProvider extends ServiceProvider
         $registry->register($this->scanPaths);
     }
 
+    /**
+     * Boot the provider and schedule late-stage events.
+     *
+     * Fires queue worker event if running in queue context, and schedules
+     * the FrameworkBooted event to fire after all providers have booted.
+     *
+     * Note: Most lifecycle events (Web, Admin, API, etc.) are fired by their
+     * respective frontage modules, not here.
+     */
     public function boot(): void
     {
         // Console event now fired by Core\Front\Cli\Boot
@@ -82,9 +145,18 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire WebRoutesRegistering and process requests.
+     * Fire WebRoutesRegistering and process collected requests.
      *
-     * Called by Front/Web/Boot when web middleware is being set up.
+     * Called by Front/Web/Boot when web middleware is being set up. This method:
+     *
+     * 1. Fires the WebRoutesRegistering event to all listeners
+     * 2. Processes view namespace requests (adds them to the view finder)
+     * 3. Processes Livewire component requests (registers with Livewire)
+     * 4. Processes route requests (wraps with 'web' middleware)
+     * 5. Refreshes route name and action lookups
+     *
+     * Routes registered through this event are automatically wrapped with
+     * the 'web' middleware group for session, CSRF, etc.
      */
     public static function fireWebRoutes(): void
     {
@@ -116,9 +188,20 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire AdminPanelBooting and process requests.
+     * Fire AdminPanelBooting and process collected requests.
      *
-     * Called by Front/Admin/Boot when admin routes are being set up.
+     * Called by Front/Admin/Boot when admin routes are being set up. This method:
+     *
+     * 1. Fires the AdminPanelBooting event to all listeners
+     * 2. Processes view namespace requests
+     * 3. Processes translation namespace requests
+     * 4. Processes Livewire component requests
+     * 5. Processes route requests (wraps with 'admin' middleware)
+     *
+     * Routes registered through this event are automatically wrapped with
+     * the 'admin' middleware group for authentication, authorization, etc.
+     *
+     * Navigation items are handled separately via AdminMenuProvider interface.
      */
     public static function fireAdminBooting(): void
     {
@@ -159,9 +242,14 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire ClientRoutesRegistering and process requests.
+     * Fire ClientRoutesRegistering and process collected requests.
      *
-     * Called by Front/Client/Boot when client routes are being set up.
+     * Called by Front/Client/Boot when client dashboard routes are being set up.
+     * This is for authenticated SaaS customers managing their namespace (bio pages,
+     * settings, analytics, etc.).
+     *
+     * Routes registered through this event are automatically wrapped with
+     * the 'client' middleware group.
      */
     public static function fireClientRoutes(): void
     {
@@ -193,9 +281,13 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire ApiRoutesRegistering and process requests.
+     * Fire ApiRoutesRegistering and process collected requests.
      *
-     * Called by Front/Api/Boot when API routes are being set up.
+     * Called by Front/Api/Boot when REST API routes are being set up.
+     *
+     * Routes registered through this event are automatically:
+     * - Wrapped with the 'api' middleware group
+     * - Prefixed with '/api'
      */
     public static function fireApiRoutes(): void
     {
@@ -209,11 +301,14 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire McpToolsRegistering and return collected handlers.
+     * Fire McpToolsRegistering and return collected handler classes.
      *
-     * Called by MCP server command when loading tools.
+     * Called by the MCP (Model Context Protocol) server command when loading tools.
+     * Modules register their MCP tool handlers through this event.
      *
-     * @return array<string> Handler class names
+     * @return array<string> Fully qualified class names of McpToolHandler implementations
+     *
+     * @see \Core\Front\Mcp\Contracts\McpToolHandler
      */
     public static function fireMcpTools(): array
     {
@@ -224,7 +319,10 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire ConsoleBooting and process requests.
+     * Fire ConsoleBooting and register collected Artisan commands.
+     *
+     * Called when running in CLI context. Modules register their Artisan
+     * commands through the event's `command()` method.
      */
     protected function fireConsoleBooting(): void
     {
@@ -238,7 +336,10 @@ class LifecycleEventProvider extends ServiceProvider
     }
 
     /**
-     * Fire QueueWorkerBooting and process requests.
+     * Fire QueueWorkerBooting for queue worker context.
+     *
+     * Called when the application is running as a queue worker. Modules can
+     * use this event for queue-specific initialization.
      */
     protected function fireQueueWorkerBooting(): void
     {

@@ -11,17 +11,48 @@ declare(strict_types=1);
 namespace Core\Events;
 
 /**
- * Fired when client routes are being registered.
+ * Fired when client dashboard routes are being registered.
  *
- * Modules listen to this event to register routes for namespace owners
- * (authenticated SaaS customers managing their space).
+ * Modules listen to this event to register routes for namespace owners -
+ * authenticated SaaS customers who manage their own space within the platform.
  *
- * Routes are automatically wrapped with the 'client' middleware group.
+ * ## When This Event Fires
  *
- * Use this for authenticated namespace management pages:
- * - Bio/link editors
- * - Settings pages
+ * Fired by `LifecycleEventProvider::fireClientRoutes()` when the client
+ * frontage initializes, typically for requests to client dashboard routes.
+ *
+ * ## Middleware
+ *
+ * Routes registered through this event are automatically wrapped with the 'client'
+ * middleware group, which typically includes authentication and workspace context.
+ *
+ * ## Typical Use Cases
+ *
+ * - Bio/link page editors
+ * - User settings and preferences
  * - Analytics dashboards
+ * - Content management
+ * - Billing and subscription management
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * public static array $listens = [
+ *     ClientRoutesRegistering::class => 'onClient',
+ * ];
+ *
+ * public function onClient(ClientRoutesRegistering $event): void
+ * {
+ *     $event->views('bio', __DIR__.'/Views/Client');
+ *     $event->livewire('bio-editor', BioEditorComponent::class);
+ *     $event->routes(fn () => require __DIR__.'/Routes/client.php');
+ * }
+ * ```
+ *
+ * @package Core\Events
+ *
+ * @see AdminPanelBooting For admin/staff routes
+ * @see WebRoutesRegistering For public-facing routes
  */
 class ClientRoutesRegistering extends LifecycleEvent
 {

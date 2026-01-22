@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Core\Cdn\Services;
 
 use Core\Cdn\Jobs\PushAssetToCdn;
-use Core\Plug\Storage\StorageManager;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
@@ -37,9 +36,12 @@ class AssetPipeline
 {
     protected StorageUrlResolver $urlResolver;
 
-    protected StorageManager $storage;
+    /**
+     * Storage manager instance (Core\Plug\Storage\StorageManager when available).
+     */
+    protected ?object $storage = null;
 
-    public function __construct(StorageUrlResolver $urlResolver, StorageManager $storage)
+    public function __construct(StorageUrlResolver $urlResolver, ?object $storage = null)
     {
         $this->urlResolver = $urlResolver;
         $this->storage = $storage;
@@ -220,8 +222,10 @@ class AssetPipeline
             $results[$path] = $disk->delete($path);
         }
 
-        // Bulk delete from CDN storage
-        $this->storage->zone($bucket)->delete()->paths($paths);
+        // Bulk delete from CDN storage (requires StorageManager from Plug module)
+        if ($this->storage !== null) {
+            $this->storage->zone($bucket)->delete()->paths($paths);
+        }
 
         // Purge from CDN cache if enabled
         if (config('cdn.pipeline.auto_purge', true)) {
@@ -299,11 +303,11 @@ class AssetPipeline
 
         if ($queue) {
             PushAssetToCdn::dispatch($disk, $path, $zone);
-        } else {
-            // Synchronous push if no queue configured
-            $disk = \Illuminate\Support\Facades\Storage::disk($disk);
-            if ($disk->exists($path)) {
-                $contents = $disk->get($path);
+        } elseif ($this->storage !== null) {
+            // Synchronous push if no queue configured (requires StorageManager from Plug module)
+            $diskInstance = \Illuminate\Support\Facades\Storage::disk($disk);
+            if ($diskInstance->exists($path)) {
+                $contents = $diskInstance->get($path);
                 $this->storage->zone($zone)->upload()->contents($path, $contents);
             }
         }

@@ -14,41 +14,59 @@ use Core\Front\Admin\Contracts\AdminMenuProvider;
 use Core\Service\ServiceVersion;
 
 /**
- * Contract for service definitions.
+ * Contract for SaaS service definitions.
  *
- * Services are the product layer - they define how modules are presented
- * to users as SaaS products. Each service has a definition used to populate
- * the platform_services table and admin menu registration.
+ * Services are the product layer of the framework - they define how modules are
+ * presented to users as SaaS products. Each service has a definition that:
  *
- * Extends AdminMenuProvider to integrate with the admin menu system.
+ * - Populates the `platform_services` table for entitlement management
+ * - Integrates with the admin menu system via `AdminMenuProvider`
+ * - Provides versioning for API compatibility and deprecation tracking
+ *
+ * ## Service Definition Array
+ *
+ * The `definition()` method returns an array with service metadata:
+ *
+ * ```php
+ * public static function definition(): array
+ * {
+ *     return [
+ *         'code' => 'bio',                         // Unique service code
+ *         'module' => 'Mod\\Bio',                  // Module namespace
+ *         'name' => 'BioHost',                     // Display name
+ *         'tagline' => 'Link in bio pages',        // Short description
+ *         'description' => 'Create beautiful...',  // Full description
+ *         'icon' => 'link',                        // FontAwesome icon
+ *         'color' => '#3B82F6',                    // Brand color
+ *         'entitlement_code' => 'core.srv.bio',    // Access control code
+ *         'sort_order' => 10,                      // Menu ordering
+ *     ];
+ * }
+ * ```
  *
  * ## Versioning
  *
- * Services should implement the version() method to declare their contract
- * version. This enables:
- * - Tracking breaking changes in service contracts
- * - Deprecation warnings before removing features
- * - Sunset date enforcement for deprecated versions
+ * Services should implement `version()` to declare their contract version.
+ * This enables tracking breaking changes and deprecation:
  *
- * Example:
  * ```php
  * public static function version(): ServiceVersion
  * {
  *     return new ServiceVersion(2, 1, 0);
  * }
- * ```
  *
- * For deprecated services:
- * ```php
+ * // For deprecated services:
  * public static function version(): ServiceVersion
  * {
  *     return (new ServiceVersion(1, 0, 0))
- *         ->deprecate(
- *             'Use ServiceV2 instead',
- *             new \DateTimeImmutable('2025-06-01')
- *         );
+ *         ->deprecate('Use ServiceV2 instead', new \DateTimeImmutable('2025-06-01'));
  * }
  * ```
+ *
+ * @package Core\Service\Contracts
+ *
+ * @see AdminMenuProvider For menu integration
+ * @see ServiceVersion For versioning
  */
 interface ServiceDefinition extends AdminMenuProvider
 {

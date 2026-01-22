@@ -14,8 +14,6 @@ use Core\Config\ConfigService;
 use Core\Config\Models\ConfigKey;
 use Core\Config\Models\ConfigProfile;
 use Core\Config\Models\ConfigValue;
-use Core\Mod\Tenant\Models\Workspace;
-use Core\Mod\Tenant\Services\WorkspaceService;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -26,12 +24,19 @@ class WorkspaceConfig extends Component
 
     protected ConfigService $config;
 
-    protected WorkspaceService $workspaceService;
+    /**
+     * Workspace service instance (from Tenant module when available).
+     */
+    protected ?object $workspaceService = null;
 
-    public function boot(ConfigService $config, WorkspaceService $workspaceService): void
+    public function boot(ConfigService $config): void
     {
         $this->config = $config;
-        $this->workspaceService = $workspaceService;
+
+        // Try to resolve WorkspaceService if Tenant module is installed
+        if (class_exists(\Core\Mod\Tenant\Services\WorkspaceService::class)) {
+            $this->workspaceService = app(\Core\Mod\Tenant\Services\WorkspaceService::class);
+        }
     }
 
     public function mount(?string $path = null): void
@@ -55,10 +60,15 @@ class WorkspaceConfig extends Component
         unset($this->currentKeys);
     }
 
+    /**
+     * Get current workspace (requires Tenant module).
+     *
+     * @return object|null  Workspace model instance or null
+     */
     #[Computed]
-    public function workspace(): ?Workspace
+    public function workspace(): ?object
     {
-        return $this->workspaceService->currentModel();
+        return $this->workspaceService?->currentModel();
     }
 
     #[Computed]

@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Seo\Services;
 
-use Core\Mod\Content\Models\ContentItem;
-use Core\Mod\Tenant\Models\Workspace;
 use Core\Seo\Validation\SchemaValidator;
 
 /**
@@ -31,8 +29,10 @@ class SchemaBuilderService
 {
     /**
      * Build Article schema for a content item.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function buildArticleSchema(ContentItem $item): array
+    public function buildArticleSchema(object $item): array
     {
         return [
             '@context' => 'https://schema.org',
@@ -55,8 +55,10 @@ class SchemaBuilderService
 
     /**
      * Build BlogPosting schema (more specific than Article).
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function buildBlogPostingSchema(ContentItem $item): array
+    public function buildBlogPostingSchema(object $item): array
     {
         $schema = $this->buildArticleSchema($item);
         $schema['@type'] = 'BlogPosting';
@@ -73,8 +75,10 @@ class SchemaBuilderService
 
     /**
      * Build HowTo schema for instructional content.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function buildHowToSchema(ContentItem $item, array $steps): array
+    public function buildHowToSchema(object $item, array $steps): array
     {
         return [
             '@context' => 'https://schema.org',
@@ -130,13 +134,15 @@ class SchemaBuilderService
 
     /**
      * Build Organization schema.
+     *
+     * @param  object|null  $workspace  Workspace model instance (expects name and domain properties)
      */
-    public function getOrganizationSchema(?Workspace $workspace = null): array
+    public function getOrganizationSchema(?object $workspace = null): array
     {
         return [
             '@type' => 'Organization',
             'name' => $workspace?->name ?? 'Host UK',
-            'url' => $workspace ? "https://{$workspace->domain}" : 'https://host.uk.com',
+            'url' => $workspace !== null ? "https://{$workspace->domain}" : 'https://host.uk.com',
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => 'https://host.uk.com/images/logo.png',
@@ -146,8 +152,10 @@ class SchemaBuilderService
 
     /**
      * Build WebSite schema.
+     *
+     * @param  object  $workspace  Workspace model instance (expects name and domain properties)
      */
-    public function buildWebsiteSchema(Workspace $workspace): array
+    public function buildWebsiteSchema(object $workspace): array
     {
         return [
             '@context' => 'https://schema.org',
@@ -243,8 +251,10 @@ class SchemaBuilderService
 
     /**
      * Get the canonical URL for a content item.
+     *
+     * @param  object  $item  Content item model instance
      */
-    private function getContentUrl(ContentItem $item): string
+    private function getContentUrl(object $item): string
     {
         $domain = $item->workspace?->domain ?? 'host.uk.com';
 

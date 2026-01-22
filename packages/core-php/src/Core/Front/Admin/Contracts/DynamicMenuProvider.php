@@ -10,19 +10,38 @@ declare(strict_types=1);
 
 namespace Core\Front\Admin\Contracts;
 
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-
 /**
- * Interface for providers that supply dynamic menu items.
+ * Interface for providers that supply dynamic (uncached) menu items.
  *
- * Dynamic menu items are computed at runtime based on context (user, workspace,
- * database state, etc.) and are never cached. Use this interface when menu items
- * need to reflect real-time data such as notification counts, recent items, or
- * user-specific content.
+ * Dynamic menu items are computed at runtime based on context and are never
+ * cached. Use this interface when menu items need to reflect real-time data
+ * that changes frequently or per-request.
  *
- * Classes implementing this interface are processed separately from static
- * AdminMenuProvider items - their results are merged after cache retrieval.
+ * ## When to Use DynamicMenuProvider
+ *
+ * - **Notification counts** - Unread messages, pending approvals
+ * - **Recent items** - Recently accessed documents, pages
+ * - **User-specific content** - Personalized shortcuts, favorites
+ * - **Real-time status** - Online users, active sessions
+ *
+ * ## Performance Considerations
+ *
+ * Dynamic items are computed on every request, so keep the `dynamicMenuItems()`
+ * method efficient:
+ *
+ * - Use eager loading for database queries
+ * - Cache intermediate results if possible
+ * - Limit the number of items returned
+ *
+ * ## Cache Integration
+ *
+ * Static menu items from `AdminMenuProvider` are cached. Dynamic items are
+ * merged in after cache retrieval. The `dynamicCacheKey()` method can be used
+ * to invalidate the static cache when dynamic state changes significantly.
+ *
+ * @package Core\Front\Admin\Contracts
+ *
+ * @see AdminMenuProvider For static (cached) menu items
  */
 interface DynamicMenuProvider
 {
@@ -35,8 +54,8 @@ interface DynamicMenuProvider
      * Each item should include the same structure as AdminMenuProvider::adminMenuItems()
      * plus an optional 'dynamic' key set to true for identification.
      *
-     * @param  User|null  $user  The authenticated user
-     * @param  Workspace|null  $workspace  The current workspace context
+     * @param  object|null  $user  The authenticated user (User model instance)
+     * @param  object|null  $workspace  The current workspace context (Workspace model instance)
      * @param  bool  $isAdmin  Whether the user is an admin
      * @return array<int, array{
      *     group: string,
@@ -48,7 +67,7 @@ interface DynamicMenuProvider
      *     item: \Closure
      * }>
      */
-    public function dynamicMenuItems(?User $user, ?Workspace $workspace, bool $isAdmin): array;
+    public function dynamicMenuItems(?object $user, ?object $workspace, bool $isAdmin): array;
 
     /**
      * Get the cache key modifier for dynamic items.
@@ -57,9 +76,9 @@ interface DynamicMenuProvider
      * this key changes. Return null if dynamic items should never affect
      * cache invalidation.
      *
-     * @param  User|null  $user
-     * @param  Workspace|null  $workspace
+     * @param  object|null  $user  User model instance
+     * @param  object|null  $workspace  Workspace model instance
      * @return string|null
      */
-    public function dynamicCacheKey(?User $user, ?Workspace $workspace): ?string;
+    public function dynamicCacheKey(?object $user, ?object $workspace): ?string;
 }

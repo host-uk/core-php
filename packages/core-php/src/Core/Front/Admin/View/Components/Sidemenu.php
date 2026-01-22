@@ -13,8 +13,6 @@ namespace Core\Front\Admin\View\Components;
 use Core\Front\Admin\AdminMenuRegistry;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\Component;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Services\WorkspaceService;
 
 class Sidemenu extends Component
 {
@@ -37,9 +35,17 @@ class Sidemenu extends Component
     protected function buildFromRegistry(): array
     {
         $user = Auth::user();
+
         // Use current workspace from session, not default
-        $workspace = app(WorkspaceService::class)->currentModel();
-        $isAdmin = $user instanceof User && $user->isHades();
+        $workspace = null;
+        if (class_exists(\Core\Mod\Tenant\Services\WorkspaceService::class)) {
+            $workspace = app(\Core\Mod\Tenant\Services\WorkspaceService::class)->currentModel();
+        }
+
+        $isAdmin = false;
+        if (class_exists(\Core\Mod\Tenant\Models\User::class) && $user instanceof \Core\Mod\Tenant\Models\User) {
+            $isAdmin = $user->isHades();
+        }
 
         return app(AdminMenuRegistry::class)->build($workspace, $isAdmin);
     }

@@ -15,15 +15,30 @@ use Core\Service\HealthCheckResult;
 /**
  * Contract for services that provide health checks.
  *
- * Services implementing this interface can report their operational
- * status for monitoring, load balancing, and alerting purposes.
+ * Services implementing this interface can report their operational status
+ * for monitoring, load balancing, and alerting purposes. Health endpoints
+ * can aggregate results from all registered HealthCheckable services.
+ *
+ * ## Health Check Guidelines
  *
  * Health checks should be:
- * - Fast (< 5 seconds timeout recommended)
- * - Non-destructive (read-only operations)
- * - Representative of actual service health
  *
- * Example implementation:
+ * - **Fast** - Complete within 5 seconds (preferably < 1 second)
+ * - **Non-destructive** - Perform read-only operations only
+ * - **Representative** - Actually test the critical dependencies
+ * - **Safe** - Handle all exceptions and return HealthCheckResult
+ *
+ * ## Result States
+ *
+ * Use `HealthCheckResult` factory methods:
+ *
+ * - `healthy()` - Service is fully operational
+ * - `degraded()` - Service works but with reduced performance/capability
+ * - `unhealthy()` - Service is not operational
+ * - `fromException()` - Convert exception to unhealthy result
+ *
+ * ## Example Implementation
+ *
  * ```php
  * public function healthCheck(): HealthCheckResult
  * {
@@ -48,6 +63,10 @@ use Core\Service\HealthCheckResult;
  *     }
  * }
  * ```
+ *
+ * @package Core\Service\Contracts
+ *
+ * @see HealthCheckResult For result factory methods
  */
 interface HealthCheckable
 {

@@ -13,20 +13,51 @@ namespace Core\Events;
 use Core\Front\Mcp\Contracts\McpToolHandler;
 
 /**
- * Fired when MCP tools are being registered.
+ * Fired when MCP (Model Context Protocol) tools are being registered.
  *
- * Modules listen to this event to register their MCP tool handlers.
- * Each handler class must implement McpToolHandler interface.
+ * Modules listen to this event to register their MCP tool handlers, which
+ * expose functionality to AI assistants and LLM-powered applications.
  *
- * Fired at MCP server startup (stdio transport) or when MCP routes
- * are accessed (HTTP transport).
+ * ## When This Event Fires
+ *
+ * Fired by `LifecycleEventProvider::fireMcpTools()` when:
+ * - MCP server starts up (stdio transport for CLI usage)
+ * - MCP routes are accessed (HTTP transport for web-based integration)
+ *
+ * ## Handler Requirements
+ *
+ * Each handler class must implement `McpToolHandler` interface. Handlers
+ * define the tools, their input schemas, and execution logic.
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * public static array $listens = [
+ *     McpToolsRegistering::class => 'onMcp',
+ * ];
+ *
+ * public function onMcp(McpToolsRegistering $event): void
+ * {
+ *     $event->handler(ProductSearchHandler::class);
+ *     $event->handler(InventoryQueryHandler::class);
+ * }
+ * ```
+ *
+ * @package Core\Events
+ *
+ * @see \Core\Front\Mcp\Contracts\McpToolHandler
  */
 class McpToolsRegistering extends LifecycleEvent
 {
+    /** @var array<int, string> Collected MCP tool handler class names */
     protected array $handlers = [];
 
     /**
      * Register an MCP tool handler class.
+     *
+     * @param  string  $handlerClass  Fully qualified class name implementing McpToolHandler
+     *
+     * @throws \InvalidArgumentException If class doesn't implement McpToolHandler
      */
     public function handler(string $handlerClass): void
     {
@@ -37,7 +68,11 @@ class McpToolsRegistering extends LifecycleEvent
     }
 
     /**
-     * Get all registered handler classes.
+     * Get all registered handler class names.
+     *
+     * @return array<int, string>
+     *
+     * @internal Used by LifecycleEventProvider
      */
     public function handlers(): array
     {

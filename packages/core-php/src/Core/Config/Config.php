@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Config;
 
-use Core\Mod\Social\Contracts\Config as ConfigContract;
-use Core\Mod\Social\Models\Config as ConfigModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -21,8 +19,11 @@ use Illuminate\Support\Facades\Cache;
  *
  * Provides a standardised interface for managing configuration settings
  * with validation, caching, and database persistence.
+ *
+ * Note: This class requires Core\Mod\Social module to be installed for
+ * database persistence functionality. Implements ConfigContract when available.
  */
-abstract class Config implements ConfigContract
+abstract class Config
 {
     /**
      * Create a new config instance.
@@ -58,12 +59,18 @@ abstract class Config implements ConfigContract
     /**
      * Insert or update configuration in database.
      *
+     * Requires Core\Mod\Social module to be installed.
+     *
      * @param  string  $name  Configuration field name
      * @param  mixed  $payload  Value to store
      */
     public function insert(string $name, mixed $payload): void
     {
-        ConfigModel::updateOrCreate(
+        if (! class_exists(\Core\Mod\Social\Models\Config::class)) {
+            return;
+        }
+
+        \Core\Mod\Social\Models\Config::updateOrCreate(
             ['name' => $name, 'group' => $this->group()],
             ['payload' => $payload]
         );
@@ -73,15 +80,22 @@ abstract class Config implements ConfigContract
      * Get a configuration value.
      *
      * Checks cache first, then database, finally falls back to default from form().
+     * Requires Core\Mod\Social module for database lookup.
      *
      * @param  string  $name  Configuration field name
      */
     public function get(string $name): mixed
     {
         return $this->getCache($name, function () use ($name) {
-            $payload = ConfigModel::get(
+            $default = Arr::get($this->form(), $name);
+
+            if (! class_exists(\Core\Mod\Social\Models\Config::class)) {
+                return $default;
+            }
+
+            $payload = \Core\Mod\Social\Models\Config::get(
                 property: "{$this->group()}.{$name}",
-                default: Arr::get($this->form(), $name)
+                default: $default
             );
 
             $this->putCache($name, $payload);

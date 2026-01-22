@@ -14,7 +14,6 @@ use Core\Config\ConfigService;
 use Core\Config\Models\ConfigKey;
 use Core\Config\Models\ConfigProfile;
 use Core\Config\Models\ConfigValue;
-use Core\Mod\Tenant\Models\Workspace;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -68,10 +67,17 @@ class ConfigPanel extends Component
             ->toArray();
     }
 
+    /**
+     * Get all workspaces (requires Tenant module).
+     */
     #[Computed]
     public function workspaces(): \Illuminate\Database\Eloquent\Collection
     {
-        return Workspace::orderBy('name')->get();
+        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        return \Core\Mod\Tenant\Models\Workspace::orderBy('name')->get();
     }
 
     #[Computed]
@@ -97,11 +103,16 @@ class ConfigPanel extends Component
         return ConfigProfile::ensureSystem();
     }
 
+    /**
+     * Get selected workspace (requires Tenant module).
+     *
+     * @return object|null  Workspace model instance or null
+     */
     #[Computed]
-    public function selectedWorkspace(): ?Workspace
+    public function selectedWorkspace(): ?object
     {
-        if ($this->workspaceId) {
-            return Workspace::find($this->workspaceId);
+        if ($this->workspaceId && class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            return \Core\Mod\Tenant\Models\Workspace::find($this->workspaceId);
         }
 
         return null;

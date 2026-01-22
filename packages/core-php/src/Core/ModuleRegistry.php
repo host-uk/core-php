@@ -13,23 +13,81 @@ namespace Core;
 use Illuminate\Support\Facades\Event;
 
 /**
- * Manages lazy module registration via events.
+ * Manages lazy module registration via Laravel's event system.
  *
- * Scans module directories, extracts $listens declarations,
- * and wires up lazy listeners for each event-module pair.
+ * The ModuleRegistry is the central coordinator for the event-driven module loading
+ * system. It uses ModuleScanner to discover modules, then wires up LazyModuleListener
+ * instances for each event-module pair.
  *
- * Listeners are registered in priority order (higher priority runs first).
+ * ## Registration Flow
  *
- * Usage:
- *     $registry = new ModuleRegistry(new ModuleScanner());
- *     $registry->register([app_path('Core'), app_path('Mod')]);
+ * 1. `register()` is called with paths to scan (typically in a ServiceProvider)
+ * 2. ModuleScanner discovers all Boot classes with `$listens` declarations
+ * 3. For each event-listener pair, a LazyModuleListener is registered
+ * 4. Listeners are sorted by priority (highest first) before registration
+ * 5. When events fire, LazyModuleListener instantiates modules on-demand
+ *
+ * ## Priority System
+ *
+ * Listeners are sorted by priority before registration with Laravel's event system.
+ * Higher priority values run first:
+ *
+ * - Priority 100: Runs first
+ * - Priority 0: Default
+ * - Priority -100: Runs last
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * // In a ServiceProvider's register() method:
+ * $registry = new ModuleRegistry(new ModuleScanner());
+ * $registry->register([
+ *     app_path('Core'),
+ *     app_path('Mod'),
+ *     app_path('Website'),
+ * ]);
+ *
+ * // Query registered modules:
+ * $events = $registry->getEvents();
+ * $modules = $registry->getModules();
+ * $listeners = $registry->getListenersFor(WebRoutesRegistering::class);
+ * ```
+ *
+ * ## Adding Paths After Initial Registration
+ *
+ * Use `addPaths()` to register additional module directories after the initial
+ * registration (e.g., for dynamically loaded plugins):
+ *
+ * ```php
+ * $registry->addPaths([base_path('plugins/custom-module')]);
+ * ```
+ *
+ * @package Core
+ *
+ * @see ModuleScanner For the discovery mechanism
+ * @see LazyModuleListener For the lazy-loading wrapper
  */
 class ModuleRegistry
 {
+    /**
+     * Event-to-module mappings discovered by the scanner.
+     *
+     * Structure: [EventClass => [ModuleClass => ['method' => string, 'priority' => int]]]
+     *
+     * @var array<string, array<string, array{method: string, priority: int}>>
+     */
     private array $mappings = [];
 
+    /**
+     * Whether initial registration has been performed.
+     */
     private bool $registered = false;
 
+    /**
+     * Create a new ModuleRegistry instance.
+     *
+     * @param  ModuleScanner  $scanner  The scanner used to discover module listeners
+     */
     public function __construct(
         private ModuleScanner $scanner
     ) {}

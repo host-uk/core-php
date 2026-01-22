@@ -15,7 +15,6 @@ use Core\Config\Models\Channel;
 use Core\Config\Models\ConfigKey;
 use Core\Config\Models\ConfigProfile;
 use Core\Config\Models\ConfigValue;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Support\Collection;
 
 /**
@@ -150,11 +149,12 @@ class ConfigResolver
      * NOTE: This is the expensive path - only called when lazy-priming.
      * Normal reads hit the hash directly via ConfigService.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @param  string|Channel|null  $channel  Channel code or object
      */
     public function resolve(
         string $keyCode,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
         string|Channel|null $channel = null,
     ): ConfigResult {
         // Get key definition (DB query - only during resolve, not normal reads)
@@ -229,9 +229,12 @@ class ConfigResolver
     /**
      * Try to resolve a JSON sub-key (e.g., "website.title" from "website" JSON).
      */
+    /**
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
+     */
     protected function resolveJsonSubKey(
         string $keyCode,
-        ?Workspace $workspace,
+        ?object $workspace,
         string|Channel|null $channel,
     ): ConfigResult {
         // Guard against stack overflow from deep nesting
@@ -277,11 +280,12 @@ class ConfigResolver
     /**
      * Build the channel inheritance chain.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return Collection<int, Channel|null>
      */
     public function buildChannelChain(
         string|Channel|null $channel,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
     ): Collection {
         $chain = new Collection;
 
@@ -407,7 +411,7 @@ class ConfigResolver
      * Providers supply values from module data without database storage.
      *
      * @param  string  $pattern  Key pattern (supports * wildcard)
-     * @param  callable  $provider  fn(string $key, ?Workspace $workspace, ?Channel $channel): mixed
+     * @param  callable  $provider  fn(string $key, ?object $workspace, ?Channel $channel): mixed
      */
     public function registerProvider(string $pattern, callable $provider): void
     {
@@ -416,10 +420,12 @@ class ConfigResolver
 
     /**
      * Resolve value from virtual providers.
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
     public function resolveFromProviders(
         string $keyCode,
-        ?Workspace $workspace,
+        ?object $workspace,
         string|Channel|null $channel,
     ): mixed {
         foreach ($this->providers as $pattern => $provider) {
@@ -455,9 +461,10 @@ class ConfigResolver
      *
      * NOTE: Only called during prime, not normal reads.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return array<string, ConfigResult>
      */
-    public function resolveAll(?Workspace $workspace = null, string|Channel|null $channel = null): array
+    public function resolveAll(?object $workspace = null, string|Channel|null $channel = null): array
     {
         $results = [];
 
@@ -474,11 +481,12 @@ class ConfigResolver
      *
      * NOTE: Only called during prime, not normal reads.
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return array<string, ConfigResult>
      */
     public function resolveCategory(
         string $category,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
         string|Channel|null $channel = null,
     ): array {
         $results = [];
@@ -497,9 +505,10 @@ class ConfigResolver
      * Returns profiles ordered from most specific (workspace) to least (system).
      * Chain: workspace → org → system
      *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      * @return Collection<int, ConfigProfile>
      */
-    public function buildProfileChain(?Workspace $workspace = null): Collection
+    public function buildProfileChain(?object $workspace = null): Collection
     {
         $chain = new Collection;
 
@@ -531,8 +540,10 @@ class ConfigResolver
      *
      * Stub for now - will connect to Tenant module when org model exists.
      * Organisation = multi-workspace grouping (agency accounts, teams).
+     *
+     * @param  object|null  $workspace  Workspace model instance or null
      */
-    protected function resolveOrgId(?Workspace $workspace): ?int
+    protected function resolveOrgId(?object $workspace): ?int
     {
         if ($workspace === null) {
             return null;
@@ -590,10 +601,12 @@ class ConfigResolver
      * Check if a key prefix is configured.
      *
      * Optimised to use EXISTS query instead of resolving each key.
+     *
+     * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
     public function isPrefixConfigured(
         string $prefix,
-        ?Workspace $workspace = null,
+        ?object $workspace = null,
         string|Channel|null $channel = null,
     ): bool {
         // Get profile IDs for this workspace

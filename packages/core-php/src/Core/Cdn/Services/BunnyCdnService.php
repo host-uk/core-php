@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Core\Cdn\Services;
 
 use Core\Config\ConfigService;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -167,8 +166,10 @@ class BunnyCdnService
 
     /**
      * Purge all cached content for a workspace.
+     *
+     * @param  object  $workspace  Workspace model instance (requires uuid property)
      */
-    public function purgeWorkspace(Workspace $workspace): bool
+    public function purgeWorkspace(object $workspace): bool
     {
         return $this->purgeByTag("workspace-{$workspace->uuid}");
     }

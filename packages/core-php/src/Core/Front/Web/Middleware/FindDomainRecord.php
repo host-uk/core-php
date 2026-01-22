@@ -12,7 +12,6 @@ namespace Core\Front\Web\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Core\Mod\Tenant\Models\Workspace;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -76,11 +75,20 @@ class FindDomainRecord
 
     /**
      * Resolve workspace from the domain.
+     *
+     * Requires Core\Mod\Tenant module to be installed.
+     *
+     * @return object|null  Workspace model instance or null
      */
-    protected function resolveWorkspaceFromDomain(string $host): ?Workspace
+    protected function resolveWorkspaceFromDomain(string $host): ?object
     {
+        // Check if Tenant module is installed
+        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            return null;
+        }
+
         // Check for custom domain first
-        $workspace = Workspace::where('domain', $host)->first();
+        $workspace = \Core\Mod\Tenant\Models\Workspace::where('domain', $host)->first();
         if ($workspace) {
             return $workspace;
         }
@@ -95,7 +103,7 @@ class FindDomainRecord
             if (count($parts) >= 1) {
                 $workspaceSlug = $parts[0];
 
-                return Workspace::where('slug', $workspaceSlug)
+                return \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)
                     ->where('is_active', true)
                     ->first();
             }

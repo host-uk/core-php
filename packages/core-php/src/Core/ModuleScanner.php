@@ -15,19 +15,54 @@ use ReflectionClass;
 /**
  * Scans module Boot.php files for event listener declarations.
  *
- * Reads the static $listens property from Boot classes without
- * instantiating them, enabling lazy loading of modules.
+ * The ModuleScanner is responsible for discovering modules that wish to participate
+ * in the lifecycle event system. It reads the static `$listens` property from Boot
+ * classes without instantiating them, enabling lazy loading of modules.
  *
- * Supports priority via array syntax:
+ * ## How It Works
+ *
+ * The scanner looks for `Boot.php` files in immediate subdirectories of the given paths.
+ * Each Boot class can declare a `$listens` array mapping events to handler methods:
+ *
+ * ```php
+ * class Boot
+ * {
  *     public static array $listens = [
- *         WebRoutesRegistering::class => 'onWebRoutes',           // Default priority 0
- *         AdminPanelBooting::class => ['onAdmin', 10],            // Priority 10 (higher = runs first)
+ *         WebRoutesRegistering::class => 'onWebRoutes',
+ *         AdminPanelBooting::class => ['onAdmin', 10],  // With priority
  *     ];
+ * }
+ * ```
  *
- * Usage:
- *     $scanner = new ModuleScanner();
- *     $mappings = $scanner->scan([app_path('Core'), app_path('Mod')]);
- *     // Returns: [EventClass => [ModuleClass => ['method' => 'name', 'priority' => 0]]]
+ * ## Priority System
+ *
+ * Listeners can optionally specify a priority (default: 0). Higher priority values
+ * run first. Use array syntax to specify priority:
+ *
+ * - `'methodName'` - Default priority 0
+ * - `['methodName', 10]` - Priority 10 (runs before priority 0)
+ * - `['methodName', -5]` - Priority -5 (runs after priority 0)
+ *
+ * ## Namespace Detection
+ *
+ * The scanner automatically determines namespaces based on path:
+ * - `/Core` paths map to `Core\` namespace
+ * - `/Mod` paths map to `Mod\` namespace
+ * - `/Website` paths map to `Website\` namespace
+ * - `/Plug` paths map to `Plug\` namespace
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * $scanner = new ModuleScanner();
+ * $mappings = $scanner->scan([app_path('Core'), app_path('Mod')]);
+ * // Returns: [EventClass => [ModuleClass => ['method' => 'name', 'priority' => 0]]]
+ * ```
+ *
+ * @package Core
+ *
+ * @see ModuleRegistry For registering discovered listeners with Laravel's event system
+ * @see LazyModuleListener For the lazy-loading listener wrapper
  */
 class ModuleScanner
 {
@@ -133,10 +168,18 @@ class ModuleScanner
     }
 
     /**
-     * Derive class name from file path.
+     * Derive fully qualified class name from file path.
      *
-     * Converts: app/Mod/Commerce/Boot.php → Mod\Commerce\Boot
-     * Converts: app/Core/Cdn/Boot.php → Core\Cdn\Boot
+     * Maps file paths to PSR-4 namespaces based on directory structure:
+     *
+     * - `app/Mod/Commerce/Boot.php` becomes `Mod\Commerce\Boot`
+     * - `app/Core/Cdn/Boot.php` becomes `Core\Cdn\Boot`
+     * - `app/Website/Acme/Boot.php` becomes `Website\Acme\Boot`
+     * - `app/Plug/Analytics/Boot.php` becomes `Plug\Analytics\Boot`
+     *
+     * @param  string  $file  Absolute path to the Boot.php file
+     * @param  string  $basePath  Base directory path (e.g., app_path('Mod'))
+     * @return string|null  Fully qualified class name, or null if path doesn't match expected structure
      */
     private function classFromFile(string $file, string $basePath): ?string
     {

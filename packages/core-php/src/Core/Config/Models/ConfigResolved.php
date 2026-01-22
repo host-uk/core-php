@@ -12,7 +12,6 @@ namespace Core\Config\Models;
 
 use Core\Config\ConfigResult;
 use Core\Config\Enums\ConfigType;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -66,10 +65,17 @@ class ConfigResolved extends Model
 
     /**
      * Workspace this resolution is for (null = system).
+     *
+     * Requires Core\Mod\Tenant module to be installed.
      */
     public function workspace(): BelongsTo
     {
-        return $this->belongsTo(Workspace::class);
+        if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            return $this->belongsTo(\Core\Mod\Tenant\Models\Workspace::class);
+        }
+
+        // Return a null relationship when Tenant module is not installed
+        return $this->belongsTo(self::class, 'workspace_id')->whereRaw('1 = 0');
     }
 
     /**

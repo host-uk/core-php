@@ -13,18 +13,40 @@ namespace Core\Events;
 /**
  * Fired when mail functionality is needed.
  *
- * Modules listen to this event to register mail templates,
- * custom mailers, or mail-related services.
+ * Modules listen to this event to register mail templates, custom mailers,
+ * or mail-related services. This enables lazy loading of mail dependencies
+ * until email actually needs to be sent.
  *
- * Allows lazy loading of mail dependencies until email
- * actually needs to be sent.
+ * ## When This Event Fires
+ *
+ * Fired when the mail system initializes, typically just before sending
+ * the first email in a request.
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * public static array $listens = [
+ *     MailSending::class => 'onMail',
+ * ];
+ *
+ * public function onMail(MailSending $event): void
+ * {
+ *     $event->mailable(OrderConfirmationMail::class);
+ *     $event->mailable(WelcomeEmail::class);
+ * }
+ * ```
+ *
+ * @package Core\Events
  */
 class MailSending extends LifecycleEvent
 {
+    /** @var array<int, string> Collected mailable class names */
     protected array $mailableRequests = [];
 
     /**
      * Register a mailable class.
+     *
+     * @param  string  $class  Fully qualified mailable class name
      */
     public function mailable(string $class): void
     {
@@ -32,7 +54,11 @@ class MailSending extends LifecycleEvent
     }
 
     /**
-     * Get all registered mailable classes.
+     * Get all registered mailable class names.
+     *
+     * @return array<int, string>
+     *
+     * @internal Used by mail system
      */
     public function mailableRequests(): array
     {

@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Helpers;
 
-use Core\Mod\Social\Enums\ServiceGroup;
 use Illuminate\Support\Arr;
 
 /**
@@ -33,10 +32,12 @@ class ServiceCollection
     /**
      * Filter services by group (social, AI, media, miscellaneous).
      *
-     * @param  ServiceGroup|array<int, ServiceGroup>|null  $group  Service group(s) to filter by
+     * Requires Core\Mod\Social module to be installed for ServiceGroup enum.
+     *
+     * @param  object|array<int, object>|null  $group  Service group(s) to filter by (ServiceGroup enum)
      * @return static New collection containing only services in the specified group(s)
      */
-    public function group(ServiceGroup|array|null $group = null): static
+    public function group(object|array|null $group = null): static
     {
         return new static(
             array_values(
@@ -75,7 +76,7 @@ class ServiceCollection
      * - group: The service group enum (social, AI, media, miscellaneous)
      * - form: The form configuration array for the service
      *
-     * @return array<int, array{name: string, group: ServiceGroup, form: array}>
+     * @return array<int, array{name: string, group: object, form: array}>
      */
     public function getCollection(): array
     {

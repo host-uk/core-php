@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Seo;
 
-use Core\Mod\Content\Models\ContentItem;
 use Core\Seo\Validation\SchemaValidator;
 
 /**
@@ -62,8 +61,10 @@ class Schema
 
     /**
      * Generate complete JSON-LD schema for a content item.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function generateSchema(ContentItem $item, array $options = []): array
+    public function generateSchema(object $item, array $options = []): array
     {
         $graph = [];
 
@@ -94,8 +95,10 @@ class Schema
 
     /**
      * Generate article schema.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function articleSchema(ContentItem $item, array $options = []): array
+    public function articleSchema(object $item, array $options = []): array
     {
         $type = $options['type'] ?? 'TechArticle';
         $wordCount = str_word_count(strip_tags($item->display_content ?? ''));
@@ -161,8 +164,10 @@ class Schema
 
     /**
      * Generate HowTo schema from article content.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function howToSchema(ContentItem $item): array
+    public function howToSchema(object $item): array
     {
         $steps = $this->extractSteps($item);
 
@@ -214,8 +219,10 @@ class Schema
 
     /**
      * Generate breadcrumb schema.
+     *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
      */
-    public function breadcrumbSchema(ContentItem $item): array
+    public function breadcrumbSchema(object $item): array
     {
         $workspace = $item->workspace;
         $domain = $workspace?->domain ?? $this->baseDomain();
@@ -295,8 +302,10 @@ class Schema
 
     /**
      * Check if article content contains numbered steps.
+     *
+     * @param  object  $item  Content item model instance
      */
-    protected function hasSteps(ContentItem $item): bool
+    protected function hasSteps(object $item): bool
     {
         $content = $item->display_content ?? '';
 
@@ -306,8 +315,10 @@ class Schema
 
     /**
      * Extract steps from article content.
+     *
+     * @param  object  $item  Content item model instance
      */
-    protected function extractSteps(ContentItem $item): array
+    protected function extractSteps(object $item): array
     {
         $content = $item->display_content ?? '';
         $steps = [];
@@ -340,8 +351,10 @@ class Schema
 
     /**
      * Extract FAQ from article content.
+     *
+     * @param  object  $item  Content item model instance
      */
-    protected function extractFaq(ContentItem $item): ?array
+    protected function extractFaq(object $item): ?array
     {
         $content = $item->display_content ?? '';
         $faqs = [];
@@ -367,8 +380,10 @@ class Schema
 
     /**
      * Get the full URL for an article.
+     *
+     * @param  object  $item  Content item model instance
      */
-    protected function getArticleUrl(ContentItem $item): string
+    protected function getArticleUrl(object $item): string
     {
         $workspace = $item->workspace;
         $domain = $workspace?->domain ?? $this->baseDomain();
@@ -382,8 +397,10 @@ class Schema
 
     /**
      * Generate an excerpt from content.
+     *
+     * @param  object  $item  Content item model instance
      */
-    protected function generateExcerpt(ContentItem $item, int $length = 155): string
+    protected function generateExcerpt(object $item, int $length = 155): string
     {
         $content = strip_tags($item->display_content ?? '');
         $content = preg_replace('/\s+/', ' ', $content);
@@ -421,9 +438,11 @@ class Schema
     /**
      * Generate schema with validation.
      *
+     * @param  object  $item  Content item model instance (expects ContentItem-like interface)
+     *
      * @throws \InvalidArgumentException if schema validation fails
      */
-    public function generateValidatedSchema(ContentItem $item, array $options = []): array
+    public function generateValidatedSchema(object $item, array $options = []): array
     {
         $schema = $this->generateSchema($item, $options);
         $result = $this->validate($schema);

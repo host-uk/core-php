@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Core\Front\Mcp;
 
 use Closure;
-use Core\Mod\Agentic\Models\AgentPlan;
 
 /**
  * Context object passed to MCP tool handlers.
@@ -27,9 +26,12 @@ use Core\Mod\Agentic\Models\AgentPlan;
  */
 class McpContext
 {
+    /**
+     * @param  object|null  $currentPlan  AgentPlan model instance when Agentic module installed
+     */
     public function __construct(
         private ?string $sessionId = null,
-        private ?AgentPlan $currentPlan = null,
+        private ?object $currentPlan = null,
         private ?Closure $notificationCallback = null,
         private ?Closure $logCallback = null,
     ) {}
@@ -52,16 +54,20 @@ class McpContext
 
     /**
      * Get the current plan if one is active.
+     *
+     * @return object|null AgentPlan model instance when Agentic module installed
      */
-    public function getCurrentPlan(): ?AgentPlan
+    public function getCurrentPlan(): ?object
     {
         return $this->currentPlan;
     }
 
     /**
      * Set the current plan.
+     *
+     * @param  object|null  $plan  AgentPlan model instance
      */
-    public function setCurrentPlan(?AgentPlan $plan): void
+    public function setCurrentPlan(?object $plan): void
     {
         $this->currentPlan = $plan;
     }

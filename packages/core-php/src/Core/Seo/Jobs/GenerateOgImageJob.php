@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Seo\Jobs;
 
-use Core\Mod\Web\Models\Page;
-use Core\Mod\Web\Services\DynamicOgImageService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -59,10 +57,26 @@ class GenerateOgImageJob implements ShouldQueue
 
     /**
      * Execute the job.
+     *
+     * Requires Core\Mod\Web module to be installed for full functionality.
      */
-    public function handle(DynamicOgImageService $ogService): void
+    public function handle(): void
     {
-        $biolink = Page::find($this->biolinkId);
+        // Check if required Web module classes exist
+        if (! class_exists(\Core\Mod\Web\Models\Page::class)) {
+            Log::warning('OG image generation skipped: Web module not installed');
+
+            return;
+        }
+
+        if (! class_exists(\Core\Mod\Web\Services\DynamicOgImageService::class)) {
+            Log::warning('OG image generation skipped: DynamicOgImageService not available');
+
+            return;
+        }
+
+        $ogService = app(\Core\Mod\Web\Services\DynamicOgImageService::class);
+        $biolink = \Core\Mod\Web\Models\Page::find($this->biolinkId);
 
         if (! $biolink) {
             Log::warning("OG image generation skipped: biolink {$this->biolinkId} not found");

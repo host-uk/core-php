@@ -12,7 +12,6 @@ namespace Core\Cdn\Console;
 
 use Core\Cdn\Services\FluxCdnService;
 use Core\Cdn\Services\StorageUrlResolver;
-use Core\Plug\Storage\Bunny\VBucket;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -30,7 +29,10 @@ class PushAssetsToCdn extends Command
 
     protected StorageUrlResolver $cdn;
 
-    protected VBucket $vbucket;
+    /**
+     * VBucket instance (Core\Plug\Storage\Bunny\VBucket when available).
+     */
+    protected ?object $vbucket = null;
 
     protected bool $dryRun = false;
 
@@ -40,12 +42,18 @@ class PushAssetsToCdn extends Command
 
     public function handle(FluxCdnService $flux, StorageUrlResolver $cdn): int
     {
+        if (! class_exists(\Core\Plug\Storage\Bunny\VBucket::class)) {
+            $this->error('Push assets to CDN requires Core\Plug\Storage\Bunny\VBucket class. Plug module not installed.');
+
+            return self::FAILURE;
+        }
+
         $this->cdn = $cdn;
         $this->dryRun = $this->option('dry-run');
 
         // Create vBucket for workspace isolation
         $domain = $this->option('domain');
-        $this->vbucket = VBucket::public($domain);
+        $this->vbucket = \Core\Plug\Storage\Bunny\VBucket::public($domain);
 
         $pushFlux = $this->option('flux');
         $pushFontawesome = $this->option('fontawesome');

@@ -10,9 +10,6 @@ declare(strict_types=1);
 
 namespace Core\Front\Admin\Concerns;
 
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-
 /**
  * Provides default permission handling for AdminMenuProvider implementations.
  *
@@ -40,11 +37,11 @@ trait HasMenuPermissions
      * By default, checks that the user has all permissions returned by
      * menuPermissions(). Override for custom logic.
      *
-     * @param  User|null  $user  The authenticated user
-     * @param  Workspace|null  $workspace  The current workspace context
+     * @param  object|null  $user  The authenticated user (User model instance)
+     * @param  object|null  $workspace  The current workspace context (Workspace model instance)
      * @return bool
      */
-    public function canViewMenu(?User $user, ?Workspace $workspace): bool
+    public function canViewMenu(?object $user, ?object $workspace): bool
     {
         // No user means no permission (unless we have no requirements)
         $permissions = $this->menuPermissions();
@@ -73,12 +70,12 @@ trait HasMenuPermissions
      * Override this method to customise how permission checks are performed.
      * By default, uses Laravel's Gate/Authorization system.
      *
-     * @param  User  $user
+     * @param  object  $user  User model instance
      * @param  string  $permission
-     * @param  Workspace|null  $workspace
+     * @param  object|null  $workspace  Workspace model instance
      * @return bool
      */
-    protected function userHasPermission(User $user, string $permission, ?Workspace $workspace): bool
+    protected function userHasPermission(object $user, string $permission, ?object $workspace): bool
     {
         // Check using Laravel's authorization
         if (method_exists($user, 'can')) {
