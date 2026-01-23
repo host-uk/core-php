@@ -6,12 +6,15 @@ namespace Core\Mod\Hub;
 
 use Core\Events\AdminPanelBooting;
 use Core\Front\Admin\AdminMenuRegistry;
+use Core\Front\Admin\Concerns\HasMenuPermissions;
 use Core\Front\Admin\Contracts\AdminMenuProvider;
 use Illuminate\Support\ServiceProvider;
 use Core\Mod\Tenant\Services\WorkspaceService;
 
 class Boot extends ServiceProvider implements AdminMenuProvider
 {
+    use HasMenuPermissions;
+
     protected string $moduleName = 'hub';
 
     /**

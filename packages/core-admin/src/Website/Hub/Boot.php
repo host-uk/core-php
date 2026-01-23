@@ -7,6 +7,7 @@ namespace Website\Hub;
 use Core\Events\DomainResolving;
 use Core\Events\AdminPanelBooting;
 use Core\Front\Admin\AdminMenuRegistry;
+use Core\Front\Admin\Concerns\HasMenuPermissions;
 use Core\Front\Admin\Contracts\AdminMenuProvider;
 use Core\Website\DomainResolver;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,8 @@ use Illuminate\Support\ServiceProvider;
  */
 class Boot extends ServiceProvider implements AdminMenuProvider
 {
+    use HasMenuPermissions;
+
     /**
      * Domain patterns this website responds to.
      * Listed separately so DomainResolver can expand them.
