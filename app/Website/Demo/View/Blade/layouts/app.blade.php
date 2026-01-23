@@ -8,6 +8,7 @@
     <title>{{ $title ?? config('app.name', 'Core PHP') }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @fluxAppearance
     @livewireStyles
 </head>
 <body class="font-sans antialiased bg-zinc-900 text-zinc-100 min-h-screen">
@@ -21,6 +22,7 @@
         {{ $slot }}
     </div>
 
+    @fluxScripts
     @livewireScripts
 </body>
 </html>
