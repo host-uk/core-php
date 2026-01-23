@@ -2,55 +2,32 @@
     <div class="w-full max-w-md">
         {{-- Header --}}
         <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold text-white mb-2">Sign in to {{ config('app.name', 'Core PHP') }}</h1>
-            <p class="text-zinc-400">Enter your credentials to continue</p>
+            <flux:heading size="xl">Sign in to {{ config('app.name', 'Core PHP') }}</flux:heading>
+            <flux:subheading>Enter your credentials to continue</flux:subheading>
         </div>
 
         {{-- Login Form --}}
         <form wire:submit="login" class="bg-zinc-800/50 rounded-xl p-6 space-y-6">
             {{-- Email --}}
-            <div>
-                <label for="email" class="block text-sm font-medium text-zinc-300 mb-2">Email address</label>
-                <input
-                    wire:model="email"
-                    type="email"
-                    id="email"
-                    autocomplete="email"
-                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
-                    placeholder="you@example.com"
-                >
-                @error('email')
-                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
-                @enderror
-            </div>
+            <flux:input
+                wire:model="email"
+                type="email"
+                label="Email address"
+                placeholder="you@example.com"
+                autocomplete="email"
+            />
 
             {{-- Password --}}
-            <div>
-                <label for="password" class="block text-sm font-medium text-zinc-300 mb-2">Password</label>
-                <input
-                    wire:model="password"
-                    type="password"
-                    id="password"
-                    autocomplete="current-password"
-                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
-                    placeholder="Enter your password"
-                >
-                @error('password')
-                    <p class="mt-2 text-sm text-red-400">{{ $message }}</p>
-                @enderror
-            </div>
+            <flux:input
+                wire:model="password"
+                type="password"
+                label="Password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+            />
 
             {{-- Remember Me --}}
-            <div class="flex items-center justify-between">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                        wire:model="remember"
-                        type="checkbox"
-                        class="w-4 h-4 rounded border-zinc-600 bg-zinc-900 text-violet-600 focus:ring-violet-500 focus:ring-offset-zinc-900"
-                    >
-                    <span class="text-sm text-zinc-400">Remember me</span>
-                </label>
-            </div>
+            <flux:checkbox wire:model="remember" label="Remember me" />
 
             {{-- Submit --}}
             <flux:button type="submit" variant="primary" class="w-full">
@@ -59,10 +36,8 @@
         </form>
 
         {{-- Back to home --}}
-        <p class="text-center mt-6 text-zinc-500">
-            <a href="/" class="text-violet-400 hover:text-violet-300 transition">
-                &larr; Back to home
-            </a>
-        </p>
+        <flux:link href="/" class="block text-center mt-6">
+            &larr; Back to home
+        </flux:link>
     </div>
 </div>
