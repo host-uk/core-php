@@ -124,16 +124,6 @@ class ConfigValue extends Model
     }
 
     /**
-     * Find value for a profile and key (legacy - no channel).
-     *
-     * @deprecated Use findValue() with explicit channel
-     */
-    public static function find(int $profileId, int $keyId): ?self
-    {
-        return static::findValue($profileId, $keyId, null);
-    }
-
-    /**
      * Set or update a value.
      *
      * Automatically invalidates the resolved hash so the next read

@@ -41,7 +41,7 @@ class ShortLinkController extends Controller
      */
     public function index(Request $request): PaginatedCollection|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -92,7 +92,7 @@ class ShortLinkController extends Controller
      */
     public function store(StoreShortLinkRequest $request): ShortLinkResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -194,7 +194,7 @@ class ShortLinkController extends Controller
      */
     public function show(Request $request, Page $shortlink): ShortLinkResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -217,7 +217,7 @@ class ShortLinkController extends Controller
      */
     public function update(UpdateShortLinkRequest $request, Page $shortlink): ShortLinkResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -329,7 +329,7 @@ class ShortLinkController extends Controller
      */
     public function destroy(Request $request, Page $shortlink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -365,15 +365,5 @@ class ShortLinkController extends Controller
         } while ($exists && $attempts < $maxAttempts);
 
         return $slug;
-    }
-
-    /**
-     * Get the current user's workspace.
-     *
-     * @deprecated Use resolveWorkspace() from ResolvesWorkspace trait
-     */
-    protected function getWorkspace(Request $request): ?Workspace
-    {
-        return $this->resolveWorkspace($request);
     }
 }

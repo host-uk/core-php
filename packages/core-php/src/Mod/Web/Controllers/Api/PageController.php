@@ -41,7 +41,7 @@ class PageController extends Controller
      */
     public function index(Request $request): PaginatedCollection|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -93,7 +93,7 @@ class PageController extends Controller
      */
     public function store(StorePageRequest $request): BioResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -177,7 +177,7 @@ class PageController extends Controller
      */
     public function show(Request $request, Page $biolink): BioResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -201,7 +201,7 @@ class PageController extends Controller
      */
     public function update(UpdatePageRequest $request, Page $biolink): BioResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -274,7 +274,7 @@ class PageController extends Controller
      */
     public function destroy(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -288,15 +288,5 @@ class PageController extends Controller
         $biolink->delete();
 
         return response()->json(null, 204);
-    }
-
-    /**
-     * Get the current user's workspace.
-     *
-     * @deprecated Use resolveWorkspace() from ResolvesWorkspace trait
-     */
-    protected function getWorkspace(Request $request): ?Workspace
-    {
-        return $this->resolveWorkspace($request);
     }
 }

@@ -39,7 +39,7 @@ class AnalyticsController extends Controller
      */
     public function summary(Request $request, Page $biolink): AnalyticsResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -90,7 +90,7 @@ class AnalyticsController extends Controller
      */
     public function clicks(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -130,7 +130,7 @@ class AnalyticsController extends Controller
      */
     public function geo(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -171,7 +171,7 @@ class AnalyticsController extends Controller
      */
     public function devices(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -217,7 +217,7 @@ class AnalyticsController extends Controller
      */
     public function referrers(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -258,7 +258,7 @@ class AnalyticsController extends Controller
      */
     public function utm(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -303,7 +303,7 @@ class AnalyticsController extends Controller
      */
     public function blocks(Request $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -353,16 +353,4 @@ class AnalyticsController extends Controller
         ]);
     }
 
-    /**
-     * Get the current user's workspace.
-     */
-    /**
-     * Get the current user's workspace.
-     *
-     * @deprecated Use resolveWorkspace() from ResolvesWorkspace trait
-     */
-    protected function getWorkspace(Request $request): ?Workspace
-    {
-        return $this->resolveWorkspace($request);
-    }
 }

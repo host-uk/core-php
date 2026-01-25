@@ -67,14 +67,7 @@ class Boot extends ServiceProvider
         }
 
         // Boot key registry after app is ready (deferred to avoid DB during boot)
-        $this->app->booted(function () {
-            // Skip during migrations, seeding, or when DB isn't ready
-            if ($this->app->runningInConsole() && $this->isDbUnavailable()) {
-                return;
-            }
-
-            ConfigResolver::bootKeys();
-        });
+        // Config resolver now uses lazy loading - no boot-time initialization needed
     }
 
     /**

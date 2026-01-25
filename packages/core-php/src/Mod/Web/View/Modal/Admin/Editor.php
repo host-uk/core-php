@@ -94,11 +94,6 @@ class Editor extends Component
     // Target region for adding new blocks
     public string $targetRegion = 'content';
 
-    // Legacy device settings (deprecated)
-    public string $selectedDevice = 'iphone-16-pro';
-
-    public ?string $selectedVariant = null;
-
     public bool $debugMode = false;
 
     // Dirty tracking
@@ -532,121 +527,6 @@ class Editor extends Component
             'right' => $this->rightEnabled = ! $this->rightEnabled,
             'footer' => $this->footerEnabled = ! $this->footerEnabled,
             default => null,
-        };
-    }
-
-    /**
-     * Get devices for the current viewport (legacy compatibility).
-     *
-     * @deprecated Use CSS-only device chrome instead
-     */
-    #[Computed]
-    public function devicesForViewport(): array
-    {
-        $devices = config('device-frames.devices', []);
-
-        return collect($devices)
-            ->filter(fn ($device) => $device['viewport'] === $this->selectedViewport)
-            ->all();
-    }
-
-    /**
-     * Get the currently selected device config (legacy compatibility).
-     *
-     * @deprecated Use CSS-only device chrome instead
-     */
-    #[Computed]
-    public function currentDevice(): ?array
-    {
-        return config("device-frames.devices.{$this->selectedDevice}");
-    }
-
-    /**
-     * Get the current device's available variants (legacy compatibility).
-     *
-     * @deprecated Use CSS-only device chrome instead
-     */
-    #[Computed]
-    public function currentVariants(): array
-    {
-        return $this->currentDevice['variants'] ?? [];
-    }
-
-    /**
-     * Get the effective variant (legacy compatibility).
-     *
-     * @deprecated Use CSS-only device chrome instead
-     */
-    #[Computed]
-    public function effectiveVariant(): string
-    {
-        return $this->selectedVariant
-            ?? $this->currentDevice['default_variant']
-            ?? array_key_first($this->currentVariants);
-    }
-
-    /**
-     * Select a device and reset variant (legacy compatibility).
-     *
-     * @deprecated Use CSS-only device chrome instead
-     */
-    public function selectDevice(string $device): void
-    {
-        $devices = config('device-frames.devices', []);
-
-        if (! isset($devices[$device])) {
-            return;
-        }
-
-        $this->selectedDevice = $device;
-        $this->selectedVariant = null;
-    }
-
-    /**
-     * Select a variant.
-     */
-    public function selectVariant(string $variant): void
-    {
-        $this->selectedVariant = $variant;
-    }
-
-    /**
-     * Get approximate colour for variant display.
-     */
-    public function getVariantColor(string $variant): string
-    {
-        // Common colour mappings for device variants
-        return match ($variant) {
-            // Apple colours
-            'black', 'space-black', 'black-titanium' => '#1d1d1f',
-            'silver', 'white', 'white-titanium' => '#e3e3e0',
-            'natural-titanium' => '#97948e',
-            'gold', 'light-gold' => '#d4af37',
-            'deep-purple' => '#635e6c',
-            'desert-titanium' => '#c4a77d',
-            'blue', 'blue-titanium', 'deep-blue' => '#4a6fa5',
-            'sky-blue' => '#87ceeb',
-            'pink' => '#fadadd',
-            'teal' => '#4db6ac',
-            'ultramarine' => '#3f51b5',
-            'cloud-white' => '#f5f5f5',
-            'space-gray' => '#535150',
-            'green' => '#4caf50',
-            'orange', 'cosmic-orange' => '#ff9800',
-            'purple' => '#9c27b0',
-            'red' => '#f44336',
-            'yellow' => '#ffeb3b',
-            'stardust' => '#bdb5a1',
-            // Android colours
-            'obsidian' => '#292929',
-            'hazel' => '#8d7b6c',
-            'rose-quartz' => '#e8b4b8',
-            'porcelain' => '#f0ebe3',
-            // Windows/Surface colours
-            'graphite' => '#4a4a4a',
-            'platinum' => '#e5e4e2',
-            // Default
-            default => '#888888',
         };
     }
 

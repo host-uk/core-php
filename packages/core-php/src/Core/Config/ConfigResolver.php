@@ -129,16 +129,6 @@ class ConfigResolver
         static::$loaded = true;
     }
 
-    /**
-     * No-op for backward compatibility with Boot.php.
-     *
-     * @deprecated Remove call from Boot.php
-     */
-    public static function bootKeys(): void
-    {
-        // No-op
-    }
-
     // =========================================================================
     // RESOLUTION ENGINE (only runs during lazy prime, not normal reads)
     // =========================================================================

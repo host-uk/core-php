@@ -157,14 +157,4 @@ class StorageOffload extends Model
 
         return round($bytes / (1024 ** $power), 2).' '.$units[$power];
     }
-
-    /**
-     * Legacy attribute name alias.
-     *
-     * @deprecated Use file_size_human instead
-     */
-    public function getHumanSizeAttribute(): string
-    {
-        return $this->file_size_human;
-    }
 }

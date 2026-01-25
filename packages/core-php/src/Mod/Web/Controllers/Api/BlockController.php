@@ -37,7 +37,7 @@ class BlockController extends Controller
      */
     public function index(Request $request, Page $biolink): AnonymousResourceCollection|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -60,7 +60,7 @@ class BlockController extends Controller
      */
     public function store(StoreBlockRequest $request, Page $biolink): BlockResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -105,7 +105,7 @@ class BlockController extends Controller
      */
     public function show(Request $request, Block $block): BlockResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -126,7 +126,7 @@ class BlockController extends Controller
      */
     public function update(UpdateBlockRequest $request, Block $block): BlockResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -151,7 +151,7 @@ class BlockController extends Controller
      */
     public function destroy(Request $request, Block $block): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -182,7 +182,7 @@ class BlockController extends Controller
      */
     public function reorder(ReorderBlocksRequest $request, Page $biolink): JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -221,7 +221,7 @@ class BlockController extends Controller
      */
     public function duplicate(Request $request, Page $biolink, Block $block): BlockResource|JsonResponse
     {
-        $workspace = $this->getWorkspace($request);
+        $workspace = $this->resolveWorkspace($request);
 
         if (! $workspace) {
             return $this->noWorkspaceResponse();
@@ -248,15 +248,5 @@ class BlockController extends Controller
         $newBlock->save();
 
         return new BlockResource($newBlock);
-    }
-
-    /**
-     * Get the current user's workspace.
-     *
-     * @deprecated Use resolveWorkspace() from ResolvesWorkspace trait
-     */
-    protected function getWorkspace(Request $request): ?Workspace
-    {
-        return $this->resolveWorkspace($request);
     }
 }
