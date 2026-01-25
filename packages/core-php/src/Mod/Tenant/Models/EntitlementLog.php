@@ -14,6 +14,7 @@ class EntitlementLog extends Model
 
     protected $fillable = [
         'workspace_id',
+        'namespace_id',
         'action',
         'entity_type',
         'entity_id',
@@ -78,6 +79,14 @@ class EntitlementLog extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /**
+     * The namespace this log belongs to.
+     */
+    public function namespace(): BelongsTo
+    {
+        return $this->belongsTo(Namespace_::class, 'namespace_id');
     }
 
     /**

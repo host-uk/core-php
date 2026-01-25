@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Core\Mod\Api\Middleware;
+namespace Mod\Api\Middleware;
 
-use Core\Mod\Api\Models\ApiKey;
+use Mod\Api\Models\ApiKey;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

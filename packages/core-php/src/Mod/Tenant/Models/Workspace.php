@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Core\Mod\Tenant\Services\EntitlementResult;
 use Core\Mod\Tenant\Services\EntitlementService;
 
@@ -101,6 +102,30 @@ class Workspace extends Model
     public function workspacePackages(): HasMany
     {
         return $this->hasMany(WorkspacePackage::class);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Namespace Relationships
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get all namespaces owned by this workspace.
+     */
+    public function namespaces(): MorphMany
+    {
+        return $this->morphMany(Namespace_::class, 'owner');
+    }
+
+    /**
+     * Get the workspace's default namespace.
+     */
+    public function defaultNamespace(): ?Namespace_
+    {
+        return $this->namespaces()
+            ->where('is_default', true)
+            ->active()
+            ->first()
+            ?? $this->namespaces()->active()->ordered()->first();
     }
 
     /**

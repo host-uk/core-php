@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * User two-factor authentication record.
  *
- * Native implementation replacing Mixpost's 2FA model.
+ * Stores TOTP secrets and recovery codes for 2FA.
  */
 class UserTwoFactorAuth extends Model
 {

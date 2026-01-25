@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Core\Website\Mcp\View\Modal;
 
 use Livewire\Component;
+use Core\Mod\Api\Models\ApiKey;
+use Mod\Tenant\Models\Workspace;
 
 /**
  * MCP API Key Manager.
@@ -14,6 +16,8 @@ use Livewire\Component;
  */
 class ApiKeyManager extends Component
 {
+    public Workspace $workspace;
+
     // Create form state
     public bool $showCreateModal = false;
 
@@ -27,6 +31,11 @@ class ApiKeyManager extends Component
     public ?string $newPlainKey = null;
 
     public bool $showNewKeyModal = false;
+
+    public function mount(Workspace $workspace): void
+    {
+        $this->workspace = $workspace;
+    }
 
     public function openCreateModal(): void
     {
@@ -47,10 +56,22 @@ class ApiKeyManager extends Component
             'newKeyName' => 'required|string|max:100',
         ]);
 
-        // Implement key creation in your application
-        // $result = ApiKey::generate(...);
-        // $this->newPlainKey = $result['plain_key'];
+        $expiresAt = match ($this->newKeyExpiry) {
+            '30days' => now()->addDays(30),
+            '90days' => now()->addDays(90),
+            '1year' => now()->addYear(),
+            default => null,
+        };
 
+        $result = ApiKey::generate(
+            workspaceId: $this->workspace->id,
+            userId: auth()->id(),
+            name: $this->newKeyName,
+            scopes: $this->newKeyScopes,
+            expiresAt: $expiresAt,
+        );
+
+        $this->newPlainKey = $result['plain_key'];
         $this->showCreateModal = false;
         $this->showNewKeyModal = true;
 
@@ -61,6 +82,14 @@ class ApiKeyManager extends Component
     {
         $this->newPlainKey = null;
         $this->showNewKeyModal = false;
+    }
+
+    public function revokeKey(int $keyId): void
+    {
+        $key = $this->workspace->apiKeys()->findOrFail($keyId);
+        $key->revoke();
+
+        session()->flash('message', 'API key revoked.');
     }
 
     public function toggleScope(string $scope): void
@@ -75,7 +104,7 @@ class ApiKeyManager extends Component
     public function render()
     {
         return view('mcp::web.api-key-manager', [
-            'keys' => collect(), // Override to provide real keys
+            'keys' => $this->workspace->apiKeys()->orderByDesc('created_at')->get(),
         ]);
     }
 }

@@ -23,6 +23,11 @@ class Boot extends ServiceProvider
 
     protected function registerRoutes(): void
     {
+        // Skip domain binding during console commands (no request available)
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
         Route::middleware('web')
             ->domain(request()->getHost())
             ->group(__DIR__.'/Routes/web.php');

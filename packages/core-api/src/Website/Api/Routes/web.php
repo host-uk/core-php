@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Core\Website\Api\Controllers\DocsController;
 use Illuminate\Support\Facades\Route;
+use Website\Api\Controllers\DocsController;
 
 // Documentation landing
 Route::get('/', [DocsController::class, 'index'])->name('api.docs');
@@ -29,5 +29,7 @@ Route::get('/scalar', [DocsController::class, 'scalar'])->name('api.scalar');
 // ReDoc (three-panel API reference)
 Route::get('/redoc', [DocsController::class, 'redoc'])->name('api.redoc');
 
-// OpenAPI spec
-Route::get('/openapi.json', [DocsController::class, 'openapi'])->name('api.openapi.json');
+// OpenAPI spec (rate limited - expensive to generate)
+Route::get('/openapi.json', [DocsController::class, 'openapi'])
+    ->middleware('throttle:60,1')
+    ->name('api.openapi.json');

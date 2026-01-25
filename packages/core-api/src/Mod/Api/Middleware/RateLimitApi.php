@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Mod\Api\Middleware;
 
-use Core\Mod\Api\Models\ApiKey;
+use Mod\Api\Models\ApiKey;
 use Closure;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\Request;

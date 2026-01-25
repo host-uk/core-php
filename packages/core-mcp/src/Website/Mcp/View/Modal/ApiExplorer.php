@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core\Website\Mcp\View\Modal;
 
 use Livewire\Component;
+use Core\Mod\Api\Services\ApiSnippetService;
 
 /**
  * Interactive API Explorer
@@ -20,7 +21,7 @@ class ApiExplorer extends Component
 
     public string $selectedLanguage = 'curl';
 
-    public string $baseUrl = 'https://api.host.uk.com';
+    public string $baseUrl = '';
 
     // Request configuration
     public string $method = 'GET';
@@ -54,10 +55,63 @@ class ApiExplorer extends Component
             'description' => 'Create a new workspace',
             'body' => ['name' => 'My Workspace', 'description' => 'A new workspace'],
         ],
+        [
+            'name' => 'Get Workspace',
+            'method' => 'GET',
+            'path' => '/api/v1/workspaces/{id}',
+            'description' => 'Get a specific workspace by ID',
+            'body' => null,
+        ],
+        [
+            'name' => 'List Bio Links',
+            'method' => 'GET',
+            'path' => '/api/v1/biolinks',
+            'description' => 'Get all bio links in the workspace',
+            'body' => null,
+        ],
+        [
+            'name' => 'Create Bio Link',
+            'method' => 'POST',
+            'path' => '/api/v1/biolinks',
+            'description' => 'Create a new bio link page',
+            'body' => ['title' => 'My Links', 'slug' => 'mylinks', 'theme' => 'default'],
+        ],
+        [
+            'name' => 'List Short Links',
+            'method' => 'GET',
+            'path' => '/api/v1/links',
+            'description' => 'Get all short links',
+            'body' => null,
+        ],
+        [
+            'name' => 'Create Short Link',
+            'method' => 'POST',
+            'path' => '/api/v1/links',
+            'description' => 'Create a new short link',
+            'body' => ['url' => 'https://example.com', 'slug' => 'example'],
+        ],
+        [
+            'name' => 'Get Analytics',
+            'method' => 'GET',
+            'path' => '/api/v1/analytics/summary',
+            'description' => 'Get analytics summary for the workspace',
+            'body' => null,
+        ],
     ];
+
+    protected ApiSnippetService $snippetService;
+
+    public function boot(ApiSnippetService $snippetService): void
+    {
+        $this->snippetService = $snippetService;
+    }
 
     public function mount(): void
     {
+        // Set base URL from config
+        $this->baseUrl = config('api.base_url', config('app.url'));
+
+        // Pre-select first endpoint
         if (! empty($this->endpoints)) {
             $this->selectEndpoint(0);
         }
@@ -82,57 +136,135 @@ class ApiExplorer extends Component
 
     public function getCodeSnippet(): string
     {
-        $key = $this->apiKey ?: 'YOUR_API_KEY';
-        $url = rtrim($this->baseUrl, '/').'/'.ltrim($this->path, '/');
+        $headers = [
+            'Authorization' => 'Bearer '.($this->apiKey ?: 'YOUR_API_KEY'),
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
 
-        return match ($this->selectedLanguage) {
-            'curl' => $this->getCurlSnippet($url, $key),
-            'php' => $this->getPhpSnippet($url, $key),
-            'javascript' => $this->getJsSnippet($url, $key),
-            default => $this->getCurlSnippet($url, $key),
-        };
-    }
-
-    protected function getCurlSnippet(string $url, string $key): string
-    {
-        $cmd = "curl -X {$this->method} \"{$url}\" \\\n";
-        $cmd .= "  -H \"Authorization: Bearer {$key}\" \\\n";
-        $cmd .= "  -H \"Content-Type: application/json\" \\\n";
-        $cmd .= "  -H \"Accept: application/json\"";
-
+        $body = null;
         if (in_array($this->method, ['POST', 'PUT', 'PATCH']) && $this->bodyJson !== '{}') {
-            $cmd .= " \\\n  -d '{$this->bodyJson}'";
+            $body = json_decode($this->bodyJson, true);
         }
 
-        return $cmd;
+        return $this->snippetService->generate(
+            $this->selectedLanguage,
+            $this->method,
+            $this->path,
+            $headers,
+            $body,
+            $this->baseUrl
+        );
     }
 
-    protected function getPhpSnippet(string $url, string $key): string
+    public function getAllSnippets(): array
     {
-        return <<<PHP
-\$response = Http::withToken('{$key}')
-    ->acceptJson()
-    ->{$this->method}('{$url}');
-PHP;
+        $headers = [
+            'Authorization' => 'Bearer '.($this->apiKey ?: 'YOUR_API_KEY'),
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+
+        $body = null;
+        if (in_array($this->method, ['POST', 'PUT', 'PATCH']) && $this->bodyJson !== '{}') {
+            $body = json_decode($this->bodyJson, true);
+        }
+
+        return $this->snippetService->generateAll(
+            $this->method,
+            $this->path,
+            $headers,
+            $body,
+            $this->baseUrl
+        );
     }
 
-    protected function getJsSnippet(string $url, string $key): string
+    public function copyToClipboard(): void
     {
-        return <<<JS
-const response = await fetch('{$url}', {
-  method: '{$this->method}',
-  headers: {
-    'Authorization': 'Bearer {$key}',
-    'Content-Type': 'application/json',
-  },
-});
-JS;
+        $this->dispatch('copy-to-clipboard', code: $this->getCodeSnippet());
+    }
+
+    public function sendRequest(): void
+    {
+        if (empty($this->apiKey)) {
+            $this->error = 'Please enter your API key to send requests';
+
+            return;
+        }
+
+        $this->isLoading = true;
+        $this->response = null;
+        $this->error = null;
+
+        try {
+            $startTime = microtime(true);
+
+            $url = rtrim($this->baseUrl, '/').'/'.ltrim($this->path, '/');
+
+            $options = [
+                'http' => [
+                    'method' => $this->method,
+                    'header' => [
+                        "Authorization: Bearer {$this->apiKey}",
+                        'Content-Type: application/json',
+                        'Accept: application/json',
+                    ],
+                    'timeout' => 30,
+                    'ignore_errors' => true,
+                ],
+            ];
+
+            if (in_array($this->method, ['POST', 'PUT', 'PATCH']) && $this->bodyJson !== '{}') {
+                $options['http']['content'] = $this->bodyJson;
+            }
+
+            $context = stream_context_create($options);
+            $result = @file_get_contents($url, false, $context);
+
+            $this->responseTime = (int) round((microtime(true) - $startTime) * 1000);
+
+            if ($result === false) {
+                $this->error = 'Request failed - check your API key and endpoint';
+
+                return;
+            }
+
+            // Parse response headers
+            $statusCode = 200;
+            if (isset($http_response_header[0])) {
+                preg_match('/HTTP\/\d+\.?\d* (\d+)/', $http_response_header[0], $matches);
+                $statusCode = (int) ($matches[1] ?? 200);
+            }
+
+            $this->response = [
+                'status' => $statusCode,
+                'body' => json_decode($result, true) ?? $result,
+                'headers' => $http_response_header ?? [],
+            ];
+
+        } catch (\Exception $e) {
+            $this->error = $e->getMessage();
+        } finally {
+            $this->isLoading = false;
+        }
+    }
+
+    public function formatBody(): void
+    {
+        try {
+            $decoded = json_decode($this->bodyJson, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $this->bodyJson = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            }
+        } catch (\Exception $e) {
+            // Ignore
+        }
     }
 
     public function render()
     {
         return view('mcp::web.api-explorer', [
-            'languages' => ['curl', 'php', 'javascript'],
+            'languages' => ApiSnippetService::getLanguages(),
             'snippet' => $this->getCodeSnippet(),
         ]);
     }

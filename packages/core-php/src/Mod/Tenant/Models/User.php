@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Pennant\Concerns\HasFeatures;
@@ -173,6 +174,68 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hostWorkspaces()
             ->wherePivot('is_default', true)
             ->first() ?? $this->hostWorkspaces()->first();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Namespace Relationships
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get all namespaces owned directly by this user.
+     */
+    public function namespaces(): MorphMany
+    {
+        return $this->morphMany(Namespace_::class, 'owner');
+    }
+
+    /**
+     * Get the user's default namespace.
+     *
+     * Priority:
+     * 1. User's default namespace (is_default = true)
+     * 2. First active user-owned namespace
+     * 3. First namespace from user's default workspace
+     */
+    public function defaultNamespace(): ?Namespace_
+    {
+        // Try user's explicit default
+        $default = $this->namespaces()
+            ->where('is_default', true)
+            ->active()
+            ->first();
+
+        if ($default) {
+            return $default;
+        }
+
+        // Try first user-owned namespace
+        $userOwned = $this->namespaces()
+            ->active()
+            ->ordered()
+            ->first();
+
+        if ($userOwned) {
+            return $userOwned;
+        }
+
+        // Try namespace from user's default workspace
+        $workspace = $this->defaultHostWorkspace();
+        if ($workspace) {
+            return $workspace->namespaces()
+                ->active()
+                ->ordered()
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get all namespaces accessible by this user (owned + via workspaces).
+     */
+    public function accessibleNamespaces(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Namespace_::accessibleBy($this);
     }
 
     /**

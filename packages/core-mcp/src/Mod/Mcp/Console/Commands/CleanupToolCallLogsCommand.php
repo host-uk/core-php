@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mod\Mcp\Console\Commands;
+namespace Core\Mod\Mcp\Console\Commands;
 
 use Illuminate\Console\Command;
 use Mod\Mcp\Models\McpApiRequest;

@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 namespace Core;
 
-use Illuminate\Http\Request;
+use Core\Input\Input;
 
 /**
  * Application initialisation - the true entry point.
@@ -22,6 +22,9 @@ use Illuminate\Http\Request;
  *
  * This replaces Laravel's bootstrap/app.php pattern with
  * explicit provider loading via Core\Boot.
+ *
+ * The Input::capture() method provides a WAF layer that sanitises
+ * all input ($_GET, $_POST) before Laravel sees it.
  */
 class Init
 {
@@ -36,9 +39,13 @@ class Init
             require $maintenance;
         }
 
-        // Capture request and hand to Laravel
-        $request = Request::capture();
-        Boot::app()->handleRequest($request);
+        // Capture and filter input - WAF layer
+        // This sanitises $_GET and $_POST before creating the request
+        $request = Input::capture();
+
+        // Hand clean request to Laravel
+        // Use App\Boot if it exists (app customizations), otherwise Core\Boot
+        self::boot()::app()->handleRequest($request);
     }
 
     /**
@@ -46,8 +53,19 @@ class Init
      */
     public static function handleForTesting(): mixed
     {
-        $request = Request::capture();
+        $request = Input::capture();
 
-        return Boot::app()->handle($request);
+        return self::boot()::app()->handle($request);
+    }
+
+    /**
+     * Get the Boot class to use.
+     *
+     * Prefers App\Boot if it exists, allowing apps to customise
+     * providers, middleware, and exception handling.
+     */
+    protected static function boot(): string
+    {
+        return class_exists('App\\Boot') ? 'App\\Boot' : Boot::class;
     }
 }

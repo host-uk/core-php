@@ -14,6 +14,7 @@ class Boost extends Model
 
     protected $fillable = [
         'workspace_id',
+        'namespace_id',
         'user_id',
         'feature_code',
         'boost_type',
@@ -70,6 +71,14 @@ class Boost extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /**
+     * The namespace this boost belongs to.
+     */
+    public function namespace(): BelongsTo
+    {
+        return $this->belongsTo(Namespace_::class, 'namespace_id');
     }
 
     /**

@@ -5,15 +5,46 @@ declare(strict_types=1);
 namespace Core\Website\Api\Services;
 
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Illuminate\Support\Str;
 
 class OpenApiGenerator
 {
     /**
+     * Cache duration in seconds (1 hour in production, 0 in local).
+     */
+    protected function getCacheDuration(): int
+    {
+        return app()->isProduction() ? 3600 : 0;
+    }
+
+    /**
      * Generate OpenAPI 3.0 specification from Laravel routes.
      */
     public function generate(): array
+    {
+        $duration = $this->getCacheDuration();
+
+        if ($duration === 0) {
+            return $this->buildSpec();
+        }
+
+        return Cache::remember('openapi:spec', $duration, fn () => $this->buildSpec());
+    }
+
+    /**
+     * Clear the cached OpenAPI spec.
+     */
+    public function clearCache(): void
+    {
+        Cache::forget('openapi:spec');
+    }
+
+    /**
+     * Build the full OpenAPI specification.
+     */
+    protected function buildSpec(): array
     {
         return [
             'openapi' => '3.0.0',
@@ -28,10 +59,14 @@ class OpenApiGenerator
     protected function buildInfo(): array
     {
         return [
-            'title' => config('app.name', 'API'),
-            'description' => config('core.api.description', 'API Documentation'),
-            'version' => config('core.api.version', '1.0.0'),
-            'contact' => config('core.api.contact', []),
+            'title' => config('app.name').' API',
+            'description' => 'Unified API for Host UK services including commerce, analytics, push notifications, support, and MCP.',
+            'version' => config('api.version', '1.0.0'),
+            'contact' => [
+                'name' => config('app.name').' Support',
+                'url' => config('app.url').'/contact',
+                'email' => config('mail.from.address', 'support@host.uk.com'),
+            ],
         ];
     }
 
@@ -47,7 +82,24 @@ class OpenApiGenerator
 
     protected function buildTags(): array
     {
-        return config('core.api.tags', []);
+        return [
+            ['name' => 'Analytics', 'description' => 'Website analytics and tracking'],
+            ['name' => 'Bio', 'description' => 'Bio link pages, blocks, and QR codes'],
+            ['name' => 'Chat Widget', 'description' => 'Public chat widget API'],
+            ['name' => 'Commerce', 'description' => 'Billing, orders, invoices, subscriptions, and provisioning'],
+            ['name' => 'Content', 'description' => 'AI content generation and briefs'],
+            ['name' => 'Entitlements', 'description' => 'Feature entitlements and usage'],
+            ['name' => 'MCP', 'description' => 'Model Context Protocol HTTP bridge'],
+            ['name' => 'Notify', 'description' => 'Push notification management'],
+            ['name' => 'Pixel', 'description' => 'Unified pixel tracking'],
+            ['name' => 'SEO', 'description' => 'SEO report and analysis endpoints'],
+            ['name' => 'Social', 'description' => 'Social media management'],
+            ['name' => 'Support', 'description' => 'Helpdesk API'],
+            ['name' => 'Tenant', 'description' => 'Workspaces and multi-tenancy'],
+            ['name' => 'Trees', 'description' => 'Trees for Agents statistics'],
+            ['name' => 'Trust', 'description' => 'Social proof widgets'],
+            ['name' => 'Webhooks', 'description' => 'Incoming webhook endpoints for external services'],
+        ];
     }
 
     protected function buildPaths(): array
@@ -148,8 +200,33 @@ class OpenApiGenerator
         $uri = $route->uri();
         $name = $route->getName() ?? '';
 
-        // Match by route name prefix - configurable
-        $tagMap = config('core.api.tag_map.routes', []);
+        // Match by route name prefix
+        $tagMap = [
+            'api.webhook' => 'Webhooks',
+            'api.trees' => 'Trees',
+            'api.seo' => 'SEO',
+            'api.pixel' => 'Pixel',
+            'api.commerce' => 'Commerce',
+            'api.entitlements' => 'Entitlements',
+            'api.support.chat' => 'Chat Widget',
+            'api.support' => 'Support',
+            'api.mcp' => 'MCP',
+            'api.social' => 'Social',
+            'api.notify' => 'Notify',
+            'api.bio' => 'Bio',
+            'api.blocks' => 'Bio',
+            'api.shortlinks' => 'Bio',
+            'api.qr' => 'Bio',
+            'api.workspaces' => 'Tenant',
+            'api.key.workspaces' => 'Tenant',
+            'api.key.bio' => 'Bio',
+            'api.key.blocks' => 'Bio',
+            'api.key.shortlinks' => 'Bio',
+            'api.key.qr' => 'Bio',
+            'api.content' => 'Content',
+            'api.key.content' => 'Content',
+            'api.trust' => 'Trust',
+        ];
 
         foreach ($tagMap as $prefix => $tag) {
             if (str_starts_with($name, $prefix)) {
@@ -159,7 +236,27 @@ class OpenApiGenerator
 
         // Match by URI prefix (check start of path after 'api/')
         $path = preg_replace('#^api/#', '', $uri);
-        $uriTagMap = config('core.api.tag_map.uris', []);
+        $uriTagMap = [
+            'webhooks' => 'Webhooks',
+            'trees' => 'Trees',
+            'pixel' => 'Pixel',
+            'provisioning' => 'Commerce',
+            'commerce' => 'Commerce',
+            'entitlements' => 'Entitlements',
+            'support/chat' => 'Chat Widget',
+            'support' => 'Support',
+            'mcp' => 'MCP',
+            'bio' => 'Bio',
+            'shortlinks' => 'Bio',
+            'qr' => 'Bio',
+            'blocks' => 'Bio',
+            'workspaces' => 'Tenant',
+            'analytics' => 'Analytics',
+            'social' => 'Social',
+            'trust' => 'Trust',
+            'notify' => 'Notify',
+            'content' => 'Content',
+        ];
 
         foreach ($uriTagMap as $prefix => $tag) {
             if (str_starts_with($path, $prefix)) {
@@ -216,8 +313,12 @@ class OpenApiGenerator
             return [['bearerAuth' => []]];
         }
 
+        if (in_array('commerce.api', $middleware)) {
+            return [['apiKeyAuth' => []]];
+        }
+
         foreach ($middleware as $m) {
-            if (str_contains($m, 'ApiKey')) {
+            if (str_contains($m, 'McpApiKeyAuth')) {
                 return [['apiKeyAuth' => []]];
             }
         }

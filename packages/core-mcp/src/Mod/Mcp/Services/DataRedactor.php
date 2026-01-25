@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mod\Mcp\Services;
+namespace Core\Mod\Mcp\Services;
 
 /**
  * Data Redactor - redacts sensitive information from tool call logs.

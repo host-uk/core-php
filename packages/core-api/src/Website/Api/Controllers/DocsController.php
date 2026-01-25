@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Core\Website\Api\Controllers;
 
-use Core\Website\Api\Services\OpenApiGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Website\Api\Services\OpenApiGenerator;
 
 class DocsController
 {

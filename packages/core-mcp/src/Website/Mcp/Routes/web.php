@@ -1,7 +1,8 @@
 <?php
 
-use Core\Website\Mcp\Controllers\McpRegistryController;
 use Illuminate\Support\Facades\Route;
+use Mod\Mcp\Middleware\McpAuthenticate;
+use Website\Mcp\Controllers\McpRegistryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,19 +23,23 @@ Route::domain($mcpDomain)->name('mcp.')->group(function () {
 
     // Landing page
     Route::get('/', [McpRegistryController::class, 'landing'])
+        ->middleware(McpAuthenticate::class.':optional')
         ->name('landing');
 
     // Server list (HTML/JSON based on Accept header)
     Route::get('servers', [McpRegistryController::class, 'index'])
+        ->middleware(McpAuthenticate::class.':optional')
         ->name('servers.index');
 
     // Server detail (supports .json extension)
     Route::get('servers/{id}', [McpRegistryController::class, 'show'])
+        ->middleware(McpAuthenticate::class.':optional')
         ->name('servers.show')
         ->where('id', '[a-z0-9-]+(?:\.json)?');
 
     // Connection config page
     Route::get('connect', [McpRegistryController::class, 'connect'])
+        ->middleware(McpAuthenticate::class.':optional')
         ->name('connect');
 
     // OpenAPI spec

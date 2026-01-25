@@ -7,6 +7,8 @@ namespace Core\Website\Mcp\Controllers;
 use Core\Front\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Mod\Mcp\Models\McpToolCall;
+use Mod\Mcp\Services\OpenApiGenerator;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -149,6 +151,119 @@ class McpRegistryController extends Controller
         return view('mcp::web.connect', [
             'servers' => $servers,
             'templates' => $registry['connection_templates'] ?? [],
+            'workspace' => $request->attributes->get('mcp_workspace'),
+        ]);
+    }
+
+    /**
+     * Dashboard: /dashboard
+     *
+     * Shows MCP usage for the authenticated workspace.
+     */
+    public function dashboard(Request $request)
+    {
+        $workspace = $request->attributes->get('mcp_workspace');
+        $entitlement = $request->attributes->get('mcp_entitlement');
+
+        // Get tool call stats for this workspace
+        $stats = $this->getWorkspaceStats($workspace);
+
+        return view('mcp::web.dashboard', [
+            'workspace' => $workspace,
+            'entitlement' => $entitlement,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * API Keys management: /keys
+     *
+     * Manage API keys for MCP access.
+     */
+    public function keys(Request $request)
+    {
+        $workspace = $request->attributes->get('mcp_workspace');
+
+        return view('mcp::web.keys', [
+            'workspace' => $workspace,
+            'keys' => $workspace->apiKeys ?? collect(),
+        ]);
+    }
+
+    /**
+     * Get MCP usage stats for a workspace.
+     */
+    protected function getWorkspaceStats($workspace): array
+    {
+        $since = now()->subDays(30);
+
+        // Use aggregate queries instead of loading all records into memory
+        $baseQuery = McpToolCall::where('created_at', '>=', $since);
+
+        if ($workspace) {
+            $baseQuery->where('workspace_id', $workspace->id);
+        }
+
+        $totalCalls = (clone $baseQuery)->count();
+        $successfulCalls = (clone $baseQuery)->where('success', true)->count();
+
+        $byServer = (clone $baseQuery)
+            ->selectRaw('server_id, COUNT(*) as count')
+            ->groupBy('server_id')
+            ->orderByDesc('count')
+            ->limit(5)
+            ->pluck('count', 'server_id')
+            ->all();
+
+        $byDay = (clone $baseQuery)
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->pluck('count', 'date')
+            ->all();
+
+        return [
+            'total_calls' => $totalCalls,
+            'successful_calls' => $successfulCalls,
+            'by_server' => $byServer,
+            'by_day' => $byDay,
+        ];
+    }
+
+    /**
+     * Usage analytics endpoint: /servers/{id}/analytics
+     *
+     * Shows tool usage stats for a specific server.
+     */
+    public function analytics(Request $request, string $id)
+    {
+        $server = $this->loadServerFull($id);
+
+        if (! $server) {
+            if ($this->wantsJson($request)) {
+                return response()->json(['error' => 'Server not found'], 404);
+            }
+            abort(404, 'Server not found');
+        }
+
+        // Validate days parameter - bound to reasonable range
+        $days = min(max($request->integer('days', 7), 1), 90);
+
+        // Get tool call stats for this server
+        $stats = $this->getServerAnalytics($id, $days);
+
+        if ($this->wantsJson($request)) {
+            return response()->json([
+                'server_id' => $id,
+                'period_days' => $days,
+                'stats' => $stats,
+            ]);
+        }
+
+        return view('mcp::web.analytics', [
+            'server' => $server,
+            'stats' => $stats,
+            'days' => $days,
         ]);
     }
 
@@ -159,24 +274,80 @@ class McpRegistryController extends Controller
      */
     public function openapi(Request $request)
     {
+        $generator = new OpenApiGenerator;
         $format = $request->query('format', 'json');
 
-        // Return empty spec for now - implement OpenApiGenerator if needed
-        $spec = [
-            'openapi' => '3.0.0',
-            'info' => [
-                'title' => 'MCP API',
-                'version' => '1.0.0',
-            ],
-            'paths' => [],
-        ];
-
         if ($format === 'yaml' || str_ends_with($request->path(), '.yaml')) {
-            return response(Yaml::dump($spec, 10))
+            return response($generator->toYaml())
                 ->header('Content-Type', 'application/x-yaml');
         }
 
-        return response()->json($spec);
+        return response()->json($generator->generate());
+    }
+
+    /**
+     * Get analytics for a specific server.
+     */
+    protected function getServerAnalytics(string $serverId, int $days = 7): array
+    {
+        $since = now()->subDays($days);
+
+        $baseQuery = McpToolCall::forServer($serverId)
+            ->where('created_at', '>=', $since);
+
+        // Get aggregate stats without loading all records into memory
+        $totalCalls = (clone $baseQuery)->count();
+        $successfulCalls = (clone $baseQuery)->where('success', true)->count();
+        $failedCalls = $totalCalls - $successfulCalls;
+        $avgDuration = (clone $baseQuery)->avg('duration_ms') ?? 0;
+
+        // Tool breakdown with aggregates
+        $byTool = (clone $baseQuery)
+            ->selectRaw('tool_name, COUNT(*) as calls, SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_count, AVG(duration_ms) as avg_duration')
+            ->groupBy('tool_name')
+            ->orderByDesc('calls')
+            ->limit(10)
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->tool_name => [
+                    'calls' => (int) $row->calls,
+                    'success_rate' => $row->calls > 0
+                        ? round($row->success_count / $row->calls * 100, 1)
+                        : 0,
+                    'avg_duration_ms' => round($row->avg_duration ?? 0),
+                ],
+            ])
+            ->all();
+
+        // Daily breakdown
+        $byDay = (clone $baseQuery)
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->pluck('count', 'date')
+            ->all();
+
+        // Error breakdown
+        $errors = (clone $baseQuery)
+            ->where('success', false)
+            ->whereNotNull('error_code')
+            ->selectRaw('error_code, COUNT(*) as count')
+            ->groupBy('error_code')
+            ->orderByDesc('count')
+            ->limit(5)
+            ->pluck('count', 'error_code')
+            ->all();
+
+        return [
+            'total_calls' => $totalCalls,
+            'successful_calls' => $successfulCalls,
+            'failed_calls' => $failedCalls,
+            'success_rate' => $totalCalls > 0 ? round($successfulCalls / $totalCalls * 100, 1) : 0,
+            'avg_duration_ms' => round($avgDuration),
+            'by_tool' => $byTool,
+            'by_day' => $byDay,
+            'errors' => $errors,
+        ];
     }
 
     /**
@@ -200,6 +371,14 @@ class McpRegistryController extends Controller
      */
     protected function loadServerYaml(string $id): ?array
     {
+        // Sanitise server ID to prevent path traversal attacks
+        $id = basename($id, '.yaml');
+
+        // Validate ID format (alphanumeric with hyphens only)
+        if (! preg_match('/^[a-z0-9-]+$/', $id)) {
+            return null;
+        }
+
         return Cache::remember("mcp:server:{$id}", $this->getCacheTtl(), function () use ($id) {
             $path = resource_path("mcp/servers/{$id}.yaml");
 

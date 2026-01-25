@@ -15,6 +15,7 @@ class UsageRecord extends Model
 
     protected $fillable = [
         'workspace_id',
+        'namespace_id',
         'feature_code',
         'quantity',
         'user_id',
@@ -34,6 +35,14 @@ class UsageRecord extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /**
+     * The namespace this usage belongs to.
+     */
+    public function namespace(): BelongsTo
+    {
+        return $this->belongsTo(Namespace_::class, 'namespace_id');
     }
 
     /**

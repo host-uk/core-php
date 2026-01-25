@@ -40,6 +40,11 @@ class Boot extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(
+            \Core\Mod\Tenant\Contracts\TwoFactorAuthenticationProvider::class,
+            \Core\Mod\Tenant\Services\TotpService::class
+        );
+
+        $this->app->singleton(
             \Core\Mod\Tenant\Services\EntitlementService::class,
             \Core\Mod\Tenant\Services\EntitlementService::class
         );

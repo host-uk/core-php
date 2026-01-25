@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mod\Api\Controllers;
+namespace Core\Mod\Tenant\Controllers;
 
 use Core\Front\Controller;
 use Mod\Tenant\Models\EntitlementLog;

@@ -1,5 +1,7 @@
 # Core PHP Framework
 
+
+
 A modular monolith framework for Laravel with event-driven architecture and lazy module loading.
 
 ## Installation

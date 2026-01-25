@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Core\Mod\Api\Controllers\Concerns;
+namespace Core\Mod\Api\Concerns;
 
 use Illuminate\Http\Request;
 use Core\Mod\Tenant\Models\User;

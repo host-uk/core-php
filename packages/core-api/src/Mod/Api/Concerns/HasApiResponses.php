@@ -1,6 +1,6 @@
 <?php
 
-namespace Core\Mod\Api\Controllers\Concerns;
+namespace Core\Mod\Api\Concerns;
 
 use Illuminate\Http\JsonResponse;
 

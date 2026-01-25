@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mod\Api\Middleware;
+namespace Core\Mod\Api\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;

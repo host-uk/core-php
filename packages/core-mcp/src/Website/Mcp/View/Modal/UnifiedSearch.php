@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Website\Mcp\View\Modal;
 
+use Core\Search\Unified as UnifiedSearchService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -14,7 +15,7 @@ use Livewire\Component;
  * Single search interface across all system components:
  * MCP tools, API endpoints, patterns, assets, todos, and plans.
  */
-#[Layout('mcp::layouts.app')]
+#[Layout('components.layouts.mcp')]
 class UnifiedSearch extends Component
 {
     public string $query = '';
@@ -22,6 +23,13 @@ class UnifiedSearch extends Component
     public array $selectedTypes = [];
 
     public int $limit = 50;
+
+    protected UnifiedSearchService $searchService;
+
+    public function boot(UnifiedSearchService $searchService): void
+    {
+        $this->searchService = $searchService;
+    }
 
     public function updatedQuery(): void
     {
@@ -48,17 +56,23 @@ class UnifiedSearch extends Component
             return collect();
         }
 
-        // Override in your application to provide real search
-        return collect();
+        return $this->searchService->search($this->query, $this->selectedTypes, $this->limit);
     }
 
     public function getTypesProperty(): array
     {
-        return [
-            'mcp_tool' => 'MCP Tools',
-            'api_endpoint' => 'API Endpoints',
-            'pattern' => 'Patterns',
-        ];
+        return UnifiedSearchService::getTypes();
+    }
+
+    public function getResultCountsByTypeProperty(): array
+    {
+        if (strlen($this->query) < 2) {
+            return [];
+        }
+
+        $allResults = $this->searchService->search($this->query, [], 200);
+
+        return $allResults->groupBy('type')->map->count()->toArray();
     }
 
     public function render()
