@@ -6,6 +6,9 @@ namespace Core\Mod\Api;
 
 use Core\Events\ApiRoutesRegistering;
 use Core\Events\ConsoleBooting;
+use Core\Mod\Api\Documentation\DocumentationServiceProvider;
+use Core\Mod\Api\RateLimit\RateLimitService;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -42,6 +45,14 @@ class Boot extends ServiceProvider
             __DIR__.'/config.php',
             $this->moduleName
         );
+
+        // Register RateLimitService as a singleton
+        $this->app->singleton(RateLimitService::class, function ($app) {
+            return new RateLimitService($app->make(CacheRepository::class));
+        });
+
+        // Register API Documentation provider
+        $this->app->register(DocumentationServiceProvider::class);
     }
 
     /**
@@ -61,6 +72,7 @@ class Boot extends ServiceProvider
         // Middleware aliases registered via event
         $event->middleware('api.auth', Middleware\AuthenticateApiKey::class);
         $event->middleware('api.scope', Middleware\CheckApiScope::class);
+        $event->middleware('api.scope.enforce', Middleware\EnforceApiScope::class);
         $event->middleware('api.rate', Middleware\RateLimitApi::class);
         $event->middleware('auth.api', Middleware\AuthenticateApiKey::class);
 
@@ -75,7 +87,12 @@ class Boot extends ServiceProvider
         // Register middleware aliases for CLI context (artisan route:list etc)
         $event->middleware('api.auth', Middleware\AuthenticateApiKey::class);
         $event->middleware('api.scope', Middleware\CheckApiScope::class);
+        $event->middleware('api.scope.enforce', Middleware\EnforceApiScope::class);
         $event->middleware('api.rate', Middleware\RateLimitApi::class);
         $event->middleware('auth.api', Middleware\AuthenticateApiKey::class);
+
+        // Register console commands
+        $event->command(Console\Commands\CleanupExpiredGracePeriods::class);
+        $event->command(Console\Commands\CheckApiUsageAlerts::class);
     }
 }

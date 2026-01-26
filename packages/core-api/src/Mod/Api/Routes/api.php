@@ -71,11 +71,12 @@ Route::middleware('auth')->prefix('entitlements')->group(function () {
 // MCP HTTP Bridge (API key auth)
 // ─────────────────────────────────────────────────────────────────────────────
 
-Route::middleware(['throttle:120,1', McpApiKeyAuth::class])
+Route::middleware(['throttle:120,1', McpApiKeyAuth::class, 'api.scope.enforce'])
     ->prefix('mcp')
     ->name('api.mcp.')
     ->group(function () {
-        // Server discovery
+        // Scope enforcement: GET=read, POST=write
+        // Server discovery (read)
         Route::get('/servers', [McpApiController::class, 'servers'])
             ->name('servers');
         Route::get('/servers/{id}', [McpApiController::class, 'server'])
@@ -83,11 +84,11 @@ Route::middleware(['throttle:120,1', McpApiKeyAuth::class])
         Route::get('/servers/{id}/tools', [McpApiController::class, 'tools'])
             ->name('servers.tools');
 
-        // Tool execution
+        // Tool execution (write)
         Route::post('/tools/call', [McpApiController::class, 'callTool'])
             ->name('tools.call');
 
-        // Resource access
+        // Resource access (read)
         Route::get('/resources/{uri}', [McpApiController::class, 'resource'])
             ->where('uri', '.*')
             ->name('resources.show');

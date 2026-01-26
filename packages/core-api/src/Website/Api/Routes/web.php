@@ -12,7 +12,6 @@ Route::get('/', [DocsController::class, 'index'])->name('api.docs');
 Route::get('/guides', [DocsController::class, 'guides'])->name('api.guides');
 Route::get('/guides/quickstart', [DocsController::class, 'quickstart'])->name('api.guides.quickstart');
 Route::get('/guides/authentication', [DocsController::class, 'authentication'])->name('api.guides.authentication');
-Route::get('/guides/biolinks', [DocsController::class, 'biolinks'])->name('api.guides.biolinks');
 Route::get('/guides/qrcodes', [DocsController::class, 'qrcodes'])->name('api.guides.qrcodes');
 Route::get('/guides/webhooks', [DocsController::class, 'webhooks'])->name('api.guides.webhooks');
 Route::get('/guides/errors', [DocsController::class, 'errors'])->name('api.guides.errors');

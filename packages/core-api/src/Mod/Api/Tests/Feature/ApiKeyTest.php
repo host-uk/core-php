@@ -81,7 +81,7 @@ describe('API Key Creation', function () {
         expect($result['api_key']->expires_at->timestamp)->toBe($expiresAt->timestamp);
     });
 
-    it('stores key as hashed value', function () {
+    it('stores key as bcrypt hashed value', function () {
         $result = ApiKey::generate(
             $this->workspace->id,
             $this->user->id,
@@ -92,8 +92,23 @@ describe('API Key Creation', function () {
         $parts = explode('_', $result['plain_key'], 3);
         $keyPart = $parts[2];
 
-        // The stored key should be the SHA-256 hash
-        expect($result['api_key']->key)->toBe(hash('sha256', $keyPart));
+        // The stored key should be a bcrypt hash (starts with $2y$)
+        expect($result['api_key']->key)->toStartWith('$2y$');
+        expect($result['api_key']->hash_algorithm)->toBe(ApiKey::HASH_BCRYPT);
+
+        // Verify the key matches using Hash::check
+        expect(\Illuminate\Support\Facades\Hash::check($keyPart, $result['api_key']->key))->toBeTrue();
+    });
+
+    it('sets hash_algorithm to bcrypt for new keys', function () {
+        $result = ApiKey::generate(
+            $this->workspace->id,
+            $this->user->id,
+            'Bcrypt Key'
+        );
+
+        expect($result['api_key']->hash_algorithm)->toBe(ApiKey::HASH_BCRYPT);
+        expect($result['api_key']->usesLegacyHash())->toBeFalse();
     });
 });
 

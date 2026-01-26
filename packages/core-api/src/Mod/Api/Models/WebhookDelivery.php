@@ -20,11 +20,15 @@ class WebhookDelivery extends Model
 
     public const STATUS_PENDING = 'pending';
 
+    public const STATUS_QUEUED = 'queued';
+
     public const STATUS_SUCCESS = 'success';
 
     public const STATUS_FAILED = 'failed';
 
     public const STATUS_RETRYING = 'retrying';
+
+    public const STATUS_CANCELLED = 'cancelled';
 
     public const MAX_RETRIES = 5;
 
@@ -140,17 +144,35 @@ class WebhookDelivery extends Model
 
     /**
      * Get formatted payload with signature headers.
+     *
+     * Includes all required headers for webhook verification:
+     * - X-Webhook-Signature: HMAC-SHA256 signature of timestamp.payload
+     * - X-Webhook-Timestamp: Unix timestamp (for replay protection)
+     * - X-Webhook-Event: The event type (e.g., 'bio.created')
+     * - X-Webhook-Id: Unique delivery ID for idempotency
+     *
+     * ## Verification Instructions (for recipients)
+     *
+     * 1. Get the signature and timestamp from headers
+     * 2. Compute: HMAC-SHA256(timestamp + "." + rawBody, yourSecret)
+     * 3. Compare with X-Webhook-Signature using timing-safe comparison
+     * 4. Verify timestamp is within 5 minutes of current time
+     *
+     * @param  int|null  $timestamp  Unix timestamp (defaults to current time)
+     * @return array{headers: array<string, string|int>, body: string}
      */
-    public function getDeliveryPayload(): array
+    public function getDeliveryPayload(?int $timestamp = null): array
     {
+        $timestamp ??= time();
         $jsonPayload = json_encode($this->payload);
 
         return [
             'headers' => [
                 'Content-Type' => 'application/json',
-                'X-HostHub-Event' => $this->event_type,
-                'X-HostHub-Delivery' => $this->event_id,
-                'X-HostHub-Signature' => $this->endpoint->generateSignature($jsonPayload),
+                'X-Webhook-Id' => $this->event_id,
+                'X-Webhook-Event' => $this->event_type,
+                'X-Webhook-Timestamp' => (string) $timestamp,
+                'X-Webhook-Signature' => $this->endpoint->generateSignature($jsonPayload, $timestamp),
             ],
             'body' => $jsonPayload,
         ];

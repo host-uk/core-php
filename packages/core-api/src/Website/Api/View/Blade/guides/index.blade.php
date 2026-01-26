@@ -7,7 +7,7 @@
     <div class="max-w-3xl">
         <h1 class="h2 mb-4 text-slate-800 dark:text-slate-100">Guides</h1>
         <p class="text-lg text-slate-600 dark:text-slate-400 mb-12">
-            Step-by-step tutorials and best practices for integrating with the Host UK API.
+            Step-by-step tutorials and best practices for integrating with the API.
         </p>
     </div>
 
@@ -24,7 +24,7 @@
                 <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Getting Started</span>
             </div>
             <h3 class="h4 mb-2 text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-500">Quick Start</h3>
-            <p class="text-sm text-slate-600 dark:text-slate-400">Get up and running with the Host UK API in under 5 minutes.</p>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Get up and running with the API in under 5 minutes.</p>
         </a>
 
         {{-- Authentication --}}
@@ -39,20 +39,6 @@
             </div>
             <h3 class="h4 mb-2 text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-500">Authentication</h3>
             <p class="text-sm text-slate-600 dark:text-slate-400">Learn how to authenticate your API requests using API keys.</p>
-        </a>
-
-        {{-- Biolinks --}}
-        <a href="{{ route('api.guides.biolinks') }}" class="group block p-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-8 h-8 flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 rounded-sm">
-                    <svg class="w-4 h-4 fill-purple-600" viewBox="0 0 16 16">
-                        <path d="M10.586 3.586a2 2 0 1 1 2.828 2.828l-2.5 2.5a2 2 0 0 1-2.828 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 1 0-4.95-4.95l-1.25 1.25a.75.75 0 1 0 1.06 1.06l1.25-1.25z"/>
-                    </svg>
-                </div>
-                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Core</span>
-            </div>
-            <h3 class="h4 mb-2 text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-500">Managing Biolinks</h3>
-            <p class="text-sm text-slate-600 dark:text-slate-400">Create, update, and manage biolink pages with blocks and themes.</p>
         </a>
 
         {{-- QR Codes --}}

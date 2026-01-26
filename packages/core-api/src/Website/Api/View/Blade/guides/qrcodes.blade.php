@@ -62,7 +62,7 @@
             <section id="overview" data-scrollspy-target class="mb-12">
                 <h2 class="h3 mb-4 text-slate-800 dark:text-slate-100">Overview</h2>
                 <p class="text-slate-600 dark:text-slate-400 mb-4">
-                    The Host UK API provides two ways to generate QR codes:
+                    The API provides two ways to generate QR codes:
                 </p>
                 <ul class="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400">
                     <li><strong>Biolink QR codes</strong> - Generate QR codes for your existing biolinks</li>
@@ -92,7 +92,7 @@
                     <pre class="overflow-x-auto p-4 text-sm"><code class="font-pt-mono text-slate-300">{
   <span class="text-blue-400">"data"</span>: {
     <span class="text-blue-400">"svg"</span>: <span class="text-green-400">"&lt;svg&gt;...&lt;/svg&gt;"</span>,
-    <span class="text-blue-400">"url"</span>: <span class="text-green-400">"https://lt.hn/mypage"</span>
+    <span class="text-blue-400">"url"</span>: <span class="text-green-400">"https://example.com/mypage"</span>
   }
 }</code></pre>
                 </div>

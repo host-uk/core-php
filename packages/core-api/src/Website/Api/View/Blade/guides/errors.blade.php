@@ -62,7 +62,7 @@
             <section id="overview" data-scrollspy-target class="mb-12">
                 <h2 class="h3 mb-4 text-slate-800 dark:text-slate-100">Overview</h2>
                 <p class="text-slate-600 dark:text-slate-400 mb-4">
-                    The Host UK API uses conventional HTTP response codes to indicate success or failure. Codes in the 2xx range indicate success, 4xx indicate client errors, and 5xx indicate server errors.
+                    The API uses conventional HTTP response codes to indicate success or failure. Codes in the 2xx range indicate success, 4xx indicate client errors, and 5xx indicate server errors.
                 </p>
             </section>
 

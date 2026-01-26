@@ -30,11 +30,6 @@ class DocsController
         return view('api::guides.authentication');
     }
 
-    public function biolinks(): View
-    {
-        return view('api::guides.biolinks');
-    }
-
     public function qrcodes(): View
     {
         return view('api::guides.qrcodes');

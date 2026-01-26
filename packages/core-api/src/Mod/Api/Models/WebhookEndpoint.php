@@ -4,18 +4,30 @@ declare(strict_types=1);
 
 namespace Core\Mod\Api\Models;
 
+use Core\Mod\Api\Services\WebhookSignature;
 use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 /**
  * Webhook Endpoint - receives event notifications.
  *
- * Uses HMAC signatures for security and auto-disables after failures.
+ * Uses HMAC-SHA256 signatures with timestamps for security:
+ * - All outbound webhooks are signed with a per-endpoint secret
+ * - Timestamps prevent replay attacks (5-minute tolerance)
+ * - Auto-disables after 10 consecutive delivery failures
+ *
+ * ## Signature Verification (for webhook recipients)
+ *
+ * Recipients should verify webhooks using:
+ * 1. Compute: HMAC-SHA256(timestamp + "." + payload, secret)
+ * 2. Compare with X-Webhook-Signature header (timing-safe)
+ * 3. Verify X-Webhook-Timestamp is within 5 minutes of current time
+ *
+ * See WebhookSignature service for full documentation.
  */
 class WebhookEndpoint extends Model
 {
@@ -93,10 +105,12 @@ class WebhookEndpoint extends Model
         array $events,
         ?string $description = null
     ): static {
+        $signatureService = app(WebhookSignature::class);
+
         return static::create([
             'workspace_id' => $workspaceId,
             'url' => $url,
-            'secret' => Str::random(64),
+            'secret' => $signatureService->generateSecret(),
             'events' => $events,
             'description' => $description,
             'active' => true,
@@ -104,11 +118,40 @@ class WebhookEndpoint extends Model
     }
 
     /**
-     * Generate signature for payload.
+     * Generate signature for payload with timestamp.
+     *
+     * The signature includes the timestamp to prevent replay attacks.
+     * Format: HMAC-SHA256(timestamp + "." + payload, secret)
+     *
+     * @param  string  $payload  The JSON-encoded webhook payload
+     * @param  int  $timestamp  Unix timestamp of the request
+     * @return string The hex-encoded HMAC-SHA256 signature
      */
-    public function generateSignature(string $payload): string
+    public function generateSignature(string $payload, int $timestamp): string
     {
-        return hash_hmac('sha256', $payload, $this->secret);
+        $signatureService = app(WebhookSignature::class);
+
+        return $signatureService->sign($payload, $this->secret, $timestamp);
+    }
+
+    /**
+     * Verify a signature from an incoming request (for testing endpoints).
+     *
+     * @param  string  $payload  The raw request body
+     * @param  string  $signature  The signature from the header
+     * @param  int  $timestamp  The timestamp from the header
+     * @param  int  $tolerance  Maximum age in seconds (default: 300)
+     * @return bool True if the signature is valid
+     */
+    public function verifySignature(
+        string $payload,
+        string $signature,
+        int $timestamp,
+        int $tolerance = WebhookSignature::DEFAULT_TOLERANCE
+    ): bool {
+        $signatureService = app(WebhookSignature::class);
+
+        return $signatureService->verify($payload, $signature, $this->secret, $timestamp, $tolerance);
     }
 
     /**
@@ -175,10 +218,16 @@ class WebhookEndpoint extends Model
 
     /**
      * Rotate the webhook secret.
+     *
+     * Generates a new cryptographically secure secret. The old secret
+     * immediately becomes invalid - recipients must update their configuration.
+     *
+     * @return string The new secret (only returned once, store securely)
      */
     public function rotateSecret(): string
     {
-        $newSecret = Str::random(64);
+        $signatureService = app(WebhookSignature::class);
+        $newSecret = $signatureService->generateSecret();
         $this->update(['secret' => $newSecret]);
 
         return $newSecret;

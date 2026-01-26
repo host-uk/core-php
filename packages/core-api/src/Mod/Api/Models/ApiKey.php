@@ -10,18 +10,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
  * API Key - authenticates SDK and REST API requests.
  *
  * Keys are prefixed with 'hk_' for identification.
- * The actual key is hashed and never stored in plain text.
+ * The actual key is hashed using bcrypt and never stored in plain text.
+ *
+ * Security: Keys created before the bcrypt migration use SHA-256 (without salt).
+ * The hash_algorithm column tracks which algorithm was used for each key.
+ * Legacy SHA-256 keys should be rotated to use the secure bcrypt algorithm.
  */
 class ApiKey extends Model
 {
     use HasFactory;
     use SoftDeletes;
+
+    /**
+     * Hash algorithm identifiers.
+     */
+    public const HASH_SHA256 = 'sha256';
+
+    public const HASH_BCRYPT = 'bcrypt';
+
+    /**
+     * Default grace period for key rotation (in hours).
+     */
+    public const DEFAULT_GRACE_PERIOD_HOURS = 24;
 
     /**
      * Scopes available for API keys.
@@ -43,11 +60,14 @@ class ApiKey extends Model
         'user_id',
         'name',
         'key',
+        'hash_algorithm',
         'prefix',
         'scopes',
         'server_scopes',
         'last_used_at',
         'expires_at',
+        'grace_period_ends_at',
+        'rotated_from_id',
     ];
 
     protected $casts = [
@@ -55,6 +75,7 @@ class ApiKey extends Model
         'server_scopes' => 'array',
         'last_used_at' => 'datetime',
         'expires_at' => 'datetime',
+        'grace_period_ends_at' => 'datetime',
     ];
 
     protected $hidden = [
@@ -65,6 +86,7 @@ class ApiKey extends Model
      * Generate a new API key for a workspace.
      *
      * Returns both the ApiKey model and the plain key (only available once).
+     * New keys use bcrypt for secure hashing with salt.
      *
      * @return array{api_key: ApiKey, plain_key: string}
      */
@@ -82,7 +104,8 @@ class ApiKey extends Model
             'workspace_id' => $workspaceId,
             'user_id' => $userId,
             'name' => $name,
-            'key' => hash('sha256', $plainKey),
+            'key' => Hash::make($plainKey),
+            'hash_algorithm' => self::HASH_BCRYPT,
             'prefix' => $prefix,
             'scopes' => $scopes,
             'expires_at' => $expiresAt,
@@ -97,6 +120,9 @@ class ApiKey extends Model
 
     /**
      * Find an API key by its plain text value.
+     *
+     * Supports both legacy SHA-256 keys and new bcrypt keys.
+     * For bcrypt keys, we must load all candidates by prefix and verify each.
      */
     public static function findByPlainKey(string $plainKey): ?static
     {
@@ -113,14 +139,118 @@ class ApiKey extends Model
         $prefix = $parts[0].'_'.$parts[1]; // hk_xxxxxxxx
         $key = $parts[2];
 
-        return static::where('prefix', $prefix)
-            ->where('key', hash('sha256', $key))
+        // Find potential matches by prefix
+        $candidates = static::where('prefix', $prefix)
             ->whereNull('deleted_at')
             ->where(function ($query) {
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
             })
-            ->first();
+            ->where(function ($query) {
+                // Exclude keys past their grace period
+                $query->whereNull('grace_period_ends_at')
+                    ->orWhere('grace_period_ends_at', '>', now());
+            })
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            if ($candidate->verifyKey($key)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Verify if the provided key matches this API key's stored hash.
+     *
+     * Handles both legacy SHA-256 and secure bcrypt algorithms.
+     */
+    public function verifyKey(string $plainKey): bool
+    {
+        if ($this->hash_algorithm === self::HASH_BCRYPT) {
+            return Hash::check($plainKey, $this->key);
+        }
+
+        // Legacy SHA-256 verification (for backward compatibility)
+        return hash_equals($this->key, hash('sha256', $plainKey));
+    }
+
+    /**
+     * Check if this key uses legacy (insecure) SHA-256 hashing.
+     *
+     * Keys using SHA-256 should be rotated to use bcrypt.
+     */
+    public function usesLegacyHash(): bool
+    {
+        return $this->hash_algorithm === self::HASH_SHA256
+            || $this->hash_algorithm === null;
+    }
+
+    /**
+     * Rotate this API key, creating a new secure key.
+     *
+     * The old key remains valid during the grace period to allow
+     * seamless migration of integrations.
+     *
+     * @param  int  $gracePeriodHours  Hours the old key remains valid
+     * @return array{api_key: ApiKey, plain_key: string, old_key: ApiKey}
+     */
+    public function rotate(int $gracePeriodHours = self::DEFAULT_GRACE_PERIOD_HOURS): array
+    {
+        // Create new key with same settings
+        $result = static::generate(
+            $this->workspace_id,
+            $this->user_id,
+            $this->name,
+            $this->scopes ?? [self::SCOPE_READ, self::SCOPE_WRITE],
+            $this->expires_at
+        );
+
+        // Copy server scopes to new key
+        $result['api_key']->update([
+            'server_scopes' => $this->server_scopes,
+            'rotated_from_id' => $this->id,
+        ]);
+
+        // Set grace period on old key
+        $this->update([
+            'grace_period_ends_at' => now()->addHours($gracePeriodHours),
+        ]);
+
+        return [
+            'api_key' => $result['api_key'],
+            'plain_key' => $result['plain_key'],
+            'old_key' => $this,
+        ];
+    }
+
+    /**
+     * Check if this key is currently in a rotation grace period.
+     */
+    public function isInGracePeriod(): bool
+    {
+        return $this->grace_period_ends_at !== null
+            && $this->grace_period_ends_at->isFuture();
+    }
+
+    /**
+     * Check if the grace period has expired (key should be revoked).
+     */
+    public function isGracePeriodExpired(): bool
+    {
+        return $this->grace_period_ends_at !== null
+            && $this->grace_period_ends_at->isPast();
+    }
+
+    /**
+     * End the grace period early and revoke this key.
+     */
+    public function endGracePeriod(): void
+    {
+        $this->update(['grace_period_ends_at' => now()]);
+        $this->revoke();
     }
 
     /**
@@ -210,7 +340,15 @@ class ApiKey extends Model
         return $this->belongsTo(User::class);
     }
 
-    // Scopes
+    /**
+     * Get the key this one was rotated from.
+     */
+    public function rotatedFrom(): BelongsTo
+    {
+        return $this->belongsTo(static::class, 'rotated_from_id');
+    }
+
+    // Query Scopes
     public function scopeForWorkspace($query, int $workspaceId)
     {
         return $query->where('workspace_id', $workspaceId);
@@ -222,6 +360,10 @@ class ApiKey extends Model
             ->where(function ($q) {
                 $q->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('grace_period_ends_at')
+                    ->orWhere('grace_period_ends_at', '>', now());
             });
     }
 
@@ -229,5 +371,42 @@ class ApiKey extends Model
     {
         return $query->whereNotNull('expires_at')
             ->where('expires_at', '<=', now());
+    }
+
+    /**
+     * Keys currently in a rotation grace period.
+     */
+    public function scopeInGracePeriod($query)
+    {
+        return $query->whereNotNull('grace_period_ends_at')
+            ->where('grace_period_ends_at', '>', now());
+    }
+
+    /**
+     * Keys with expired grace periods (should be cleaned up).
+     */
+    public function scopeGracePeriodExpired($query)
+    {
+        return $query->whereNotNull('grace_period_ends_at')
+            ->where('grace_period_ends_at', '<=', now());
+    }
+
+    /**
+     * Keys using legacy SHA-256 hashing (should be rotated).
+     */
+    public function scopeLegacyHash($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('hash_algorithm', self::HASH_SHA256)
+                ->orWhereNull('hash_algorithm');
+        });
+    }
+
+    /**
+     * Keys using secure bcrypt hashing.
+     */
+    public function scopeSecureHash($query)
+    {
+        return $query->where('hash_algorithm', self::HASH_BCRYPT);
     }
 }

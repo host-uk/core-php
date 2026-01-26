@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mod\Api\Services;
+namespace Core\Mod\Api\Services;
 
+use Core\Mod\Api\Jobs\DeliverWebhookJob;
+use Core\Mod\Api\Models\WebhookDelivery;
+use Core\Mod\Api\Models\WebhookEndpoint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Mod\Api\Jobs\DeliverWebhookJob;
-use Mod\Api\Models\WebhookDelivery;
-use Mod\Api\Models\WebhookEndpoint;
 
 /**
  * Webhook Service - dispatches events to registered webhook endpoints.

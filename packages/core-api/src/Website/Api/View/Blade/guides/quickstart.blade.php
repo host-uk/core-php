@@ -55,7 +55,7 @@
 
             <h1 class="h1 mb-4 text-slate-800 dark:text-slate-100">Quick Start</h1>
             <p class="text-xl text-slate-600 dark:text-slate-400 mb-12">
-                Get up and running with the Host UK API in under 5 minutes.
+                Get up and running with the API in under 5 minutes.
             </p>
 
             {{-- Prerequisites --}}
@@ -65,7 +65,7 @@
                     Before you begin, you'll need:
                 </p>
                 <ul class="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 mb-4">
-                    <li>A Host UK account (<a href="https://hub.host.uk.com/register" class="text-blue-600 hover:underline">sign up free</a>)</li>
+                    <li>An account with API access</li>
                     <li>A workspace (created automatically on signup)</li>
                     <li>cURL or any HTTP client</li>
                 </ul>
@@ -155,7 +155,7 @@
                 </div>
 
                 <p class="text-slate-600 dark:text-slate-400">
-                    This creates a new biolink page at <code class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-sm">lt.hn/mypage</code>.
+                    This creates a new biolink page at your configured short URL.
                 </p>
             </section>
 

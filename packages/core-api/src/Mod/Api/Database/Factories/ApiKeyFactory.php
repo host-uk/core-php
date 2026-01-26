@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mod\Api\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Mod\Api\Models\ApiKey;
 use Mod\Tenant\Models\User;
@@ -12,6 +13,9 @@ use Mod\Tenant\Models\Workspace;
 
 /**
  * Factory for generating ApiKey test instances.
+ *
+ * By default, creates keys with secure bcrypt hashing.
+ * Use legacyHash() to create keys with SHA-256 for migration testing.
  *
  * @extends Factory<ApiKey>
  */
@@ -32,6 +36,8 @@ class ApiKeyFactory extends Factory
     /**
      * Define the model's default state.
      *
+     * Creates keys with secure bcrypt hashing by default.
+     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -44,12 +50,15 @@ class ApiKeyFactory extends Factory
             'workspace_id' => Workspace::factory(),
             'user_id' => User::factory(),
             'name' => fake()->words(2, true).' API Key',
-            'key' => hash('sha256', $plainKey),
+            'key' => Hash::make($plainKey),
+            'hash_algorithm' => ApiKey::HASH_BCRYPT,
             'prefix' => $prefix,
             'scopes' => [ApiKey::SCOPE_READ, ApiKey::SCOPE_WRITE],
             'server_scopes' => null,
             'last_used_at' => null,
             'expires_at' => null,
+            'grace_period_ends_at' => null,
+            'rotated_from_id' => null,
         ];
     }
 
@@ -64,6 +73,8 @@ class ApiKeyFactory extends Factory
 
     /**
      * Create a key with specific known credentials for testing.
+     *
+     * This method uses ApiKey::generate() which creates secure bcrypt keys.
      *
      * @return array{api_key: ApiKey, plain_key: string}
      */
@@ -83,6 +94,57 @@ class ApiKeyFactory extends Factory
             $scopes,
             $expiresAt
         );
+    }
+
+    /**
+     * Create a key with legacy SHA-256 hashing for migration testing.
+     *
+     * @return array{api_key: ApiKey, plain_key: string}
+     */
+    public static function createLegacyKey(
+        ?Workspace $workspace = null,
+        ?User $user = null,
+        array $scopes = [ApiKey::SCOPE_READ, ApiKey::SCOPE_WRITE],
+        ?\DateTimeInterface $expiresAt = null
+    ): array {
+        $workspace ??= Workspace::factory()->create();
+        $user ??= User::factory()->create();
+
+        $plainKey = Str::random(48);
+        $prefix = 'hk_'.Str::random(8);
+
+        $apiKey = ApiKey::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'name' => fake()->words(2, true).' API Key',
+            'key' => hash('sha256', $plainKey),
+            'hash_algorithm' => ApiKey::HASH_SHA256,
+            'prefix' => $prefix,
+            'scopes' => $scopes,
+            'expires_at' => $expiresAt,
+        ]);
+
+        return [
+            'api_key' => $apiKey,
+            'plain_key' => "{$prefix}_{$plainKey}",
+        ];
+    }
+
+    /**
+     * Create key with legacy SHA-256 hashing (for migration testing).
+     */
+    public function legacyHash(): static
+    {
+        return $this->state(function (array $attributes) {
+            // Extract the plain key from the stored state
+            $parts = explode('_', $this->plainKey ?? '', 3);
+            $plainKey = $parts[2] ?? Str::random(48);
+
+            return [
+                'key' => hash('sha256', $plainKey),
+                'hash_algorithm' => ApiKey::HASH_SHA256,
+            ];
+        });
     }
 
     /**
@@ -164,6 +226,28 @@ class ApiKeyFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'deleted_at' => now()->subDay(),
+        ]);
+    }
+
+    /**
+     * Create a key in a rotation grace period.
+     *
+     * @param  int  $hoursRemaining  Hours until grace period ends
+     */
+    public function inGracePeriod(int $hoursRemaining = 12): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'grace_period_ends_at' => now()->addHours($hoursRemaining),
+        ]);
+    }
+
+    /**
+     * Create a key with an expired grace period.
+     */
+    public function gracePeriodExpired(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'grace_period_ends_at' => now()->subHours(1),
         ]);
     }
 }

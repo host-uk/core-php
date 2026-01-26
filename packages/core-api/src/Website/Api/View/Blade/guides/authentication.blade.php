@@ -62,7 +62,7 @@
             <section id="overview" data-scrollspy-target class="mb-12">
                 <h2 class="h3 mb-4 text-slate-800 dark:text-slate-100">Overview</h2>
                 <p class="text-slate-600 dark:text-slate-400 mb-4">
-                    The Host UK API uses API keys for authentication. Each API key is scoped to a specific workspace and has configurable permissions.
+                    The API uses API keys for authentication. Each API key is scoped to a specific workspace and has configurable permissions.
                 </p>
                 <p class="text-slate-600 dark:text-slate-400">
                     API keys are prefixed with <code class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-sm">hk_</code> to make them easily identifiable.
@@ -76,7 +76,7 @@
                     To create an API key:
                 </p>
                 <ol class="list-decimal list-inside space-y-2 text-slate-600 dark:text-slate-400 mb-6">
-                    <li>Log in to your Host UK account</li>
+                    <li>Log in to your account</li>
                     <li>Navigate to <strong>Settings → API Keys</strong></li>
                     <li>Click <strong>Create API Key</strong></li>
                     <li>Enter a descriptive name (e.g., "Production", "Development")</li>
