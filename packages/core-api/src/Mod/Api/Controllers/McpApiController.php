@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Core\Mod\Api\Controllers;
 
 use Core\Front\Controller;
+use Core\Mod\Api\Models\ApiKey;
 use Core\Mod\Mcp\Models\McpApiRequest;
 use Core\Mod\Mcp\Models\McpToolCall;
+use Core\Mod\Mcp\Models\McpToolVersion;
 use Core\Mod\Mcp\Services\McpWebhookDispatcher;
-use Core\Mod\Api\Models\ApiKey;
+use Core\Mod\Mcp\Services\ToolVersionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -61,6 +63,9 @@ class McpApiController extends Controller
      * List tools for a specific server.
      *
      * GET /api/v1/mcp/servers/{id}/tools
+     *
+     * Query params:
+     * - include_versions: bool - include version info for each tool
      */
     public function tools(Request $request, string $id): JsonResponse
     {
@@ -70,10 +75,35 @@ class McpApiController extends Controller
             return response()->json(['error' => 'Server not found'], 404);
         }
 
+        $tools = $server['tools'] ?? [];
+        $includeVersions = $request->boolean('include_versions', false);
+
+        // Optionally enrich tools with version information
+        if ($includeVersions) {
+            $versionService = app(ToolVersionService::class);
+            $tools = collect($tools)->map(function ($tool) use ($id, $versionService) {
+                $toolName = $tool['name'] ?? '';
+                $latestVersion = $versionService->getLatestVersion($id, $toolName);
+
+                $tool['versioning'] = [
+                    'latest_version' => $latestVersion?->version ?? ToolVersionService::DEFAULT_VERSION,
+                    'is_versioned' => $latestVersion !== null,
+                    'deprecated' => $latestVersion?->is_deprecated ?? false,
+                ];
+
+                // If version exists, use its schema (may differ from YAML)
+                if ($latestVersion?->input_schema) {
+                    $tool['inputSchema'] = $latestVersion->input_schema;
+                }
+
+                return $tool;
+            })->all();
+        }
+
         return response()->json([
             'server' => $id,
-            'tools' => $server['tools'] ?? [],
-            'count' => count($server['tools'] ?? []),
+            'tools' => $tools,
+            'count' => count($tools),
         ]);
     }
 
@@ -81,13 +111,20 @@ class McpApiController extends Controller
      * Execute a tool on an MCP server.
      *
      * POST /api/v1/mcp/tools/call
+     *
+     * Request body:
+     * - server: string (required)
+     * - tool: string (required)
+     * - arguments: array (optional)
+     * - version: string (optional) - semver version to use, defaults to latest
      */
     public function callTool(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'server' => 'required|string',
-            'tool' => 'required|string',
+            'server' => 'required|string|max:64',
+            'tool' => 'required|string|max:128',
             'arguments' => 'nullable|array',
+            'version' => 'nullable|string|max:32',
         ]);
 
         $server = $this->loadServerFull($validated['server']);
@@ -95,10 +132,62 @@ class McpApiController extends Controller
             return response()->json(['error' => 'Server not found'], 404);
         }
 
-        // Verify tool exists
+        // Verify tool exists in server definition
         $toolDef = collect($server['tools'] ?? [])->firstWhere('name', $validated['tool']);
         if (! $toolDef) {
             return response()->json(['error' => 'Tool not found'], 404);
+        }
+
+        // Version resolution
+        $versionService = app(ToolVersionService::class);
+        $versionResult = $versionService->resolveVersion(
+            $validated['server'],
+            $validated['tool'],
+            $validated['version'] ?? null
+        );
+
+        // If version was requested but is sunset, block the call
+        if ($versionResult['error']) {
+            $error = $versionResult['error'];
+
+            // Sunset versions return 410 Gone
+            $status = ($error['code'] ?? '') === 'TOOL_VERSION_SUNSET' ? 410 : 400;
+
+            return response()->json([
+                'success' => false,
+                'error' => $error['message'] ?? 'Version error',
+                'error_code' => $error['code'] ?? 'VERSION_ERROR',
+                'server' => $validated['server'],
+                'tool' => $validated['tool'],
+                'requested_version' => $validated['version'] ?? null,
+                'latest_version' => $error['latest_version'] ?? null,
+                'migration_notes' => $error['migration_notes'] ?? null,
+            ], $status);
+        }
+
+        /** @var McpToolVersion|null $toolVersion */
+        $toolVersion = $versionResult['version'];
+        $deprecationWarning = $versionResult['warning'];
+
+        // Use versioned schema if available for validation
+        $schemaForValidation = $toolVersion?->input_schema ?? $toolDef['inputSchema'] ?? null;
+        if ($schemaForValidation) {
+            $validationErrors = $this->validateToolArguments(
+                ['inputSchema' => $schemaForValidation],
+                $validated['arguments'] ?? []
+            );
+
+            if (! empty($validationErrors)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'error_code' => 'VALIDATION_ERROR',
+                    'validation_errors' => $validationErrors,
+                    'server' => $validated['server'],
+                    'tool' => $validated['tool'],
+                    'version' => $toolVersion?->version ?? 'unversioned',
+                ], 422);
+            }
         }
 
         // Get API key for logging
@@ -127,14 +216,33 @@ class McpApiController extends Controller
                 'success' => true,
                 'server' => $validated['server'],
                 'tool' => $validated['tool'],
+                'version' => $toolVersion?->version ?? ToolVersionService::DEFAULT_VERSION,
                 'result' => $result,
                 'duration_ms' => $durationMs,
             ];
 
+            // Include deprecation warning if applicable
+            if ($deprecationWarning) {
+                $response['_warnings'] = [$deprecationWarning];
+            }
+
             // Log full request for debugging/replay
             $this->logApiRequest($request, $validated, 200, $response, $durationMs, $apiKey);
 
-            return response()->json($response);
+            // Build response with deprecation headers if needed
+            $jsonResponse = response()->json($response);
+
+            if ($deprecationWarning) {
+                $jsonResponse->header('X-MCP-Deprecation-Warning', $deprecationWarning['message'] ?? 'Version deprecated');
+                if (isset($deprecationWarning['sunset_at'])) {
+                    $jsonResponse->header('X-MCP-Sunset-At', $deprecationWarning['sunset_at']);
+                }
+                if (isset($deprecationWarning['latest_version'])) {
+                    $jsonResponse->header('X-MCP-Latest-Version', $deprecationWarning['latest_version']);
+                }
+            }
+
+            return $jsonResponse;
         } catch (\Throwable $e) {
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
@@ -148,6 +256,7 @@ class McpApiController extends Controller
                 'error' => $e->getMessage(),
                 'server' => $validated['server'],
                 'tool' => $validated['tool'],
+                'version' => $toolVersion?->version ?? ToolVersionService::DEFAULT_VERSION,
             ];
 
             // Log full request for debugging/replay
@@ -155,6 +264,130 @@ class McpApiController extends Controller
 
             return response()->json($response, 500);
         }
+    }
+
+    /**
+     * Validate tool arguments against a JSON schema.
+     *
+     * @return array<string> Validation error messages
+     */
+    protected function validateToolArguments(array $toolDef, array $arguments): array
+    {
+        $inputSchema = $toolDef['inputSchema'] ?? null;
+
+        if (! $inputSchema || ! is_array($inputSchema)) {
+            return [];
+        }
+
+        $errors = [];
+        $properties = $inputSchema['properties'] ?? [];
+        $required = $inputSchema['required'] ?? [];
+
+        // Check required properties
+        foreach ($required as $requiredProp) {
+            if (! array_key_exists($requiredProp, $arguments)) {
+                $errors[] = "Missing required argument: {$requiredProp}";
+            }
+        }
+
+        // Type validation for provided arguments
+        foreach ($arguments as $key => $value) {
+            if (! isset($properties[$key])) {
+                if (($inputSchema['additionalProperties'] ?? true) === false) {
+                    $errors[] = "Unknown argument: {$key}";
+                }
+
+                continue;
+            }
+
+            $propSchema = $properties[$key];
+            $expectedType = $propSchema['type'] ?? null;
+
+            if ($expectedType && ! $this->validateType($value, $expectedType)) {
+                $errors[] = "Argument '{$key}' must be of type {$expectedType}";
+            }
+
+            // Validate enum values
+            if (isset($propSchema['enum']) && ! in_array($value, $propSchema['enum'], true)) {
+                $allowedValues = implode(', ', $propSchema['enum']);
+                $errors[] = "Argument '{$key}' must be one of: {$allowedValues}";
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Validate a value against a JSON Schema type.
+     */
+    protected function validateType(mixed $value, string $type): bool
+    {
+        return match ($type) {
+            'string' => is_string($value),
+            'integer' => is_int($value) || (is_numeric($value) && floor((float) $value) == $value),
+            'number' => is_numeric($value),
+            'boolean' => is_bool($value),
+            'array' => is_array($value) && array_is_list($value),
+            'object' => is_array($value) && ! array_is_list($value),
+            'null' => is_null($value),
+            default => true,
+        };
+    }
+
+    /**
+     * Get version history for a specific tool.
+     *
+     * GET /api/v1/mcp/servers/{server}/tools/{tool}/versions
+     */
+    public function toolVersions(Request $request, string $server, string $tool): JsonResponse
+    {
+        $serverConfig = $this->loadServerFull($server);
+        if (! $serverConfig) {
+            return response()->json(['error' => 'Server not found'], 404);
+        }
+
+        // Verify tool exists in server definition
+        $toolDef = collect($serverConfig['tools'] ?? [])->firstWhere('name', $tool);
+        if (! $toolDef) {
+            return response()->json(['error' => 'Tool not found'], 404);
+        }
+
+        $versionService = app(ToolVersionService::class);
+        $versions = $versionService->getVersionHistory($server, $tool);
+
+        return response()->json([
+            'server' => $server,
+            'tool' => $tool,
+            'versions' => $versions->map(fn (McpToolVersion $v) => $v->toApiArray())->values(),
+            'count' => $versions->count(),
+        ]);
+    }
+
+    /**
+     * Get a specific version of a tool.
+     *
+     * GET /api/v1/mcp/servers/{server}/tools/{tool}/versions/{version}
+     */
+    public function toolVersion(Request $request, string $server, string $tool, string $version): JsonResponse
+    {
+        $versionService = app(ToolVersionService::class);
+        $toolVersion = $versionService->getToolAtVersion($server, $tool, $version);
+
+        if (! $toolVersion) {
+            return response()->json(['error' => 'Version not found'], 404);
+        }
+
+        $response = response()->json($toolVersion->toApiArray());
+
+        // Add deprecation headers if applicable
+        if ($deprecationWarning = $toolVersion->getDeprecationWarning()) {
+            $response->header('X-MCP-Deprecation-Warning', $deprecationWarning['message'] ?? 'Version deprecated');
+            if (isset($deprecationWarning['sunset_at'])) {
+                $response->header('X-MCP-Sunset-At', $deprecationWarning['sunset_at']);
+            }
+        }
+
+        return $response;
     }
 
     /**

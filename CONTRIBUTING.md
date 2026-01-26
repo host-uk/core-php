@@ -21,7 +21,7 @@ Before creating bug reports, please check the existing issues to avoid duplicate
 
 ### Security Vulnerabilities
 
-**DO NOT** open public issues for security vulnerabilities. Instead, email security concerns to: **dev@host.uk.com**
+**DO NOT** open public issues for security vulnerabilities. Instead, email security concerns to: **support@host.uk.com**
 
 We take security seriously and will respond promptly to valid security reports.
 
@@ -282,6 +282,6 @@ If you have questions about contributing, feel free to:
 
 - Open a **GitHub Discussion**
 - Create an **issue** labeled "question"
-- Email **dev@host.uk.com**
+- Email **support@host.uk.com**
 
 Thank you for contributing! 🎉

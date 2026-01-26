@@ -4,7 +4,7 @@ We take the security of Core PHP Framework seriously. If you believe you have fo
 
 ## Reporting a Vulnerability
 
-**Email:** dev@host.uk.com
+**Email:** support@host.uk.com
 
 **PGP Key:** Available on request
 
@@ -158,7 +158,7 @@ https://docs.core-php.dev/security/responsible-disclosure
 
 ## Contact
 
-For security issues: dev@host.uk.com
+For security issues: support@host.uk.com
 
 For general inquiries: https://github.com/host-uk/core-php/issues
 

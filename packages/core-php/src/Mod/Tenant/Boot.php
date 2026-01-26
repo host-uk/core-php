@@ -79,6 +79,11 @@ class Boot extends ServiceProvider
             \Core\Mod\Tenant\Services\EntitlementWebhookService::class
         );
 
+        $this->app->singleton(
+            \Core\Mod\Tenant\Services\WorkspaceTeamService::class,
+            \Core\Mod\Tenant\Services\WorkspaceTeamService::class
+        );
+
         $this->registerBackwardCompatAliases();
     }
 
@@ -157,6 +162,7 @@ class Boot extends ServiceProvider
     public function onConsole(ConsoleBooting $event): void
     {
         $event->middleware('admin.domain', Middleware\RequireAdminDomain::class);
+        $event->middleware('workspace.permission', Middleware\CheckWorkspacePermission::class);
 
         // Artisan commands
         $event->command(Console\Commands\RefreshUserStats::class);

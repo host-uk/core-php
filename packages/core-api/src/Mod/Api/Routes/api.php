@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Route;
 use Core\Mod\Api\Controllers\EntitlementApiController;
 use Core\Mod\Api\Controllers\McpApiController;
 use Core\Mod\Api\Controllers\SeoReportController;
 use Core\Mod\Api\Controllers\UnifiedPixelController;
 use Core\Mod\Mcp\Middleware\McpApiKeyAuth;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,6 +83,14 @@ Route::middleware(['throttle:120,1', McpApiKeyAuth::class, 'api.scope.enforce'])
             ->name('servers.show');
         Route::get('/servers/{id}/tools', [McpApiController::class, 'tools'])
             ->name('servers.tools');
+
+        // Tool version history (read)
+        Route::get('/servers/{server}/tools/{tool}/versions', [McpApiController::class, 'toolVersions'])
+            ->name('tools.versions');
+
+        // Specific tool version (read)
+        Route::get('/servers/{server}/tools/{tool}/versions/{version}', [McpApiController::class, 'toolVersion'])
+            ->name('tools.version');
 
         // Tool execution (write)
         Route::post('/tools/call', [McpApiController::class, 'callTool'])

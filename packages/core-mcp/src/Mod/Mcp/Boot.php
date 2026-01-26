@@ -14,6 +14,7 @@ use Core\Mod\Mcp\Services\McpQuotaService;
 use Core\Mod\Mcp\Services\ToolAnalyticsService;
 use Core\Mod\Mcp\Services\ToolDependencyService;
 use Core\Mod\Mcp\Services\ToolRegistry;
+use Core\Mod\Mcp\Services\ToolVersionService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,6 +46,7 @@ class Boot extends ServiceProvider
         $this->app->singleton(McpQuotaService::class);
         $this->app->singleton(ToolDependencyService::class);
         $this->app->singleton(AuditLogService::class);
+        $this->app->singleton(ToolVersionService::class);
     }
 
     /**
@@ -78,6 +80,7 @@ class Boot extends ServiceProvider
         $event->livewire('mcp.admin.tool-analytics-detail', View\Modal\Admin\ToolAnalyticsDetail::class);
         $event->livewire('mcp.admin.quota-usage', View\Modal\Admin\QuotaUsage::class);
         $event->livewire('mcp.admin.audit-log-viewer', View\Modal\Admin\AuditLogViewer::class);
+        $event->livewire('mcp.admin.tool-version-manager', View\Modal\Admin\ToolVersionManager::class);
     }
 
     public function onConsole(ConsoleBooting $event): void

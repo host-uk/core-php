@@ -82,8 +82,24 @@ class Workspace extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_workspace')
-            ->withPivot(['role', 'is_default'])
+            ->withPivot(['role', 'is_default', 'team_id', 'custom_permissions', 'joined_at', 'invited_by'])
             ->withTimestamps();
+    }
+
+    /**
+     * Get workspace members (via the enhanced pivot model).
+     */
+    public function members(): HasMany
+    {
+        return $this->hasMany(WorkspaceMember::class);
+    }
+
+    /**
+     * Get teams defined for this workspace.
+     */
+    public function teams(): HasMany
+    {
+        return $this->hasMany(WorkspaceTeam::class);
     }
 
     /**
@@ -94,6 +110,14 @@ class Workspace extends Model
         return $this->users()
             ->wherePivot('role', 'owner')
             ->first();
+    }
+
+    /**
+     * Get the default team for new members.
+     */
+    public function defaultTeam(): ?WorkspaceTeam
+    {
+        return $this->teams()->where('is_default', true)->first();
     }
 
     /**

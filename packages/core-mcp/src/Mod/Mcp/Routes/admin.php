@@ -4,9 +4,11 @@ use Core\Mod\Mcp\View\Modal\Admin\ApiKeyManager;
 use Core\Mod\Mcp\View\Modal\Admin\AuditLogViewer;
 use Core\Mod\Mcp\View\Modal\Admin\McpPlayground;
 use Core\Mod\Mcp\View\Modal\Admin\Playground;
+use Core\Mod\Mcp\View\Modal\Admin\QuotaUsage;
 use Core\Mod\Mcp\View\Modal\Admin\RequestLog;
 use Core\Mod\Mcp\View\Modal\Admin\ToolAnalyticsDashboard;
 use Core\Mod\Mcp\View\Modal\Admin\ToolAnalyticsDetail;
+use Core\Mod\Mcp\View\Modal\Admin\ToolVersionManager;
 use Core\Website\Mcp\Controllers\McpRegistryController;
 use Core\Website\Mcp\View\Modal\Dashboard;
 use Illuminate\Support\Facades\Route;
@@ -57,4 +59,12 @@ Route::prefix('mcp')->name('mcp.')->group(function () {
     // Audit log viewer (compliance and security)
     Route::get('audit-log', AuditLogViewer::class)
         ->name('audit-log');
+
+    // Tool version management (Hades only)
+    Route::get('versions', ToolVersionManager::class)
+        ->name('versions');
+
+    // Quota usage overview
+    Route::get('quotas', QuotaUsage::class)
+        ->name('quotas');
 });

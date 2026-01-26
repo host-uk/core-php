@@ -147,4 +147,4 @@ $order = CreateOrder::run($user, $validated);
 - 📖 [Documentation](https://docs.example.com)
 - 💬 [GitHub Discussions](https://github.com/host-uk/core-php/discussions)
 - 🐛 [Issue Tracker](https://github.com/host-uk/core-php/issues)
-- 📧 [Email Support](mailto:dev@host.uk.com)
+- 📧 [Email Support](mailto:support@host.uk.com)

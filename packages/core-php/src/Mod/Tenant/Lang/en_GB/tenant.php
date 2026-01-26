@@ -300,6 +300,228 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Common
+    |--------------------------------------------------------------------------
+    */
+    'common' => [
+        'na' => 'N/A',
+        'none' => 'None',
+        'unknown' => 'Unknown',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Errors
+    |--------------------------------------------------------------------------
+    */
+    'errors' => [
+        'hades_required' => 'Hades tier required for this feature.',
+        'unauthenticated' => 'You must be logged in to access this resource.',
+        'no_workspace' => 'No workspace context available.',
+        'insufficient_permissions' => 'You do not have permission to perform this action.',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin - Team Manager
+    |--------------------------------------------------------------------------
+    */
+    'admin' => [
+        // ... existing admin translations will be merged ...
+
+        'team_manager' => [
+            'title' => 'Workspace Teams',
+            'subtitle' => 'Manage teams and role-based permissions for workspaces',
+
+            'stats' => [
+                'total_teams' => 'Total Teams',
+                'total_members' => 'Total Members',
+                'members_assigned' => 'Assigned to Teams',
+            ],
+
+            'search' => [
+                'placeholder' => 'Search teams by name...',
+            ],
+
+            'filter' => [
+                'all_workspaces' => 'All Workspaces',
+            ],
+
+            'columns' => [
+                'team' => 'Team',
+                'workspace' => 'Workspace',
+                'members' => 'Members',
+                'permissions' => 'Permissions',
+                'actions' => 'Actions',
+            ],
+
+            'labels' => [
+                'permissions' => 'permissions',
+            ],
+
+            'badges' => [
+                'system' => 'System',
+                'default' => 'Default',
+            ],
+
+            'actions' => [
+                'create_team' => 'Create Team',
+                'edit' => 'Edit',
+                'delete' => 'Delete',
+                'view_members' => 'View Members',
+                'seed_defaults' => 'Seed Defaults',
+                'migrate_members' => 'Migrate Members',
+            ],
+
+            'confirm' => [
+                'delete_team' => 'Are you sure you want to delete this team? Members will be unassigned.',
+            ],
+
+            'empty_state' => [
+                'title' => 'No teams found',
+                'description' => 'Create teams to organise members and control permissions in your workspaces.',
+            ],
+
+            'modal' => [
+                'title_create' => 'Create Team',
+                'title_edit' => 'Edit Team',
+
+                'fields' => [
+                    'workspace' => 'Workspace',
+                    'select_workspace' => 'Select workspace...',
+                    'name' => 'Name',
+                    'name_placeholder' => 'e.g. Editors',
+                    'slug' => 'Slug',
+                    'slug_placeholder' => 'e.g. editors',
+                    'slug_description' => 'Leave blank to auto-generate from name.',
+                    'description' => 'Description',
+                    'colour' => 'Colour',
+                    'is_default' => 'Default team for new members',
+                    'permissions' => 'Permissions',
+                ],
+
+                'actions' => [
+                    'cancel' => 'Cancel',
+                    'create' => 'Create Team',
+                    'update' => 'Update Team',
+                ],
+            ],
+
+            'messages' => [
+                'team_created' => 'Team created successfully.',
+                'team_updated' => 'Team updated successfully.',
+                'team_deleted' => 'Team deleted successfully.',
+                'cannot_delete_system' => 'Cannot delete system teams.',
+                'cannot_delete_has_members' => 'Cannot delete team with :count assigned member(s). Remove members first.',
+                'defaults_seeded' => 'Default teams have been seeded successfully.',
+                'members_migrated' => ':count member(s) have been migrated to teams.',
+            ],
+        ],
+
+        'member_manager' => [
+            'title' => 'Workspace Members',
+            'subtitle' => 'Manage member team assignments and custom permissions',
+
+            'stats' => [
+                'total_members' => 'Total Members',
+                'with_team' => 'Assigned to Team',
+                'with_custom' => 'With Custom Permissions',
+            ],
+
+            'search' => [
+                'placeholder' => 'Search members by name or email...',
+            ],
+
+            'filter' => [
+                'all_workspaces' => 'All Workspaces',
+                'all_teams' => 'All Teams',
+            ],
+
+            'columns' => [
+                'member' => 'Member',
+                'workspace' => 'Workspace',
+                'team' => 'Team',
+                'role' => 'Legacy Role',
+                'permissions' => 'Custom',
+                'actions' => 'Actions',
+            ],
+
+            'labels' => [
+                'no_team' => 'No team',
+                'inherited' => 'Inherited',
+            ],
+
+            'actions' => [
+                'assign_team' => 'Assign to Team',
+                'remove_from_team' => 'Remove from Team',
+                'custom_permissions' => 'Custom Permissions',
+                'clear_permissions' => 'Clear Custom Permissions',
+            ],
+
+            'confirm' => [
+                'clear_permissions' => 'Are you sure you want to clear all custom permissions for this member?',
+                'bulk_remove_team' => 'Are you sure you want to remove the selected members from their teams?',
+                'bulk_clear_permissions' => 'Are you sure you want to clear custom permissions for all selected members?',
+            ],
+
+            'bulk' => [
+                'selected' => ':count selected',
+                'assign_team' => 'Assign Team',
+                'remove_team' => 'Remove Team',
+                'clear_permissions' => 'Clear Permissions',
+                'clear' => 'Clear',
+            ],
+
+            'empty_state' => [
+                'title' => 'No members found',
+                'description' => 'No members match your current filter criteria.',
+            ],
+
+            'modal' => [
+                'actions' => [
+                    'cancel' => 'Cancel',
+                    'save' => 'Save',
+                    'assign' => 'Assign',
+                ],
+            ],
+
+            'assign_modal' => [
+                'title' => 'Assign to Team',
+                'team' => 'Team',
+                'no_team' => 'No team (remove assignment)',
+            ],
+
+            'permissions_modal' => [
+                'title' => 'Custom Permissions',
+                'team_permissions' => 'Team: :team',
+                'description' => 'Custom permissions override the team permissions. Grant additional permissions or revoke specific ones.',
+                'grant_label' => 'Grant Additional Permissions',
+                'revoke_label' => 'Revoke Permissions',
+            ],
+
+            'bulk_assign_modal' => [
+                'title' => 'Bulk Assign Team',
+                'description' => 'Assign :count selected member(s) to a team.',
+                'team' => 'Team',
+                'no_team' => 'No team (remove assignment)',
+            ],
+
+            'messages' => [
+                'team_assigned' => 'Member assigned to team successfully.',
+                'removed_from_team' => 'Member removed from team successfully.',
+                'permissions_updated' => 'Custom permissions updated successfully.',
+                'permissions_cleared' => 'Custom permissions cleared successfully.',
+                'no_members_selected' => 'No members selected.',
+                'invalid_team' => 'Invalid team selected.',
+                'bulk_team_assigned' => ':count member(s) assigned to team.',
+                'bulk_removed_from_team' => ':count member(s) removed from team.',
+                'bulk_permissions_cleared' => 'Custom permissions cleared for :count member(s).',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Entitlement Webhooks
     |--------------------------------------------------------------------------
     */

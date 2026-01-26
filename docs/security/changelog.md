@@ -120,7 +120,7 @@ This page documents all security-related changes, fixes, and improvements to Cor
 
 If you discover a security vulnerability, please follow our [Responsible Disclosure](/security/responsible-disclosure) policy.
 
-**Contact:** dev@host.uk.com
+**Contact:** support@host.uk.com
 
 ## Security Update Policy
 

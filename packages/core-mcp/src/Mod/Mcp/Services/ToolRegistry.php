@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Mod\Mcp\Services;
 
+use Core\Mod\Mcp\Models\McpToolVersion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Yaml\Yaml;
@@ -71,11 +72,15 @@ class ToolRegistry
     /**
      * Get all tools for a specific server.
      *
-     * @return Collection<int, array{name: string, description: string, category: string, inputSchema: array, examples: array}>
+     * @return Collection<int, array{name: string, description: string, category: string, inputSchema: array, examples: array, version: string|null}>
      */
-    public function getToolsForServer(string $serverId): Collection
+    public function getToolsForServer(string $serverId, bool $includeVersionInfo = false): Collection
     {
-        return Cache::remember("mcp:playground:tools:{$serverId}", self::CACHE_TTL, function () use ($serverId) {
+        $cacheKey = $includeVersionInfo
+            ? "mcp:playground:tools:{$serverId}:versioned"
+            : "mcp:playground:tools:{$serverId}";
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($serverId, $includeVersionInfo) {
             $server = $this->loadServerFull($serverId);
 
             if (! $server) {
@@ -83,16 +88,40 @@ class ToolRegistry
             }
 
             return collect($server['tools'] ?? [])
-                ->map(function ($tool) {
+                ->map(function ($tool) use ($serverId, $includeVersionInfo) {
                     $name = $tool['name'];
+                    $baseVersion = $tool['version'] ?? ToolVersionService::DEFAULT_VERSION;
 
-                    return [
+                    $result = [
                         'name' => $name,
                         'description' => $tool['description'] ?? $tool['purpose'] ?? '',
                         'category' => $this->extractCategory($tool),
                         'inputSchema' => $tool['inputSchema'] ?? ['type' => 'object', 'properties' => $tool['parameters'] ?? []],
                         'examples' => $this->examples[$name] ?? $this->generateExampleFromSchema($tool['inputSchema'] ?? []),
+                        'version' => $baseVersion,
                     ];
+
+                    // Optionally enrich with database version info
+                    if ($includeVersionInfo) {
+                        $latestVersion = McpToolVersion::forServer($serverId)
+                            ->forTool($name)
+                            ->latest()
+                            ->first();
+
+                        if ($latestVersion) {
+                            $result['version'] = $latestVersion->version;
+                            $result['version_status'] = $latestVersion->status;
+                            $result['is_deprecated'] = $latestVersion->is_deprecated;
+                            $result['sunset_at'] = $latestVersion->sunset_at?->toIso8601String();
+
+                            // Use versioned schema if available
+                            if ($latestVersion->input_schema) {
+                                $result['inputSchema'] = $latestVersion->input_schema;
+                            }
+                        }
+                    }
+
+                    return $result;
                 })
                 ->values();
         });

@@ -249,7 +249,7 @@ Add warning comment explaining DEBUG_TOKEN should never be committed.
 **File:** `composer.json`
 
 **Issue:**
-Author email is company-specific: `dev@host.uk.com`
+Author email is company-specific: `support@host.uk.com`
 
 **Suggested Fix:**
 Update to generic project contact or maintainer email.

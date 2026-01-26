@@ -26,7 +26,7 @@ namespace Core\Headers;
  * </script>
  *
  * <style nonce="{{ csp_nonce() }}">
- *     /* Your inline CSS */
+ *     // Your inline CSS
  * </style>
  * ```
  *

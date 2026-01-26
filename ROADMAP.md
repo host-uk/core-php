@@ -195,7 +195,7 @@ Sponsor development of specific features:
 - **Silver ($2,000-$4,999)** - Choose a medium feature from v1.x
 - **Bronze ($500-$1,999)** - Choose a small feature or bug fix
 
-Contact: dev@host.uk.com
+Contact: support@host.uk.com
 
 ---
 

@@ -11,7 +11,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to: **dev@host.uk.com**
+Instead, please report them via email to: **support@host.uk.com**
 
 You should receive a response within 48 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
 
@@ -160,7 +160,7 @@ For sensitive security reports, you may encrypt your message using our PGP key:
 
 ## Contact
 
-- **Security Email:** dev@host.uk.com
+- **Security Email:** support@host.uk.com
 - **General Support:** https://github.com/host-uk/core-php/discussions
 - **GitHub Security Advisories:** https://github.com/host-uk/core-php/security/advisories
 

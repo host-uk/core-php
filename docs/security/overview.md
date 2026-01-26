@@ -567,7 +567,7 @@ composer update
 
 If you discover a security vulnerability, please email:
 
-**dev@host.uk.com**
+**support@host.uk.com**
 
 Do not create public GitHub issues for security vulnerabilities.
 
