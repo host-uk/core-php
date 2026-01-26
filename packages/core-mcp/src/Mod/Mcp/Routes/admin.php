@@ -1,8 +1,11 @@
 <?php
 
 use Core\Mod\Mcp\View\Modal\Admin\ApiKeyManager;
+use Core\Mod\Mcp\View\Modal\Admin\McpPlayground;
 use Core\Mod\Mcp\View\Modal\Admin\Playground;
 use Core\Mod\Mcp\View\Modal\Admin\RequestLog;
+use Core\Mod\Mcp\View\Modal\Admin\ToolAnalyticsDashboard;
+use Core\Mod\Mcp\View\Modal\Admin\ToolAnalyticsDetail;
 use Core\Website\Mcp\Controllers\McpRegistryController;
 use Core\Website\Mcp\View\Modal\Dashboard;
 use Illuminate\Support\Facades\Route;
@@ -26,9 +29,13 @@ Route::prefix('mcp')->name('mcp.')->group(function () {
     Route::get('keys', ApiKeyManager::class)
         ->name('keys');
 
-    // Interactive playground
-    Route::get('playground', Playground::class)
+    // Enhanced MCP Playground with tool browser, history, and examples
+    Route::get('playground', McpPlayground::class)
         ->name('playground');
+
+    // Legacy simple playground (API-key focused)
+    Route::get('playground/simple', Playground::class)
+        ->name('playground.simple');
 
     // Request log for debugging
     Route::get('logs', RequestLog::class)
@@ -37,4 +44,12 @@ Route::prefix('mcp')->name('mcp.')->group(function () {
     // Analytics endpoints
     Route::get('servers/{id}/analytics', [McpRegistryController::class, 'analytics'])
         ->name('servers.analytics');
+
+    // Tool Usage Analytics Dashboard
+    Route::get('analytics', ToolAnalyticsDashboard::class)
+        ->name('analytics');
+
+    // Single tool analytics detail
+    Route::get('analytics/tool/{name}', ToolAnalyticsDetail::class)
+        ->name('analytics.tool');
 });

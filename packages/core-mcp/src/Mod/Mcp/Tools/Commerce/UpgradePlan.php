@@ -1,32 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Core\Mod\Mcp\Tools\Commerce;
 
 use Core\Mod\Commerce\Models\Subscription;
 use Core\Mod\Commerce\Services\SubscriptionService;
-use Core\Mod\Tenant\Models\Workspace;
 use Core\Mod\Tenant\Models\Package;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
+use Mod\Mcp\Tools\Concerns\RequiresWorkspaceContext;
 
+/**
+ * Preview or execute a plan upgrade/downgrade for the authenticated workspace.
+ *
+ * SECURITY: This tool uses authenticated workspace context, not user-supplied
+ * workspace_id parameters, to prevent cross-tenant data access.
+ */
 class UpgradePlan extends Tool
 {
-    protected string $description = 'Preview or execute a plan upgrade/downgrade for a workspace subscription';
+    use RequiresWorkspaceContext;
+
+    protected string $description = 'Preview or execute a plan upgrade/downgrade for your workspace subscription';
 
     public function handle(Request $request): Response
     {
-        $workspaceId = $request->input('workspace_id');
+        // Get workspace from authenticated context (not from request parameters)
+        $workspace = $this->getWorkspace();
+        $workspaceId = $workspace->id;
+
         $newPackageCode = $request->input('package_code');
         $preview = $request->input('preview', true);
         $immediate = $request->input('immediate', true);
-
-        $workspace = Workspace::find($workspaceId);
-
-        if (! $workspace) {
-            return Response::text(json_encode(['error' => 'Workspace not found']));
-        }
 
         $newPackage = Package::where('code', $newPackageCode)->first();
 
@@ -105,7 +112,6 @@ class UpgradePlan extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'workspace_id' => $schema->integer('The workspace ID to upgrade/downgrade')->required(),
             'package_code' => $schema->string('The code of the new package (e.g., agency, enterprise)')->required(),
             'preview' => $schema->boolean('If true, only preview the change without executing (default: true)'),
             'immediate' => $schema->boolean('If true, apply change immediately; if false, schedule for period end (default: true)'),

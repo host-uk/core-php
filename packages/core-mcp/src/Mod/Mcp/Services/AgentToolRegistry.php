@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mod\Mcp\Services;
 
+use Core\Mod\Mcp\Dependencies\HasDependencies;
+use Core\Mod\Mcp\Services\ToolDependencyService;
 use Illuminate\Support\Collection;
 use Mod\Api\Models\ApiKey;
 use Mod\Mcp\Tools\Agent\Contracts\AgentToolInterface;
@@ -25,10 +27,21 @@ class AgentToolRegistry
 
     /**
      * Register a tool.
+     *
+     * If the tool implements HasDependencies, its dependencies
+     * are automatically registered with the ToolDependencyService.
      */
     public function register(AgentToolInterface $tool): self
     {
         $this->tools[$tool->name()] = $tool;
+
+        // Auto-register dependencies if tool declares them
+        if ($tool instanceof HasDependencies && method_exists($tool, 'dependencies')) {
+            $dependencies = $tool->dependencies();
+            if (! empty($dependencies)) {
+                app(ToolDependencyService::class)->register($tool->name(), $dependencies);
+            }
+        }
 
         return $this;
     }
@@ -121,19 +134,26 @@ class AgentToolRegistry
     }
 
     /**
-     * Execute a tool with permission checking.
+     * Execute a tool with permission and dependency checking.
      *
      * @param  string  $name  Tool name
      * @param  array  $args  Tool arguments
      * @param  array  $context  Execution context
      * @param  ApiKey|null  $apiKey  Optional API key for permission checking
+     * @param  bool  $validateDependencies  Whether to validate dependencies
      * @return array Tool result
      *
      * @throws \InvalidArgumentException If tool not found
      * @throws \RuntimeException If permission denied
+     * @throws \Core\Mod\Mcp\Exceptions\MissingDependencyException If dependencies not met
      */
-    public function execute(string $name, array $args, array $context = [], ?ApiKey $apiKey = null): array
-    {
+    public function execute(
+        string $name,
+        array $args,
+        array $context = [],
+        ?ApiKey $apiKey = null,
+        bool $validateDependencies = true
+    ): array {
         $tool = $this->get($name);
 
         if (! $tool) {
@@ -159,7 +179,23 @@ class AgentToolRegistry
             }
         }
 
-        return $tool->handle($args, $context);
+        // Dependency check
+        if ($validateDependencies) {
+            $sessionId = $context['session_id'] ?? 'anonymous';
+            $dependencyService = app(ToolDependencyService::class);
+
+            $dependencyService->validateDependencies($sessionId, $name, $context, $args);
+        }
+
+        $result = $tool->handle($args, $context);
+
+        // Record successful tool call for dependency tracking
+        if ($validateDependencies && ($result['success'] ?? true) !== false) {
+            $sessionId = $context['session_id'] ?? 'anonymous';
+            app(ToolDependencyService::class)->recordToolCall($sessionId, $name, $args);
+        }
+
+        return $result;
     }
 
     /**

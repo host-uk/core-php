@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Core\Mod\Mcp\Tools\Commerce;
 
 use Core\Mod\Commerce\Models\Invoice;
@@ -7,14 +9,25 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
+use Mod\Mcp\Tools\Concerns\RequiresWorkspaceContext;
 
+/**
+ * List invoices for the authenticated workspace.
+ *
+ * SECURITY: This tool uses authenticated workspace context, not user-supplied
+ * workspace_id parameters, to prevent cross-tenant data access.
+ */
 class ListInvoices extends Tool
 {
-    protected string $description = 'List invoices for a workspace with optional status filter';
+    use RequiresWorkspaceContext;
+
+    protected string $description = 'List invoices for your workspace with optional status filter';
 
     public function handle(Request $request): Response
     {
-        $workspaceId = $request->input('workspace_id');
+        // Get workspace from authenticated context (not from request parameters)
+        $workspaceId = $this->getWorkspaceId();
+
         $status = $request->input('status'); // paid, pending, overdue, void
         $limit = min($request->input('limit', 10), 50);
 
@@ -56,7 +69,6 @@ class ListInvoices extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'workspace_id' => $schema->integer('The workspace ID to list invoices for')->required(),
             'status' => $schema->string('Filter by status: paid, pending, overdue, void'),
             'limit' => $schema->integer('Maximum number of invoices to return (default 10, max 50)'),
         ];

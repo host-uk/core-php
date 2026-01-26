@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mod\Api\Controllers;
 
 use Core\Front\Controller;
+use Core\Mod\Mcp\Services\McpQuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -129,6 +130,9 @@ class McpApiController extends Controller
 
             // Log the call
             $this->logToolCall($apiKey, $validated, $result, $durationMs, true);
+
+            // Record quota usage
+            $this->recordQuotaUsage($workspace);
 
             // Dispatch webhooks
             $this->dispatchWebhook($apiKey, $validated, true, $durationMs);
@@ -466,5 +470,23 @@ class McpApiController extends Controller
             'tool_count' => count($server['tools'] ?? []),
             'resource_count' => count($server['resources'] ?? []),
         ];
+    }
+
+    /**
+     * Record quota usage for successful tool calls.
+     */
+    protected function recordQuotaUsage($workspace): void
+    {
+        if (! $workspace) {
+            return;
+        }
+
+        try {
+            $quotaService = app(McpQuotaService::class);
+            $quotaService->recordUsage($workspace, toolCalls: 1);
+        } catch (\Throwable $e) {
+            // Don't let quota recording failures affect API response
+            report($e);
+        }
     }
 }

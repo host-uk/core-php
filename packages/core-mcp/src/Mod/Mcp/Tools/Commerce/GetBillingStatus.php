@@ -1,27 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Core\Mod\Mcp\Tools\Commerce;
 
 use Core\Mod\Commerce\Models\Subscription;
-use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
+use Mod\Mcp\Tools\Concerns\RequiresWorkspaceContext;
 
+/**
+ * Get billing status for the authenticated workspace.
+ *
+ * SECURITY: This tool uses authenticated workspace context, not user-supplied
+ * workspace_id parameters, to prevent cross-tenant data access.
+ */
 class GetBillingStatus extends Tool
 {
-    protected string $description = 'Get billing status for a workspace including subscription, current plan, and billing period';
+    use RequiresWorkspaceContext;
+
+    protected string $description = 'Get billing status for your workspace including subscription, current plan, and billing period';
 
     public function handle(Request $request): Response
     {
-        $workspaceId = $request->input('workspace_id');
-
-        $workspace = Workspace::find($workspaceId);
-
-        if (! $workspace) {
-            return Response::text(json_encode(['error' => 'Workspace not found']));
-        }
+        // Get workspace from authenticated context (not from request parameters)
+        $workspace = $this->getWorkspace();
+        $workspaceId = $workspace->id;
 
         // Get active subscription
         $subscription = Subscription::with('workspacePackage.package')
@@ -65,8 +71,7 @@ class GetBillingStatus extends Tool
 
     public function schema(JsonSchema $schema): array
     {
-        return [
-            'workspace_id' => $schema->integer('The workspace ID to get billing status for')->required(),
-        ];
+        // No parameters needed - workspace comes from authentication context
+        return [];
     }
 }

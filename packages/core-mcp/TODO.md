@@ -1,90 +1,15 @@
 # Core-MCP TODO
 
-## MCP Playground UI
+## Security
 
-**Priority:** Low
-**Context:** Interactive UI for testing MCP tools.
+- [ ] **Critical: Fix Database Connection Fallback** - `QueryDatabase` tool falls back to the default database connection if `mcp.database.connection` is not defined or invalid. This risks exposing write access. Must throw an exception or strictly require a valid read-only connection.
 
-### Requirements
+- [ ] **High: Strengthen SQL Validator Regex** - The current whitelist regex `/.+/` in the WHERE clause is too permissive, allowing boolean-based blind injection. Consider a stricter parser or document the read-only limitation clearly.
 
-- Tool browser with documentation
-- Input form builder from tool schemas
-- Response viewer with formatting
-- Session/conversation persistence
-- Example prompts per tool
+## Features
+
+- [ ] **Explain Plan** - Add option to `QueryDatabase` tool to run `EXPLAIN` first, allowing the agent to verify cost/safety before execution.
 
 ---
 
-## Workspace Context Security
-
-**Priority:** High (Security)
-**Context:** MCP falls back to `workspace_id = 1` when no context provided.
-
-### Current Issue
-
-```php
-// Dangerous fallback
-$workspaceId = $context->workspaceId ?? 1;
-```
-
-### Solution
-
-```php
-// Throw instead of fallback
-if (!$context->workspaceId) {
-    throw new MissingWorkspaceContextException(
-        'MCP tool requires workspace context'
-    );
-}
-```
-
-### Requirements
-
-- Remove all hardcoded workspace fallbacks
-- Require explicit workspace context for all workspace-scoped tools
-- Add context validation middleware
-- Audit all tools for proper scoping
-
----
-
-## Tool Usage Analytics
-
-**Priority:** Low
-**Context:** Track tool usage patterns for optimisation.
-
-### Requirements
-
-- Per-tool call counts
-- Average response times
-- Error rates by tool
-- Popular tool combinations
-- Dashboard in admin
-
----
-
-## Query Security
-
-**Priority:** Critical (Security)
-**Context:** QueryDatabase tool regex check bypassed by UNION/stacked queries.
-
-### Current Issue
-
-Regex-based SQL validation is insufficient.
-
-### Solution
-
-1. **Read-only database user** - Primary defence
-2. **Query whitelist** - Only allow specific query patterns
-3. **Parameterised views** - Expose data through views, not raw queries
-
-### Implementation
-
-```php
-// Use read-only connection
-DB::connection('readonly')->select($query);
-
-// Or whitelist approach
-if (!$this->isWhitelistedQuery($query)) {
-    throw new ForbiddenQueryException();
-}
-```
+*See `changelog/2026/jan/` for completed features.*

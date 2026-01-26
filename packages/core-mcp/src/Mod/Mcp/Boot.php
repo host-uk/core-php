@@ -7,6 +7,13 @@ namespace Core\Mod\Mcp;
 use Core\Events\AdminPanelBooting;
 use Core\Events\ConsoleBooting;
 use Core\Events\McpToolsRegistering;
+use Core\Mod\Mcp\Events\ToolExecuted;
+use Core\Mod\Mcp\Listeners\RecordToolExecution;
+use Core\Mod\Mcp\Services\McpQuotaService;
+use Core\Mod\Mcp\Services\ToolAnalyticsService;
+use Core\Mod\Mcp\Services\ToolDependencyService;
+use Core\Mod\Mcp\Services\ToolRegistry;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class Boot extends ServiceProvider
@@ -28,11 +35,25 @@ class Boot extends ServiceProvider
     ];
 
     /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        $this->app->singleton(ToolRegistry::class);
+        $this->app->singleton(ToolAnalyticsService::class);
+        $this->app->singleton(McpQuotaService::class);
+        $this->app->singleton(ToolDependencyService::class);
+    }
+
+    /**
      * Bootstrap any application services.
      */
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Register event listener for tool execution analytics
+        Event::listen(ToolExecuted::class, RecordToolExecution::class);
     }
 
     // -------------------------------------------------------------------------
@@ -49,12 +70,17 @@ class Boot extends ServiceProvider
 
         $event->livewire('mcp.admin.api-key-manager', View\Modal\Admin\ApiKeyManager::class);
         $event->livewire('mcp.admin.playground', View\Modal\Admin\Playground::class);
+        $event->livewire('mcp.admin.mcp-playground', View\Modal\Admin\McpPlayground::class);
         $event->livewire('mcp.admin.request-log', View\Modal\Admin\RequestLog::class);
+        $event->livewire('mcp.admin.tool-analytics-dashboard', View\Modal\Admin\ToolAnalyticsDashboard::class);
+        $event->livewire('mcp.admin.tool-analytics-detail', View\Modal\Admin\ToolAnalyticsDetail::class);
+        $event->livewire('mcp.admin.quota-usage', View\Modal\Admin\QuotaUsage::class);
     }
 
     public function onConsole(ConsoleBooting $event): void
     {
         $event->command(Console\Commands\McpAgentServerCommand::class);
+        $event->command(Console\Commands\PruneMetricsCommand::class);
     }
 
     public function onMcpTools(McpToolsRegistering $event): void
