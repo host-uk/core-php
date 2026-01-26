@@ -172,26 +172,29 @@
 
 ## Documentation
 
-- [ ] **Guide: Building REST APIs** - Complete tutorial
-  - [ ] Document resource creation
-  - [ ] Show pagination best practices
-  - [ ] Explain filtering and sorting
-  - [ ] Add authentication examples
-  - **Estimated effort:** 4-5 hours
+- [x] **Guide: Building REST APIs** - Complete tutorial
+  - [x] Document resource creation
+  - [x] Show pagination best practices
+  - [x] Explain filtering and sorting
+  - [x] Add authentication examples
+  - **Completed:** January 2026
+  - **File:** `docs/packages/api/building-rest-apis.md`
 
-- [ ] **Guide: Webhook Integration** - For API consumers
-  - [ ] Document signature verification
-  - [ ] Show retry handling
-  - [ ] Explain event types
-  - [ ] Add code examples (PHP, JS, Python)
-  - **Estimated effort:** 3-4 hours
+- [x] **Guide: Webhook Integration** - For API consumers
+  - [x] Document signature verification
+  - [x] Show retry handling
+  - [x] Explain event types
+  - [x] Add code examples (PHP, JS, Python)
+  - **Completed:** January 2026
+  - **File:** `docs/packages/api/webhook-integration.md`
 
-- [ ] **API Reference: All Endpoints** - Complete OpenAPI spec
-  - [ ] Document all request parameters
-  - [ ] Add response examples
-  - [ ] Show error responses
-  - [ ] Include authentication notes
-  - **Estimated effort:** 6-8 hours
+- [x] **API Reference: All Endpoints** - Complete OpenAPI spec
+  - [x] Document all request parameters
+  - [x] Add response examples
+  - [x] Show error responses
+  - [x] Include authentication notes
+  - **Completed:** January 2026
+  - **File:** `docs/packages/api/endpoints-reference.md`
 
 ## Code Quality
 

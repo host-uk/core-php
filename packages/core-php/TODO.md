@@ -266,17 +266,19 @@
 
 ## Documentation
 
-- [ ] **API Docs: Service Contracts** - Document service pattern
-  - [ ] Add examples for ServiceDefinition
-  - [ ] Document service versioning
-  - [ ] Add dependency resolution examples
-  - **Estimated effort:** 2-3 hours
+- [x] **API Docs: Service Contracts** - Document service pattern
+  - [x] Add examples for ServiceDefinition
+  - [x] Document service versioning
+  - [x] Add dependency resolution examples
+  - **Completed:** January 2026
+  - **File:** `docs/packages/core/service-contracts.md`
 
-- [ ] **API Docs: Seeder System** - Document seeder attributes
-  - [ ] Document dependency resolution
-  - [ ] Add complex ordering examples
-  - [ ] Document circular dependency errors
-  - **Estimated effort:** 2-3 hours
+- [x] **API Docs: Seeder System** - Document seeder attributes
+  - [x] Document dependency resolution
+  - [x] Add complex ordering examples
+  - [x] Document circular dependency errors
+  - **Completed:** January 2026
+  - **File:** `docs/packages/core/seeder-system.md`
 
 ## Code Quality
 

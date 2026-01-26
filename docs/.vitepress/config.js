@@ -102,7 +102,9 @@ export default defineConfig({
             { text: 'Activity Logging', link: '/packages/core/activity' },
             { text: 'Media Processing', link: '/packages/core/media' },
             { text: 'Search', link: '/packages/core/search' },
-            { text: 'SEO Tools', link: '/packages/core/seo' }
+            { text: 'SEO Tools', link: '/packages/core/seo' },
+            { text: 'Service Contracts', link: '/packages/core/service-contracts' },
+            { text: 'Seeder System', link: '/packages/core/seeder-system' }
           ]
         }
       ],
@@ -117,7 +119,10 @@ export default defineConfig({
             { text: 'Global Search', link: '/packages/admin/search' },
             { text: 'Admin Menus', link: '/packages/admin/menus' },
             { text: 'Authorization', link: '/packages/admin/authorization' },
-            { text: 'UI Components', link: '/packages/admin/components' }
+            { text: 'UI Components', link: '/packages/admin/components' },
+            { text: 'Creating Admin Panels', link: '/packages/admin/creating-admin-panels' },
+            { text: 'HLCRF Deep Dive', link: '/packages/admin/hlcrf-deep-dive' },
+            { text: 'Components Reference', link: '/packages/admin/components-reference' }
           ]
         }
       ],
@@ -131,7 +136,10 @@ export default defineConfig({
             { text: 'Webhooks', link: '/packages/api/webhooks' },
             { text: 'Rate Limiting', link: '/packages/api/rate-limiting' },
             { text: 'Scopes', link: '/packages/api/scopes' },
-            { text: 'Documentation', link: '/packages/api/documentation' }
+            { text: 'Documentation', link: '/packages/api/documentation' },
+            { text: 'Building REST APIs', link: '/packages/api/building-rest-apis' },
+            { text: 'Webhook Integration', link: '/packages/api/webhook-integration' },
+            { text: 'Endpoints Reference', link: '/packages/api/endpoints-reference' }
           ]
         }
       ],
@@ -146,7 +154,10 @@ export default defineConfig({
             { text: 'Security', link: '/packages/mcp/security' },
             { text: 'Workspace Context', link: '/packages/mcp/workspace' },
             { text: 'Analytics', link: '/packages/mcp/analytics' },
-            { text: 'Usage Quotas', link: '/packages/mcp/quotas' }
+            { text: 'Usage Quotas', link: '/packages/mcp/quotas' },
+            { text: 'Creating MCP Tools', link: '/packages/mcp/creating-mcp-tools' },
+            { text: 'SQL Security', link: '/packages/mcp/sql-security' },
+            { text: 'Tools Reference', link: '/packages/mcp/tools-reference' }
           ]
         }
       ],

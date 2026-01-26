@@ -211,27 +211,30 @@
 
 ## Documentation
 
-- [ ] **Guide: Creating MCP Tools** - Comprehensive tutorial
-  - [ ] Document tool interface
-  - [ ] Show parameter validation
-  - [ ] Explain workspace context
-  - [ ] Add dependency examples
-  - [ ] Include security best practices
-  - **Estimated effort:** 4-5 hours
+- [x] **Guide: Creating MCP Tools** - Comprehensive tutorial
+  - [x] Document tool interface
+  - [x] Show parameter validation
+  - [x] Explain workspace context
+  - [x] Add dependency examples
+  - [x] Include security best practices
+  - **Completed:** January 2026
+  - **File:** `docs/packages/mcp/creating-mcp-tools.md`
 
-- [ ] **Guide: SQL Security** - Safe query patterns
-  - [ ] Document allowed SQL patterns
-  - [ ] Show parameterized query examples
-  - [ ] Explain validation rules
-  - [ ] List forbidden operations
-  - **Estimated effort:** 3-4 hours
+- [x] **Guide: SQL Security** - Safe query patterns
+  - [x] Document allowed SQL patterns
+  - [x] Show parameterized query examples
+  - [x] Explain validation rules
+  - [x] List forbidden operations
+  - **Completed:** January 2026
+  - **File:** `docs/packages/mcp/sql-security.md`
 
-- [ ] **API Reference: All MCP Tools** - Complete tool catalog
-  - [ ] Document each tool's parameters
-  - [ ] Add usage examples
-  - [ ] Show response formats
-  - [ ] Include error cases
-  - **Estimated effort:** 5-6 hours
+- [x] **API Reference: All MCP Tools** - Complete tool catalog
+  - [x] Document each tool's parameters
+  - [x] Add usage examples
+  - [x] Show response formats
+  - [x] Include error cases
+  - **Completed:** January 2026
+  - **File:** `docs/packages/mcp/tools-reference.md`
 
 ## Code Quality
 
@@ -295,6 +298,8 @@
 - [x] **Tool Analytics System** - Complete usage tracking and metrics
 - [x] **Quota System** - Tier-based limits with enforcement
 - [x] **Workspace Context** - Automatic query scoping and validation
-- [x] **Documentation** - Complete MCP package documentation
+- [x] **Documentation: Creating MCP Tools Guide** - Complete tutorial with workspace context, dependencies, security
+- [x] **Documentation: SQL Security Guide** - Allowed patterns, forbidden operations, injection prevention
+- [x] **Documentation: MCP Tools API Reference** - All tools with parameters, examples, error handling
 
 *See `changelog/2026/jan/` for completed features and security fixes.*

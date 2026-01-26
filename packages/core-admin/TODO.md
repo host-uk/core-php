@@ -151,26 +151,29 @@
 
 ## Documentation
 
-- [ ] **Guide: Creating Admin Panels** - Step-by-step guide
-  - [ ] Document menu registration
-  - [ ] Show modal creation examples
-  - [ ] Explain authorization integration
-  - [ ] Add complete example module
-  - **Estimated effort:** 3-4 hours
+- [x] **Guide: Creating Admin Panels** - Step-by-step guide
+  - [x] Document menu registration
+  - [x] Show modal creation examples
+  - [x] Explain authorization integration
+  - [x] Add complete example module
+  - **Completed:** January 2026
+  - **File:** `docs/packages/admin/creating-admin-panels.md`
 
-- [ ] **Guide: HLCRF Deep Dive** - Advanced layout patterns
-  - [ ] Document all layout combinations
-  - [ ] Show responsive design patterns
-  - [ ] Explain ID system in detail
-  - [ ] Add complex real-world examples
-  - **Estimated effort:** 4-5 hours
+- [x] **Guide: HLCRF Deep Dive** - Advanced layout patterns
+  - [x] Document all layout combinations
+  - [x] Show responsive design patterns
+  - [x] Explain ID system in detail
+  - [x] Add complex real-world examples
+  - **Completed:** January 2026
+  - **File:** `docs/packages/admin/hlcrf-deep-dive.md`
 
-- [ ] **API Reference: Components** - Component prop documentation
-  - [ ] Document all form component props
-  - [ ] Add prop validation rules
-  - [ ] Show authorization prop examples
-  - [ ] Include accessibility notes
-  - **Estimated effort:** 3-4 hours
+- [x] **API Reference: Components** - Component prop documentation
+  - [x] Document all form component props
+  - [x] Add prop validation rules
+  - [x] Show authorization prop examples
+  - [x] Include accessibility notes
+  - **Completed:** January 2026
+  - **File:** `docs/packages/admin/components-reference.md`
 
 ## Code Quality
 
@@ -217,5 +220,8 @@
 - [x] **Search: Provider System** - Global search with multiple providers
 - [x] **Search: Analytics** - Track search queries and results
 - [x] **Documentation** - Complete admin package documentation
+- [x] **Guide: Creating Admin Panels** - Menu registration, modals, authorization, example module
+- [x] **Guide: HLCRF Deep Dive** - Layout combinations, ID system, responsive patterns
+- [x] **API Reference: Components** - Form component props with authorization examples
 
 *See `changelog/2026/jan/` for completed features.*
