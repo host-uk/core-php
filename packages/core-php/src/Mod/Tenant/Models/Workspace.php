@@ -447,6 +447,14 @@ class Workspace extends Model
         return $this->hasMany(\Core\Mod\Api\Models\WebhookEndpoint::class);
     }
 
+    /**
+     * Get entitlement webhooks for this workspace.
+     */
+    public function entitlementWebhooks(): HasMany
+    {
+        return $this->hasMany(EntitlementWebhook::class);
+    }
+
     // Trees for Agents Relationships
 
     /**

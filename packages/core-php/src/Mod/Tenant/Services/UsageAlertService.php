@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Core\Mod\Tenant\Services;
 
+use Core\Mod\Tenant\Events\Webhook\LimitReachedEvent;
+use Core\Mod\Tenant\Events\Webhook\LimitWarningEvent;
 use Core\Mod\Tenant\Models\Feature;
 use Core\Mod\Tenant\Models\UsageAlertHistory;
 use Core\Mod\Tenant\Models\User;
@@ -25,7 +27,8 @@ use Illuminate\Support\Facades\Log;
 class UsageAlertService
 {
     public function __construct(
-        protected EntitlementService $entitlementService
+        protected EntitlementService $entitlementService,
+        protected ?EntitlementWebhookService $webhookService = null
     ) {}
 
     /**
@@ -231,6 +234,42 @@ class UsageAlertService
             'user_id' => $owner->id,
             'user_email' => $owner->email,
         ]);
+
+        // Dispatch webhook event
+        $this->dispatchWebhook($workspace, $feature, $threshold, $used, $limit);
+    }
+
+    /**
+     * Dispatch webhook event for usage alert.
+     */
+    protected function dispatchWebhook(
+        Workspace $workspace,
+        Feature $feature,
+        int $threshold,
+        int $used,
+        int $limit
+    ): void {
+        // Lazy load webhook service if not injected
+        $webhookService = $this->webhookService ?? app(EntitlementWebhookService::class);
+
+        // Create appropriate event based on threshold
+        if ($threshold === UsageAlertHistory::THRESHOLD_LIMIT) {
+            $event = new LimitReachedEvent($workspace, $feature, $used, $limit);
+        } else {
+            $event = new LimitWarningEvent($workspace, $feature, $used, $limit, $threshold);
+        }
+
+        // Dispatch to all matching webhooks (async)
+        try {
+            $webhookService->dispatch($workspace, $event);
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch usage alert webhook', [
+                'workspace_id' => $workspace->id,
+                'feature_code' => $feature->code,
+                'threshold' => $threshold,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

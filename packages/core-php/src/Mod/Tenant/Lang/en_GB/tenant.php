@@ -297,4 +297,49 @@ return [
         'boosts_expired' => ':count boost(s) have expired.',
         'usage_reset' => 'Usage counters have been reset for the new billing period.',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Entitlement Webhooks
+    |--------------------------------------------------------------------------
+    */
+    'webhooks' => [
+        'events' => [
+            'limit_warning' => 'Limit Warning',
+            'limit_reached' => 'Limit Reached',
+            'package_changed' => 'Package Changed',
+            'boost_activated' => 'Boost Activated',
+            'boost_expired' => 'Boost Expired',
+        ],
+        'messages' => [
+            'created' => 'Webhook created successfully.',
+            'updated' => 'Webhook updated successfully.',
+            'deleted' => 'Webhook deleted successfully.',
+            'test_success' => 'Test webhook sent successfully.',
+            'test_failed' => 'Test webhook failed.',
+            'secret_regenerated' => 'Secret regenerated successfully.',
+            'circuit_reset' => 'Webhook re-enabled and failure count reset.',
+            'retry_success' => 'Delivery retried successfully.',
+            'retry_failed' => 'Retry failed.',
+        ],
+        'labels' => [
+            'name' => 'Name',
+            'url' => 'URL',
+            'events' => 'Events',
+            'status' => 'Status',
+            'active' => 'Active',
+            'inactive' => 'Inactive',
+            'circuit_broken' => 'Circuit Broken',
+            'secret' => 'Secret',
+            'max_attempts' => 'Max Retry Attempts',
+            'deliveries' => 'Deliveries',
+        ],
+        'descriptions' => [
+            'url' => 'The endpoint that will receive webhook POST requests.',
+            'max_attempts' => 'Number of times to retry failed deliveries (1-10).',
+            'inactive' => 'Inactive webhooks will not receive any events.',
+            'secret' => 'Use this secret to verify webhook signatures. The signature is sent in the X-Signature header and is a HMAC-SHA256 hash of the JSON payload.',
+            'save_secret' => 'Save this secret now. It will not be shown again.',
+        ],
+    ],
 ];

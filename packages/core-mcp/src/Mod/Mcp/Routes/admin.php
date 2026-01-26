@@ -1,6 +1,7 @@
 <?php
 
 use Core\Mod\Mcp\View\Modal\Admin\ApiKeyManager;
+use Core\Mod\Mcp\View\Modal\Admin\AuditLogViewer;
 use Core\Mod\Mcp\View\Modal\Admin\McpPlayground;
 use Core\Mod\Mcp\View\Modal\Admin\Playground;
 use Core\Mod\Mcp\View\Modal\Admin\RequestLog;
@@ -52,4 +53,8 @@ Route::prefix('mcp')->name('mcp.')->group(function () {
     // Single tool analytics detail
     Route::get('analytics/tool/{name}', ToolAnalyticsDetail::class)
         ->name('analytics.tool');
+
+    // Audit log viewer (compliance and security)
+    Route::get('audit-log', AuditLogViewer::class)
+        ->name('audit-log');
 });

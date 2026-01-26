@@ -2,15 +2,51 @@
 
 This guide covers installing the Core PHP Framework in a new or existing Laravel application.
 
-## New Laravel Project
+## Quick Start (Recommended)
 
-The quickest way to get started is with a fresh Laravel installation:
+The fastest way to get started is using the `core:new` command from any existing Core PHP installation:
 
 ```bash
-# Create new Laravel project
-composer create-project laravel/laravel my-app
-cd my-app
+php artisan core:new my-project
+cd my-project
+php artisan serve
+```
 
+This scaffolds a complete project with all Core packages pre-configured.
+
+### Command Options
+
+```bash
+# Custom template
+php artisan core:new my-api --template=host-uk/core-api-template
+
+# Specific version
+php artisan core:new my-app --branch=v1.0.0
+
+# Skip automatic installation
+php artisan core:new my-app --no-install
+
+# Development mode (--prefer-source)
+php artisan core:new my-app --dev
+
+# Overwrite existing directory
+php artisan core:new my-app --force
+```
+
+## From GitHub Template
+
+You can also use the GitHub template directly:
+
+1. Visit [host-uk/core-template](https://github.com/host-uk/core-template)
+2. Click "Use this template"
+3. Clone your new repository
+4. Run `composer install && php artisan core:install`
+
+## Manual Installation
+
+For adding Core PHP to an existing Laravel project:
+
+```bash
 # Install Core PHP
 composer require host-uk/core
 

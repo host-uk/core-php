@@ -300,18 +300,15 @@
 
 ## Infrastructure
 
-- [ ] **GitHub Template Repository** - Create host-uk/core-template ⭐⭐⭐
-  - [ ] Set up base Laravel 12 app
-  - [ ] Configure composer.json with Core packages
-  - [ ] Update bootstrap/app.php to register providers
-  - [ ] Create config/core.php
-  - [ ] Update .env.example with Core variables
-  - [ ] Write comprehensive README.md
-  - [ ] Enable "Template repository" on GitHub
-  - [ ] Tag v1.0.0 release
-  - [ ] Test `php artisan core:new` command
-  - **Estimated effort:** 3-4 hours
-  - **Guide:** See `CREATING-TEMPLATE-REPO.md`
+- [x] **GitHub Template Repository** - Created host-uk/core-template
+  - [x] Set up base Laravel 12 app
+  - [x] Configure composer.json with Core packages
+  - [x] Update bootstrap/app.php to register providers
+  - [x] Create config/core.php
+  - [x] Update .env.example with Core variables
+  - [x] Write comprehensive README.md
+  - [x] Test `php artisan core:new` command
+  - **Completed:** January 2026
   - **Command:** `php artisan core:new my-project`
 
 - [ ] **CI/CD: Add PHP 8.3 Testing** - Future compatibility

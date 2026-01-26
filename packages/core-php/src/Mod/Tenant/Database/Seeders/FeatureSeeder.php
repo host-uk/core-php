@@ -274,6 +274,15 @@ class FeatureSeeder extends Seeder
                 'reset_type' => Feature::RESET_NONE,
                 'sort_order' => 12,
             ],
+            [
+                'code' => 'social.ai_suggestions',
+                'name' => 'AI Content Suggestions',
+                'description' => 'AI-powered caption generation and content improvement',
+                'category' => 'social',
+                'type' => Feature::TYPE_BOOLEAN,
+                'reset_type' => Feature::RESET_NONE,
+                'sort_order' => 13,
+            ],
 
             // AI features
             [

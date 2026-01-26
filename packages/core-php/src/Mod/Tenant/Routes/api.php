@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Core\Mod\Api\Controllers\WorkspaceController;
+use Core\Mod\Tenant\Controllers\Api\EntitlementWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,4 +55,28 @@ Route::middleware(['api.auth', 'api.scope.enforce'])->prefix('workspaces')->name
     Route::get('/', [WorkspaceController::class, 'index'])->name('index');
     Route::get('/current', [WorkspaceController::class, 'current'])->name('current');
     Route::get('/{workspace}', [WorkspaceController::class, 'show'])->name('show');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Entitlement Webhooks API (Auth Required)
+|--------------------------------------------------------------------------
+|
+| Webhook management for entitlement events.
+| Session-based authentication.
+|
+*/
+
+Route::middleware('auth')->prefix('entitlement-webhooks')->name('api.entitlement-webhooks.')->group(function () {
+    Route::get('/', [EntitlementWebhookController::class, 'index'])->name('index');
+    Route::get('/events', [EntitlementWebhookController::class, 'events'])->name('events');
+    Route::post('/', [EntitlementWebhookController::class, 'store'])->name('store');
+    Route::get('/{webhook}', [EntitlementWebhookController::class, 'show'])->name('show');
+    Route::put('/{webhook}', [EntitlementWebhookController::class, 'update'])->name('update');
+    Route::delete('/{webhook}', [EntitlementWebhookController::class, 'destroy'])->name('destroy');
+    Route::post('/{webhook}/test', [EntitlementWebhookController::class, 'test'])->name('test');
+    Route::post('/{webhook}/regenerate-secret', [EntitlementWebhookController::class, 'regenerateSecret'])->name('regenerate-secret');
+    Route::post('/{webhook}/reset-circuit-breaker', [EntitlementWebhookController::class, 'resetCircuitBreaker'])->name('reset-circuit-breaker');
+    Route::get('/{webhook}/deliveries', [EntitlementWebhookController::class, 'deliveries'])->name('deliveries');
+    Route::post('/deliveries/{delivery}/retry', [EntitlementWebhookController::class, 'retryDelivery'])->name('retry-delivery');
 });

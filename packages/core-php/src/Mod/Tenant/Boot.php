@@ -74,6 +74,11 @@ class Boot extends ServiceProvider
             \Core\Mod\Tenant\Services\UsageAlertService::class
         );
 
+        $this->app->singleton(
+            \Core\Mod\Tenant\Services\EntitlementWebhookService::class,
+            \Core\Mod\Tenant\Services\EntitlementWebhookService::class
+        );
+
         $this->registerBackwardCompatAliases();
     }
 
@@ -121,6 +126,9 @@ class Boot extends ServiceProvider
     public function onAdminPanel(AdminPanelBooting $event): void
     {
         $event->views($this->moduleName, __DIR__.'/View/Blade');
+
+        // Admin Livewire components
+        $event->livewire('tenant.admin.entitlement-webhook-manager', View\Modal\Admin\EntitlementWebhookManager::class);
     }
 
     public function onApiRoutes(ApiRoutesRegistering $event): void

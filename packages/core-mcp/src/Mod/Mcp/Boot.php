@@ -9,6 +9,7 @@ use Core\Events\ConsoleBooting;
 use Core\Events\McpToolsRegistering;
 use Core\Mod\Mcp\Events\ToolExecuted;
 use Core\Mod\Mcp\Listeners\RecordToolExecution;
+use Core\Mod\Mcp\Services\AuditLogService;
 use Core\Mod\Mcp\Services\McpQuotaService;
 use Core\Mod\Mcp\Services\ToolAnalyticsService;
 use Core\Mod\Mcp\Services\ToolDependencyService;
@@ -43,6 +44,7 @@ class Boot extends ServiceProvider
         $this->app->singleton(ToolAnalyticsService::class);
         $this->app->singleton(McpQuotaService::class);
         $this->app->singleton(ToolDependencyService::class);
+        $this->app->singleton(AuditLogService::class);
     }
 
     /**
@@ -75,12 +77,14 @@ class Boot extends ServiceProvider
         $event->livewire('mcp.admin.tool-analytics-dashboard', View\Modal\Admin\ToolAnalyticsDashboard::class);
         $event->livewire('mcp.admin.tool-analytics-detail', View\Modal\Admin\ToolAnalyticsDetail::class);
         $event->livewire('mcp.admin.quota-usage', View\Modal\Admin\QuotaUsage::class);
+        $event->livewire('mcp.admin.audit-log-viewer', View\Modal\Admin\AuditLogViewer::class);
     }
 
     public function onConsole(ConsoleBooting $event): void
     {
         $event->command(Console\Commands\McpAgentServerCommand::class);
         $event->command(Console\Commands\PruneMetricsCommand::class);
+        $event->command(Console\Commands\VerifyAuditLogCommand::class);
     }
 
     public function onMcpTools(McpToolsRegistering $event): void

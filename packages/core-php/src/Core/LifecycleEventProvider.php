@@ -196,12 +196,20 @@ class LifecycleEventProvider extends ServiceProvider
         });
 
         // Scan and wire lazy listeners
-        // Website modules are included - they use DomainResolving event to self-register
-        $this->scanPaths = [
+        // Start with configured application module paths
+        $this->scanPaths = config('core.module_paths', [
             app_path('Core'),
             app_path('Mod'),
             app_path('Website'),
-        ];
+        ]);
+
+        // Add framework's own module paths (works in vendor/ or packages/)
+        $frameworkSrcPath = dirname(__DIR__);  // .../src/Core -> .../src
+        $this->scanPaths[] = $frameworkSrcPath.'/Core';  // Core\*\Boot
+        $this->scanPaths[] = $frameworkSrcPath.'/Mod';   // Mod\*\Boot
+
+        // Filter to only existing directories
+        $this->scanPaths = array_filter($this->scanPaths, 'is_dir');
 
         $registry = $this->app->make(ModuleRegistry::class);
         $registry->register($this->scanPaths);

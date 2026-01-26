@@ -43,8 +43,10 @@ return [
     */
 
     'module_paths' => [
-        // app_path('Core'),
-        // app_path('Mod'),
+        // Application modules (user-created)
+        app_path('Core'),
+        app_path('Mod'),
+        app_path('Website'),
     ],
 
     /*
