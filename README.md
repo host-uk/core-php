@@ -1,8 +1,16 @@
 # Core PHP Framework
 
+A modular monolith framework for Laravel with event-driven architecture, lazy module loading, and built-in multi-tenancy.
 
+## Features
 
-A modular monolith framework for Laravel with event-driven architecture and lazy module loading.
+- **Event-driven module system** - Modules declare interest in lifecycle events and are only loaded when needed
+- **Lazy loading** - Web requests don't load admin modules, API requests don't load web modules
+- **Multi-tenant isolation** - Workspace-scoped data with automatic query filtering
+- **Actions pattern** - Single-purpose business logic classes with dependency injection
+- **Activity logging** - Built-in audit trails for model changes
+- **Seeder auto-discovery** - Automatic ordering via priority and dependency attributes
+- **HLCRF Layout System** - Hierarchical composable layouts (Header, Left, Content, Right, Footer)
 
 ## Installation
 
@@ -12,58 +20,15 @@ composer require host-uk/core
 
 The service provider will be auto-discovered.
 
-## Configuration
+## Quick Start
 
-Publish the config file:
-
-```bash
-php artisan vendor:publish --tag=core-config
-```
-
-Configure your module paths in `config/core.php`:
-
-```php
-return [
-    'module_paths' => [
-        app_path('Core'),
-        app_path('Mod'),
-    ],
-];
-```
-
-## Creating Modules
-
-Use the artisan commands to scaffold modules:
+### Creating a Module
 
 ```bash
-# Create a full module
 php artisan make:mod Commerce
-
-# Create a website module (domain-scoped)
-php artisan make:website Marketing
-
-# Create a plugin
-php artisan make:plug Stripe
 ```
 
-## Module Structure
-
-Modules are organised with a `Boot.php` entry point:
-
-```
-app/Mod/Commerce/
-├── Boot.php
-├── Routes/
-│   ├── web.php
-│   ├── admin.php
-│   └── api.php
-├── Views/
-└── config.php
-```
-
-## Lifecycle Events
-
-Modules declare interest in lifecycle events via a static `$listens` array:
+This creates a module at `app/Mod/Commerce/` with a `Boot.php` entry point:
 
 ```php
 <?php
@@ -93,130 +58,142 @@ class Boot
 }
 ```
 
-### Available Events
+### Lifecycle Events
 
 | Event | Purpose |
 |-------|---------|
 | `WebRoutesRegistering` | Public-facing web routes |
 | `AdminPanelBooting` | Admin panel routes and navigation |
 | `ApiRoutesRegistering` | REST API endpoints |
-| `ClientRoutesRegistering` | Authenticated client/workspace routes |
+| `ClientRoutesRegistering` | Authenticated client routes |
 | `ConsoleBooting` | Artisan commands |
 | `McpToolsRegistering` | MCP tool handlers |
 | `FrameworkBooted` | Late-stage initialisation |
 
-### Event Methods
+## Core Patterns
 
-Events collect requests from modules:
+### Actions
+
+Extract business logic into testable, reusable classes:
 
 ```php
-// Register routes
-$event->routes(fn () => require __DIR__.'/routes.php');
+use Core\Actions\Action;
 
-// Register view namespace
-$event->views('namespace', __DIR__.'/Views');
+class CreateOrder
+{
+    use Action;
 
-// Register Livewire component
-$event->livewire('alias', ComponentClass::class);
+    public function handle(User $user, array $data): Order
+    {
+        // Business logic here
+        return Order::create($data);
+    }
+}
 
-// Register navigation item
-$event->navigation(['label' => 'Products', 'icon' => 'box']);
-
-// Register Artisan command (ConsoleBooting)
-$event->command(MyCommand::class);
-
-// Register middleware alias
-$event->middleware('alias', MiddlewareClass::class);
-
-// Register translations
-$event->translations('namespace', __DIR__.'/lang');
-
-// Register Blade component path
-$event->bladeComponentPath(__DIR__.'/components', 'prefix');
-
-// Register policy
-$event->policy(Model::class, Policy::class);
+// Usage
+$order = CreateOrder::run($user, $validated);
 ```
 
-## Firing Events
+### Multi-Tenant Isolation
 
-Create frontage service providers to fire events at appropriate times:
+Automatic workspace scoping for models:
 
 ```php
-use Core\LifecycleEventProvider;
+use Core\Mod\Tenant\Concerns\BelongsToWorkspace;
 
-class WebServiceProvider extends ServiceProvider
+class Product extends Model
 {
-    public function boot(): void
-    {
-        LifecycleEventProvider::fireWebRoutes();
-    }
+    use BelongsToWorkspace;
+}
+
+// Queries are automatically scoped to the current workspace
+$products = Product::all();
+
+// workspace_id is auto-assigned on create
+$product = Product::create(['name' => 'Widget']);
+```
+
+### Activity Logging
+
+Track model changes with minimal setup:
+
+```php
+use Core\Activity\Concerns\LogsActivity;
+
+class Order extends Model
+{
+    use LogsActivity;
+
+    protected array $activityLogAttributes = ['status', 'total'];
 }
 ```
 
-## Lazy Loading
+### HLCRF Layout System
 
-Modules are only instantiated when their subscribed events fire. A web request doesn't load admin-only modules. An API request doesn't load web modules. This keeps your application fast.
-
-## Custom Namespace Mapping
-
-For non-standard directory structures:
+Data-driven layouts with infinite nesting:
 
 ```php
-$scanner = app(ModuleScanner::class);
-$scanner->setNamespaceMap([
-    'CustomMod' => 'App\\CustomMod',
-]);
+use Core\Front\Components\Layout;
+
+$page = Layout::make('HCF')
+    ->h('<nav>Navigation</nav>')
+    ->c('<article>Main content</article>')
+    ->f('<footer>Footer</footer>');
+
+echo $page;
 ```
 
-## Contracts
+Variant strings define structure: `HCF` (Header-Content-Footer), `HLCRF` (all five regions), `H[LC]CF` (nested layouts).
 
-### AdminMenuProvider
+See [HLCRF.md](packages/core-php/src/Core/Front/HLCRF.md) for full documentation.
 
-Implement for admin navigation:
+## Configuration
+
+Publish the config file:
+
+```bash
+php artisan vendor:publish --tag=core-config
+```
+
+Configure module paths in `config/core.php`:
 
 ```php
-use Core\Front\Admin\Contracts\AdminMenuProvider;
-
-class Boot implements AdminMenuProvider
-{
-    public function adminMenuItems(): array
-    {
-        return [
-            [
-                'group' => 'services',
-                'priority' => 20,
-                'item' => fn () => [
-                    'label' => 'Products',
-                    'icon' => 'box',
-                    'href' => route('admin.products.index'),
-                ],
-            ],
-        ];
-    }
-}
+return [
+    'module_paths' => [
+        app_path('Core'),
+        app_path('Mod'),
+    ],
+];
 ```
 
-### ServiceDefinition
+## Artisan Commands
 
-For SaaS service registration:
-
-```php
-use Core\Service\Contracts\ServiceDefinition;
-
-class Boot implements ServiceDefinition
-{
-    public static function definition(): array
-    {
-        return [
-            'code' => 'commerce',
-            'module' => 'Commerce',
-            'name' => 'Commerce',
-            'tagline' => 'E-commerce platform',
-        ];
-    }
-}
+```bash
+php artisan make:mod Commerce      # Create a module
+php artisan make:website Marketing # Create a website module
+php artisan make:plug Stripe       # Create a plugin
 ```
+
+## Module Structure
+
+```
+app/Mod/Commerce/
+├── Boot.php           # Module entry point
+├── Actions/           # Business logic
+├── Models/            # Eloquent models
+├── Routes/
+│   ├── web.php
+│   ├── admin.php
+│   └── api.php
+├── Views/
+├── Migrations/
+└── config.php
+```
+
+## Documentation
+
+- [Patterns Guide](docs/patterns.md) - Detailed documentation for all framework patterns
+- [HLCRF Layout System](packages/core-php/src/Core/Front/HLCRF.md) - Composable layout documentation
 
 ## Testing
 
@@ -224,6 +201,11 @@ class Boot implements ServiceDefinition
 composer test
 ```
 
+## Requirements
+
+- PHP 8.2+
+- Laravel 11+
+
 ## License
 
-EUPL-1.2. See [LICENSE](LICENSE) for details.
+EUPL-1.2 - See [LICENSE](LICENSE) for details.

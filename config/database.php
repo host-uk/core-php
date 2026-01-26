@@ -113,6 +113,43 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | MCP Read-Only Connection
+        |--------------------------------------------------------------------------
+        |
+        | This connection is used by the MCP QueryDatabase tool. It should be
+        | configured with a database user that has SELECT-only permissions.
+        |
+        | For MySQL, create a read-only user:
+        |   CREATE USER 'mcp_readonly'@'localhost' IDENTIFIED BY 'password';
+        |   GRANT SELECT ON your_database.* TO 'mcp_readonly'@'localhost';
+        |   FLUSH PRIVILEGES;
+        |
+        | If MCP_DB_CONNECTION is not set, this falls back to the default connection.
+        | In production, always configure a dedicated read-only user.
+        |
+        */
+        'mcp_readonly' => [
+            'driver' => env('MCP_DB_DRIVER', env('DB_CONNECTION', 'mysql')),
+            'url' => env('MCP_DB_URL'),
+            'host' => env('MCP_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('MCP_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('MCP_DB_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('MCP_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('MCP_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('MCP_DB_SOCKET', env('DB_SOCKET', '')),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
     ],
 
     /*

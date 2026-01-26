@@ -39,6 +39,8 @@
         "psr-4": {
             "Tests\\": "tests/",
             "Core\\Tests\\": "packages/core-php/tests/",
+            "Core\\Mod\\Mcp\\Tests\\": "packages/core-mcp/tests/",
+            "Core\\Mod\\Tenant\\Tests\\": "packages/core-php/src/Mod/Tenant/Tests/",
             "Mod\\": "packages/core-php/tests/Fixtures/Mod/",
             "Plug\\": "packages/core-php/tests/Fixtures/Plug/",
             "Website\\": "packages/core-php/tests/Fixtures/Website/"
