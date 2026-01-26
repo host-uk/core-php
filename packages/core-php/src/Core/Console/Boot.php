@@ -24,6 +24,7 @@ class Boot
     public function onConsole(ConsoleBooting $event): void
     {
         $event->command(Commands\InstallCommand::class);
+        $event->command(Commands\NewProjectCommand::class);
         $event->command(Commands\MakeModCommand::class);
         $event->command(Commands\MakePlugCommand::class);
         $event->command(Commands\MakeWebsiteCommand::class);

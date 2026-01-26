@@ -1,6 +1,23 @@
 # Core PHP Framework
 
+[![Tests](https://github.com/host-uk/core-php/workflows/Tests/badge.svg)](https://github.com/host-uk/core-php/actions)
+[![Code Coverage](https://codecov.io/gh/host-uk/core-php/branch/main/graph/badge.svg)](https://codecov.io/gh/host-uk/core-php)
+[![Latest Stable Version](https://poser.pugx.org/host-uk/core/v/stable)](https://packagist.org/packages/host-uk/core)
+[![License](https://img.shields.io/badge/license-EUPL--1.2-blue.svg)](LICENSE)
+[![PHP Version](https://img.shields.io/badge/php-%5E8.2-8892BF.svg)](https://php.net/)
+[![Laravel Version](https://img.shields.io/badge/laravel-%5E11.0%7C%5E12.0-FF2D20.svg)](https://laravel.com)
+
 A modular monolith framework for Laravel with event-driven architecture, lazy module loading, and built-in multi-tenancy.
+
+## Documentation
+
+📚 **[Read the full documentation →](https://host-uk.github.io/core-php/)**
+
+- [Getting Started](https://host-uk.github.io/core-php/guide/getting-started)
+- [Installation Guide](https://host-uk.github.io/core-php/guide/installation)
+- [Architecture Overview](https://host-uk.github.io/core-php/architecture/lifecycle-events)
+- [API Reference](https://host-uk.github.io/core-php/packages/api)
+- [Security Guide](https://host-uk.github.io/core-php/security/overview)
 
 ## Features
 

@@ -154,5 +154,6 @@ class Boot extends ServiceProvider
         $event->command(Console\Commands\RefreshUserStats::class);
         $event->command(Console\Commands\ProcessAccountDeletions::class);
         $event->command(Console\Commands\CheckUsageAlerts::class);
+        $event->command(Console\Commands\ResetBillingCycles::class);
     }
 }

@@ -1,8 +1,6 @@
 # Core PHP Framework - TODO
 
-## Code Cleanup
-
-- [ ] **ApiExplorer** - Update biolinks endpoint examples
+No pending tasks! 🎉
 
 ---
 

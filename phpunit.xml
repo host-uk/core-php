@@ -39,6 +39,13 @@
             <directory>packages/core-mcp/src</directory>
         </include>
     </source>
+    <coverage includeUncoveredFiles="true">
+        <report>
+            <clover outputFile="coverage/clover.xml"/>
+            <html outputDirectory="coverage/html"/>
+            <text outputFile="php://stdout" showUncoveredFiles="false"/>
+        </report>
+    </coverage>
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_DEBUG" value="true"/>

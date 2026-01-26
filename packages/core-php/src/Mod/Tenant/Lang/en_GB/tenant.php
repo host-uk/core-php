@@ -272,5 +272,29 @@ return [
             'not_requested' => 'Did not request this?',
             'not_requested_description' => 'If you did not request account deletion, click the cancel button above immediately and change your password.',
         ],
+        'boost_expired' => [
+            'subject_single' => ':feature boost expired - :workspace',
+            'subject_multiple' => ':count boosts expired - :workspace',
+            'body_single' => 'A boost for **:feature** has expired in your **:workspace** workspace.',
+            'body_multiple' => 'The following boosts have expired in your **:workspace** workspace:',
+            'cycle_bound_note' => 'This was a cycle-bound boost that ended with your billing period.',
+            'action_text' => 'You can purchase additional boosts or upgrade your plan to restore this capacity.',
+            'boost_types' => [
+                'unlimited' => 'Unlimited access',
+                'enable' => 'Feature access',
+                'add_limit' => '+:total capacity (:consumed used)',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billing Cycles
+    |--------------------------------------------------------------------------
+    */
+    'billing' => [
+        'cycle_reset' => 'Your billing cycle has been reset.',
+        'boosts_expired' => ':count boost(s) have expired.',
+        'usage_reset' => 'Usage counters have been reset for the new billing period.',
     ],
 ];

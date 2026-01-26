@@ -60,6 +60,8 @@ class EntitlementLog extends Model
 
     public const ACTION_USAGE_DENIED = 'usage.denied';
 
+    public const ACTION_CYCLE_RESET = 'cycle.reset';
+
     /**
      * Source constants.
      */
