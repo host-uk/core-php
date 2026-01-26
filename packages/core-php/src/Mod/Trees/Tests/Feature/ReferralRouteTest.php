@@ -69,11 +69,13 @@ describe('Referral Route', function () {
         expect($referral['referred_at'])->not->toBeNull();
     });
 
-    it('stores client IP in referral', function () {
+    it('stores hashed client IP in referral for privacy', function () {
         $response = $this->get('/ref/anthropic');
 
         $referral = $response->getSession()->get('agent_referral');
-        expect($referral['ip'])->not->toBeNull();
+        expect($referral['ip_hash'])->not->toBeNull();
+        // Verify it's a hash (64 chars for SHA-256)
+        expect(strlen($referral['ip_hash']))->toBe(64);
     });
 });
 

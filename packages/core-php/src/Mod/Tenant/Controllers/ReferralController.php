@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Mod\Tenant\Controllers;
 
+use Core\Helpers\PrivacyHelper;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreePlantingStats;
 use Illuminate\Http\RedirectResponse;
@@ -55,24 +56,32 @@ class ReferralController extends \Core\Front\Controller
         $provider = strtolower($provider);
         $model = $model ? strtolower($model) : null;
 
-        // Build referral data
+        // Build referral data for session (includes hashed IP for fraud detection)
         $referral = [
             'provider' => $provider,
             'model' => $model,
             'referred_at' => now()->toIso8601String(),
-            'ip' => $request->ip(),
+            'ip_hash' => PrivacyHelper::hashIp($request->ip()),
         ];
 
         // Track the referral visit in stats (raw inbound count)
         TreePlantingStats::incrementReferrals($provider, $model);
 
-        // Store in session (primary)
+        // Store in session (primary) - includes hashed IP
         $request->session()->put(self::REFERRAL_SESSION, $referral);
+
+        // Cookie data - exclude IP for privacy (GDPR compliance)
+        // Provider/model is sufficient for referral attribution
+        $cookieData = [
+            'provider' => $provider,
+            'model' => $model,
+            'referred_at' => $referral['referred_at'],
+        ];
 
         // Set 30-day cookie (backup for session expiry)
         $cookie = Cookie::make(
             name: self::REFERRAL_COOKIE,
-            value: json_encode($referral),
+            value: json_encode($cookieData),
             minutes: self::COOKIE_LIFETIME,
             path: '/',
             domain: config('session.domain'),
@@ -90,7 +99,7 @@ class ReferralController extends \Core\Front\Controller
     /**
      * Get the agent referral from session or cookie.
      *
-     * @return array{provider: string, model: ?string, referred_at: string, ip: string}|null
+     * @return array{provider: string, model: ?string, referred_at: string, ip_hash?: string}|null
      */
     public static function getReferral(Request $request): ?array
     {

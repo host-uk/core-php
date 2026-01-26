@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Mod\Trees\Listeners;
 
+use Core\Helpers\PrivacyHelper;
 use Core\Mod\Tenant\Controllers\ReferralController;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Tenant\Models\AgentReferralBonus;
@@ -64,8 +65,8 @@ class PlantTreeForAgentReferral
             'status' => $status,
             'metadata' => [
                 'referred_at' => $referral['referred_at'] ?? now()->toIso8601String(),
-                'referral_ip' => $referral['ip'] ?? null,
-                'signup_ip' => $request->ip(),
+                'referral_ip_hash' => $referral['ip_hash'] ?? null,
+                'signup_ip_hash' => PrivacyHelper::hashIp($request->ip()),
             ],
         ]);
 
