@@ -4,6 +4,18 @@
     $appUrl = config('app.url', 'https://core.test');
     $privacyUrl = config('core.urls.privacy', '/privacy');
     $termsUrl = config('core.urls.terms', '/terms');
+
+    // Footer settings - can be passed as array or FooterSettings object
+    $footer = $footer ?? null;
+    $footerShowDefault = $footer['show_default_links'] ?? $footer?->showDefaultLinks ?? true;
+    $footerPosition = $footer['position'] ?? $footer?->position ?? 'above_default';
+    $footerCustomContent = $footer['custom_content'] ?? $footer?->customContent ?? null;
+    $footerCustomLinks = $footer['custom_links'] ?? $footer?->customLinks ?? [];
+    $footerSocialLinks = $footer['social_links'] ?? $footer?->socialLinks ?? [];
+    $footerCopyright = $footer['copyright_text'] ?? $footer?->copyrightText ?? null;
+    $footerContactEmail = $footer['contact_email'] ?? $footer?->contactEmail ?? null;
+    $footerContactPhone = $footer['contact_phone'] ?? $footer?->contactPhone ?? null;
+    $footerHasCustom = $footerCustomContent || !empty($footerCustomLinks) || !empty($footerSocialLinks) || $footerContactEmail || $footerContactPhone;
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth overscroll-none"
@@ -145,24 +157,66 @@
     <footer class="mt-auto">
         <!-- Footer gradient border -->
         <div class="h-px w-full bg-gradient-to-r from-transparent via-violet-500/20 to-transparent"></div>
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <img src="{{ $appIcon }}" alt="{{ $appName }}" class="w-6 h-6 opacity-50">
-                    <span class="text-sm text-slate-500">
-                        &copy; {{ date('Y') }} {{ $workspace?->name ?? $appName }}
-                    </span>
-                </div>
-                <div class="flex items-center gap-6 text-sm text-slate-500">
-                    <a href="{{ $privacyUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Privacy</a>
-                    <a href="{{ $termsUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Terms</a>
-                    <a href="{{ $appUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition flex items-center gap-1">
-                        <i class="fa-solid fa-bolt text-violet-400 text-xs"></i>
-                        Powered by {{ $appName }}
-                    </a>
+
+        {{-- Custom footer content (above default) --}}
+        @if($footerHasCustom && $footerPosition === 'above_default')
+            @include('front::components.satellite.footer-custom', [
+                'customContent' => $footerCustomContent,
+                'customLinks' => $footerCustomLinks,
+                'socialLinks' => $footerSocialLinks,
+                'contactEmail' => $footerContactEmail,
+                'contactPhone' => $footerContactPhone,
+            ])
+        @endif
+
+        {{-- Custom footer content (replace default) --}}
+        @if($footerHasCustom && $footerPosition === 'replace_default')
+            @include('front::components.satellite.footer-custom', [
+                'customContent' => $footerCustomContent,
+                'customLinks' => $footerCustomLinks,
+                'socialLinks' => $footerSocialLinks,
+                'contactEmail' => $footerContactEmail,
+                'contactPhone' => $footerContactPhone,
+                'showCopyright' => true,
+                'copyrightText' => $footerCopyright,
+                'workspaceName' => $workspace?->name,
+                'appName' => $appName,
+                'appIcon' => $appIcon,
+            ])
+        @endif
+
+        {{-- Default footer --}}
+        @if($footerShowDefault && $footerPosition !== 'replace_default')
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <img src="{{ $appIcon }}" alt="{{ $appName }}" class="w-6 h-6 opacity-50">
+                        <span class="text-sm text-slate-500">
+                            {!! $footerCopyright ?? '&copy; '.date('Y').' '.e($workspace?->name ?? $appName) !!}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-6 text-sm text-slate-500">
+                        <a href="{{ $privacyUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Privacy</a>
+                        <a href="{{ $termsUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Terms</a>
+                        <a href="{{ $appUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition flex items-center gap-1">
+                            <i class="fa-solid fa-bolt text-violet-400 text-xs"></i>
+                            Powered by {{ $appName }}
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
+
+        {{-- Custom footer content (below default) --}}
+        @if($footerHasCustom && $footerPosition === 'below_default')
+            @include('front::components.satellite.footer-custom', [
+                'customContent' => $footerCustomContent,
+                'customLinks' => $footerCustomLinks,
+                'socialLinks' => $footerSocialLinks,
+                'contactEmail' => $footerContactEmail,
+                'contactPhone' => $footerContactPhone,
+            ])
+        @endif
     </footer>
 
 </body>

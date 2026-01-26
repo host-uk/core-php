@@ -400,21 +400,17 @@ class ConfigVersionCommand extends Command
 
     /**
      * Get autocompletion suggestions.
-     *
-     * @return array<string>
      */
-    public function complete(CompletionInput $input, array $suggestions): array
+    public function complete(CompletionInput $input, \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
     {
         if ($input->mustSuggestArgumentValuesFor('action')) {
-            return ['list', 'create', 'show', 'rollback', 'compare', 'diff', 'delete'];
+            $suggestions->suggestValues(['list', 'create', 'show', 'rollback', 'compare', 'diff', 'delete']);
         }
 
         if ($input->mustSuggestOptionValuesFor('workspace')) {
             if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-                return \Core\Mod\Tenant\Models\Workspace::pluck('slug')->toArray();
+                $suggestions->suggestValues(\Core\Mod\Tenant\Models\Workspace::pluck('slug')->toArray());
             }
         }
-
-        return $suggestions;
     }
 }

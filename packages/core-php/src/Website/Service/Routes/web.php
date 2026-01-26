@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Core\Website\Service\View\Features;
 use Core\Website\Service\View\Landing;
 use Illuminate\Support\Facades\Route;
 
@@ -16,3 +17,4 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', Landing::class)->name('service.home');
+Route::get('/features', Features::class)->name('service.features');
