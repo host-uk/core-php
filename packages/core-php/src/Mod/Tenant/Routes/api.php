@@ -49,7 +49,8 @@ Route::middleware('auth')->prefix('workspaces')->name('api.workspaces.')->group(
 |
 */
 
-Route::middleware('api.auth')->prefix('workspaces')->name('api.key.workspaces.')->group(function () {
+Route::middleware(['api.auth', 'api.scope.enforce'])->prefix('workspaces')->name('api.key.workspaces.')->group(function () {
+    // Scope enforcement: GET=read (all routes here are read-only)
     Route::get('/', [WorkspaceController::class, 'index'])->name('index');
     Route::get('/current', [WorkspaceController::class, 'current'])->name('current');
     Route::get('/{workspace}', [WorkspaceController::class, 'show'])->name('show');

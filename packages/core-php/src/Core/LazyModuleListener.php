@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Core;
 
 use Core\Events\EventAuditLog;
+use Core\Events\ListenerProfiler;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -89,6 +90,7 @@ class LazyModuleListener
      * is instantiated on first call and cached for subsequent events.
      *
      * Records execution timing and success/failure to EventAuditLog when enabled.
+     * Profiles execution time and memory usage via ListenerProfiler when enabled.
      * Any exceptions thrown by the handler are re-thrown after logging.
      *
      * @param  object  $event  The lifecycle event instance
@@ -100,6 +102,7 @@ class LazyModuleListener
         $eventClass = $event::class;
 
         EventAuditLog::recordStart($eventClass, $this->moduleClass);
+        $profilerContext = ListenerProfiler::start($eventClass, $this->moduleClass, $this->method);
 
         try {
             $module = $this->resolveModule();
@@ -108,6 +111,8 @@ class LazyModuleListener
         } catch (\Throwable $e) {
             EventAuditLog::recordFailure($eventClass, $this->moduleClass, $e);
             throw $e;
+        } finally {
+            ListenerProfiler::stop($profilerContext);
         }
     }
 

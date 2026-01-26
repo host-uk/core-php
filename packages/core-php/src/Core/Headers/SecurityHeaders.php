@@ -12,6 +12,7 @@ namespace Core\Headers;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -25,9 +26,61 @@ use Symfony\Component\HttpFoundation\Response;
  * - X-XSS-Protection - enable browser XSS filtering
  * - Referrer-Policy - control referrer information
  * - Permissions-Policy - control browser features
+ *
+ * Supports nonce-based CSP for inline scripts and styles via CspNonceService.
+ *
+ * ## Usage
+ *
+ * Register in your HTTP kernel or route middleware:
+ *
+ * ```php
+ * // app/Http/Kernel.php
+ * protected $middleware = [
+ *     // ...
+ *     \Core\Headers\SecurityHeaders::class,
+ * ];
+ * ```
+ *
+ * ## CSP Directive Resolution
+ *
+ * CSP directives are built in this order:
+ * 1. Base directives from `config('headers.csp.directives')`
+ * 2. Environment-specific overrides from `config('headers.csp.environment')`
+ * 3. Nonces added to script-src/style-src (if enabled)
+ * 4. CDN sources from `config('core.cdn.subdomain')`
+ * 5. External service sources (jsDelivr, Google Analytics, etc.)
+ * 6. Development WebSocket sources (localhost:8080)
+ * 7. Report URI (if configured)
+ *
+ * ## Report-Only Mode
+ *
+ * Enable `SECURITY_CSP_REPORT_ONLY=true` to log violations without blocking.
+ * This uses the `Content-Security-Policy-Report-Only` header instead.
+ *
+ * ## HSTS Behaviour
+ *
+ * HSTS is only added in production environments to avoid issues with
+ * local development over HTTP. Configure via:
+ *
+ * - `SECURITY_HSTS_ENABLED` - Enable/disable HSTS
+ * - `SECURITY_HSTS_MAX_AGE` - Max age in seconds (default: 1 year)
+ * - `SECURITY_HSTS_INCLUDE_SUBDOMAINS` - Include subdomains
+ * - `SECURITY_HSTS_PRELOAD` - Enable preload flag for browser preload lists
+ *
+ * @see CspNonceService For nonce generation
+ * @see Boot For configuration documentation
  */
 class SecurityHeaders
 {
+    /**
+     * The CSP nonce service.
+     */
+    protected ?CspNonceService $nonceService = null;
+    public function __construct(?CspNonceService $nonceService = null)
+    {
+        $this->nonceService = $nonceService ?? App::make(CspNonceService::class);
+    }
+
     /**
      * Handle an incoming request.
      */
@@ -45,6 +98,14 @@ class SecurityHeaders
         $this->addStandardSecurityHeaders($response);
 
         return $response;
+    }
+
+    /**
+     * Get the CSP nonce service.
+     */
+    public function getNonceService(): CspNonceService
+    {
+        return $this->nonceService;
     }
 
     /**
@@ -110,6 +171,9 @@ class SecurityHeaders
         // Apply environment-specific overrides
         $directives = $this->applyEnvironmentOverrides($directives, $config);
 
+        // Add nonces for script-src and style-src if enabled
+        $directives = $this->addNonceDirectives($directives, $config);
+
         // Add CDN subdomain sources
         $directives = $this->addCdnSources($directives, $config);
 
@@ -122,6 +186,51 @@ class SecurityHeaders
         // Add report-uri if configured
         if (! empty($config['report_uri'])) {
             $directives['report-uri'] = [$config['report_uri']];
+        }
+
+        return $directives;
+    }
+
+    /**
+     * Add nonce directives for script-src and style-src.
+     *
+     * When nonce-based CSP is enabled, nonces are added to script-src and
+     * style-src directives, allowing inline scripts/styles that include
+     * the matching nonce attribute.
+     *
+     * @return array<string, array<string>>
+     */
+    protected function addNonceDirectives(array $directives, array $config): array
+    {
+        $nonceEnabled = $config['nonce_enabled'] ?? true;
+
+        // Skip if nonces are disabled
+        if (! $nonceEnabled || ! $this->nonceService?->isEnabled()) {
+            return $directives;
+        }
+
+        // Don't add nonces in local/development environments with unsafe-inline
+        // as it would be redundant and could cause issues
+        $environment = app()->environment();
+        $skipNonceEnvs = $config['nonce_skip_environments'] ?? ['local', 'development'];
+
+        if (in_array($environment, $skipNonceEnvs, true)) {
+            return $directives;
+        }
+
+        $nonce = $this->nonceService->getCspNonceDirective();
+        $nonceDirectives = $config['nonce_directives'] ?? ['script-src', 'style-src'];
+
+        foreach ($nonceDirectives as $directive) {
+            if (isset($directives[$directive])) {
+                // Remove unsafe-inline if present and add nonce
+                // Nonces are more secure than unsafe-inline
+                $directives[$directive] = array_filter(
+                    $directives[$directive],
+                    fn ($value) => $value !== "'unsafe-inline'"
+                );
+                $directives[$directive][] = $nonce;
+            }
         }
 
         return $directives;

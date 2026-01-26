@@ -17,16 +17,38 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Redis cache store with automatic database fallback.
+ * Redis cache store with automatic database fallback and circuit breaker.
  *
- * Wraps Redis operations in try-catch. If Redis fails,
- * falls back to database store for that operation.
+ * Wraps Redis operations in try-catch. If Redis fails repeatedly,
+ * the circuit breaker opens to prevent cascading failures. Operations
+ * fall back to database store when Redis is unavailable.
+ *
+ * ## Circuit Breaker
+ *
+ * The circuit breaker prevents thundering herd problems when Redis
+ * goes down by stopping requests to Redis until it recovers:
+ *
+ * - **Closed**: Normal operation, requests go to Redis
+ * - **Open**: Redis failing, skip Redis and use fallback directly
+ * - **Half-Open**: Testing if Redis has recovered
+ *
+ * ## Metrics
+ *
+ * Storage metrics are collected for monitoring cache health:
+ * - Hit/miss rates
+ * - Operation latencies
+ * - Fallback activations
+ * - Circuit breaker state changes
  */
 class ResilientRedisStore extends RedisStore
 {
     protected ?DatabaseStore $fallbackStore = null;
 
     protected bool $fallbackActivated = false;
+
+    protected ?CircuitBreaker $circuitBreaker = null;
+
+    protected ?StorageMetrics $metrics = null;
 
     /**
      * Get the fallback database store.
@@ -45,12 +67,52 @@ class ResilientRedisStore extends RedisStore
     }
 
     /**
+     * Get the circuit breaker instance.
+     */
+    protected function getCircuitBreaker(): CircuitBreaker
+    {
+        if ($this->circuitBreaker === null) {
+            $this->circuitBreaker = new CircuitBreaker('redis');
+        }
+
+        return $this->circuitBreaker;
+    }
+
+    /**
+     * Get the metrics collector instance.
+     */
+    protected function getMetrics(): StorageMetrics
+    {
+        if ($this->metrics === null) {
+            $this->metrics = app(StorageMetrics::class);
+        }
+
+        return $this->metrics;
+    }
+
+    /**
+     * Check if circuit breaker is enabled.
+     */
+    protected function isCircuitBreakerEnabled(): bool
+    {
+        return (bool) config('core.storage.circuit_breaker.enabled', true);
+    }
+
+    /**
      * Handle Redis failure by logging and optionally dispatching an event.
      *
      * @throws \Throwable When silent_fallback is disabled
      */
-    protected function handleRedisFailure(\Throwable $e): void
+    protected function handleRedisFailure(\Throwable $e, string $operation = 'unknown'): void
     {
+        // Record failure with circuit breaker
+        if ($this->isCircuitBreakerEnabled()) {
+            $this->getCircuitBreaker()->recordFailure();
+        }
+
+        // Record error in metrics
+        $this->getMetrics()->recordError('redis', $operation, $e);
+
         $silentFallback = config('core.storage.silent_fallback', true);
 
         if (! $silentFallback) {
@@ -59,6 +121,39 @@ class ResilientRedisStore extends RedisStore
 
         $this->logFallback($e);
         $this->dispatchFallbackEvent($e);
+    }
+
+    /**
+     * Record a successful Redis operation.
+     */
+    protected function recordSuccess(string $operation, float $startTime, bool $isHit = true): void
+    {
+        // Record success with circuit breaker
+        if ($this->isCircuitBreakerEnabled()) {
+            $this->getCircuitBreaker()->recordSuccess();
+        }
+
+        // Record metrics
+        $duration = microtime(true) - $startTime;
+        $metrics = $this->getMetrics();
+
+        if ($isHit) {
+            $metrics->recordHit('redis', $duration);
+        } else {
+            $metrics->recordMiss('redis', $duration);
+        }
+    }
+
+    /**
+     * Check if Redis should be skipped due to circuit breaker.
+     */
+    protected function shouldSkipRedis(): bool
+    {
+        if (! $this->isCircuitBreakerEnabled()) {
+            return false;
+        }
+
+        return ! $this->getCircuitBreaker()->isAvailable();
     }
 
     /**
@@ -106,10 +201,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function get($key): mixed
     {
+        // Skip Redis if circuit breaker is open
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->get($key);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::get($key);
+            $result = parent::get($key);
+            $this->recordSuccess('get', $startTime, $result !== null);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'get');
 
             return $this->getFallbackStore()->get($key);
         }
@@ -120,10 +227,21 @@ class ResilientRedisStore extends RedisStore
      */
     public function many(array $keys): array
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->many($keys);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::many($keys);
+            $result = parent::many($keys);
+            $this->recordSuccess('many', $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'many');
 
             return $this->getFallbackStore()->many($keys);
         }
@@ -134,10 +252,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function put($key, $value, $seconds): bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->put($key, $value, $seconds);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::put($key, $value, $seconds);
+            $result = parent::put($key, $value, $seconds);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordWrite('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'put');
 
             return $this->getFallbackStore()->put($key, $value, $seconds);
         }
@@ -148,10 +278,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function putMany(array $values, $seconds): bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->putMany($values, $seconds);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::putMany($values, $seconds);
+            $result = parent::putMany($values, $seconds);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordWrite('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'putMany');
 
             return $this->getFallbackStore()->putMany($values, $seconds);
         }
@@ -162,10 +304,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function increment($key, $value = 1): int|bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->increment($key, $value);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::increment($key, $value);
+            $result = parent::increment($key, $value);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordWrite('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'increment');
 
             return $this->getFallbackStore()->increment($key, $value);
         }
@@ -176,10 +330,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function decrement($key, $value = 1): int|bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->decrement($key, $value);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::decrement($key, $value);
+            $result = parent::decrement($key, $value);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordWrite('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'decrement');
 
             return $this->getFallbackStore()->decrement($key, $value);
         }
@@ -190,10 +356,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function forever($key, $value): bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->forever($key, $value);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::forever($key, $value);
+            $result = parent::forever($key, $value);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordWrite('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'forever');
 
             return $this->getFallbackStore()->forever($key, $value);
         }
@@ -204,10 +382,22 @@ class ResilientRedisStore extends RedisStore
      */
     public function forget($key): bool
     {
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
+
+            return $this->getFallbackStore()->forget($key);
+        }
+
+        $startTime = microtime(true);
+
         try {
-            return parent::forget($key);
+            $result = parent::forget($key);
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordDelete('redis', microtime(true) - $startTime);
+
+            return $result;
         } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+            $this->handleRedisFailure($e, 'forget');
 
             return $this->getFallbackStore()->forget($key);
         }
@@ -218,12 +408,52 @@ class ResilientRedisStore extends RedisStore
      */
     public function flush(): bool
     {
-        try {
-            return parent::flush();
-        } catch (\Throwable $e) {
-            $this->handleRedisFailure($e);
+        if ($this->shouldSkipRedis()) {
+            $this->getMetrics()->recordFallbackActivation('redis', 'circuit_open');
 
             return $this->getFallbackStore()->flush();
         }
+
+        $startTime = microtime(true);
+
+        try {
+            $result = parent::flush();
+            $this->getCircuitBreaker()->recordSuccess();
+            $this->getMetrics()->recordDelete('redis', microtime(true) - $startTime);
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->handleRedisFailure($e, 'flush');
+
+            return $this->getFallbackStore()->flush();
+        }
+    }
+
+    /**
+     * Get the circuit breaker statistics.
+     *
+     * @return array<string, mixed>
+     */
+    public function getCircuitBreakerStats(): array
+    {
+        return $this->getCircuitBreaker()->getStats();
+    }
+
+    /**
+     * Reset the circuit breaker to closed state.
+     */
+    public function resetCircuitBreaker(): void
+    {
+        $this->getCircuitBreaker()->reset();
+    }
+
+    /**
+     * Get storage metrics.
+     *
+     * @return array<string, mixed>
+     */
+    public function getStorageMetrics(): array
+    {
+        return $this->getMetrics()->getStats();
     }
 }

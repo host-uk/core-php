@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 namespace Core\Search;
 
+use Core\Search\Analytics\SearchAnalytics;
+use Core\Search\Suggestions\SearchSuggestions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -20,6 +22,11 @@ use Symfony\Component\Yaml\Yaml;
  *
  * Searches MCP server tools/resources, API endpoints, patterns, assets,
  * vendor todos, and agent plans.
+ *
+ * Features:
+ * - Configurable scoring weights for different match types
+ * - Fuzzy search support using Levenshtein distance
+ * - Prioritizes exact matches over partial matches
  */
 class Unified
 {
@@ -48,6 +55,65 @@ class Unified
     protected const MAX_WILDCARDS = 3;
 
     /**
+     * Whether fuzzy search is enabled for this instance.
+     */
+    protected bool $fuzzyEnabled;
+
+    /**
+     * Scoring configuration.
+     *
+     * @var array<string, int|float>
+     */
+    protected array $scoringConfig;
+
+    /**
+     * Fuzzy search configuration.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $fuzzyConfig;
+
+    public function __construct()
+    {
+        $this->scoringConfig = [
+            'exact_match' => config('search.scoring.exact_match', 20),
+            'starts_with' => config('search.scoring.starts_with', 15),
+            'word_match' => config('search.scoring.word_match', 5),
+            'field_position_factor' => config('search.scoring.field_position_factor', 2.0),
+            'min_word_length' => config('search.scoring.min_word_length', 2),
+        ];
+
+        $this->fuzzyConfig = [
+            'enabled' => config('search.fuzzy.enabled', false),
+            'max_distance' => config('search.fuzzy.max_distance', 2),
+            'min_query_length' => config('search.fuzzy.min_query_length', 4),
+            'score_multiplier' => config('search.fuzzy.score_multiplier', 0.5),
+        ];
+
+        $this->fuzzyEnabled = $this->fuzzyConfig['enabled'];
+    }
+
+    /**
+     * Enable fuzzy search for this query.
+     */
+    public function fuzzy(bool $enabled = true): static
+    {
+        $this->fuzzyEnabled = $enabled;
+
+        return $this;
+    }
+
+    /**
+     * Set the maximum Levenshtein distance for fuzzy matches.
+     */
+    public function maxDistance(int $distance): static
+    {
+        $this->fuzzyConfig['max_distance'] = $distance;
+
+        return $this;
+    }
+
+    /**
      * Perform unified search across all sources.
      */
     public function search(string $query, array $types = [], int $limit = 50): Collection
@@ -59,10 +125,104 @@ class Unified
         }
 
         $cacheKey = $this->buildCacheKey($query, $types, $limit);
+        $startTime = microtime(true);
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($query, $types, $limit) {
+        $results = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($query, $types, $limit) {
             return $this->executeSearch($query, $types, $limit);
         });
+
+        // Track search analytics
+        $this->trackSearchAnalytics($query, $results->count(), $types, $startTime);
+
+        // Record for suggestions
+        $this->recordForSuggestions($query);
+
+        return $results;
+    }
+
+    /**
+     * Get search suggestions/autocomplete for a partial query.
+     *
+     * @param  string  $query  The partial search query
+     * @param  int|null  $limit  Maximum suggestions to return
+     * @param  array<string>|null  $sources  Suggestion sources to use
+     * @return Collection<int, array{text: string, type: string, score: float, metadata: array}>
+     */
+    public function suggest(string $query, ?int $limit = null, ?array $sources = null): Collection
+    {
+        try {
+            $suggestions = app(SearchSuggestions::class);
+
+            return $suggestions->suggest($query, $limit, $sources);
+        } catch (\Exception $e) {
+            return collect();
+        }
+    }
+
+    /**
+     * Record a search query for the suggestions system.
+     */
+    protected function recordForSuggestions(string $query): void
+    {
+        if (! config('search.suggestions.enabled', true)) {
+            return;
+        }
+
+        try {
+            $suggestions = app(SearchSuggestions::class);
+            $suggestions->recordRecentSearch($query);
+        } catch (\Exception $e) {
+            // Don't let suggestion tracking break search
+        }
+    }
+
+    /**
+     * Track search query in analytics.
+     */
+    protected function trackSearchAnalytics(
+        string $query,
+        int $resultCount,
+        array $types,
+        float $startTime
+    ): void {
+        if (! config('search.analytics.enabled', true)) {
+            return;
+        }
+
+        try {
+            $analytics = app(SearchAnalytics::class);
+            $duration = (microtime(true) - $startTime) * 1000;
+
+            $analytics->trackQuery(
+                $query,
+                $resultCount,
+                $types,
+                $duration
+            );
+        } catch (\Exception $e) {
+            // Don't let analytics failures break search
+        }
+    }
+
+    /**
+     * Track a click on a search result.
+     */
+    public function trackClick(
+        string $query,
+        string $resultType,
+        string $resultId,
+        int $position
+    ): void {
+        if (! config('search.analytics.enabled', true)) {
+            return;
+        }
+
+        try {
+            $analytics = app(SearchAnalytics::class);
+            $analytics->trackClick($query, $resultType, $resultId, $position);
+        } catch (\Exception $e) {
+            // Don't let analytics failures break the application
+        }
     }
 
     /**
@@ -400,36 +560,113 @@ class Unified
 
     /**
      * Calculate relevance score for a result.
+     *
+     * Scoring is based on configurable weights:
+     * - Exact match: Highest priority (query found exactly in field)
+     * - Starts with: High priority (field begins with query)
+     * - Word match: Medium priority (individual words match)
+     * - Fuzzy match: Lower priority (similar but not exact)
+     *
+     * Earlier fields in the array receive higher scores.
      */
     protected function calculateScore(string $query, array $fields): float
     {
-        $score = 0;
-        $words = explode(' ', $query);
+        $score = 0.0;
+        $words = array_filter(explode(' ', $query), fn ($w) => strlen($w) >= $this->scoringConfig['min_word_length']);
+        $positionFactor = $this->scoringConfig['field_position_factor'];
 
         foreach ($fields as $index => $field) {
             if (empty($field)) {
                 continue;
             }
 
-            // Exact match in field
-            if (str_contains($field, $query)) {
-                $score += 10 - $index; // Earlier fields weighted higher
+            // Calculate position multiplier (earlier fields get higher scores)
+            // Field 0: 1.0, Field 1: 0.5, Field 2: 0.33, etc.
+            $positionMultiplier = 1.0 / (1 + ($index * $positionFactor / 10));
+
+            // Check for exact match (highest priority)
+            if ($field === $query) {
+                $score += $this->scoringConfig['exact_match'] * 1.5 * $positionMultiplier;
+            } elseif (str_contains($field, $query)) {
+                $score += $this->scoringConfig['exact_match'] * $positionMultiplier;
             }
 
-            // Word matches
+            // Check if field starts with query
+            if (str_starts_with($field, $query)) {
+                $score += $this->scoringConfig['starts_with'] * $positionMultiplier;
+            }
+
+            // Word-level matching
+            $fieldWords = preg_split('/[\s\-_\.]+/', $field);
             foreach ($words as $word) {
-                if (strlen($word) > 2 && str_contains($field, $word)) {
-                    $score += 3;
+                // Exact word match in field
+                if (in_array($word, $fieldWords, true)) {
+                    $score += $this->scoringConfig['word_match'] * 1.5 * $positionMultiplier;
+                } elseif (str_contains($field, $word)) {
+                    // Partial word match
+                    $score += $this->scoringConfig['word_match'] * $positionMultiplier;
+                } elseif ($this->fuzzyEnabled && $this->tryFuzzyMatch($word, $fieldWords)) {
+                    // Fuzzy word match
+                    $score += $this->scoringConfig['word_match'] * $this->fuzzyConfig['score_multiplier'] * $positionMultiplier;
                 }
             }
 
-            // Starts with query
-            if (str_starts_with($field, $query)) {
-                $score += 5;
+            // Fuzzy match for the entire query
+            if ($this->fuzzyEnabled && strlen($query) >= $this->fuzzyConfig['min_query_length']) {
+                foreach ($fieldWords as $fieldWord) {
+                    if ($this->isFuzzyMatch($query, $fieldWord)) {
+                        $score += $this->scoringConfig['exact_match'] * $this->fuzzyConfig['score_multiplier'] * $positionMultiplier;
+                        break;
+                    }
+                }
             }
         }
 
         return $score;
+    }
+
+    /**
+     * Try to find a fuzzy match for a word in a list of field words.
+     */
+    protected function tryFuzzyMatch(string $word, array $fieldWords): bool
+    {
+        if (strlen($word) < $this->fuzzyConfig['min_query_length']) {
+            return false;
+        }
+
+        foreach ($fieldWords as $fieldWord) {
+            if ($this->isFuzzyMatch($word, $fieldWord)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if two strings are a fuzzy match using Levenshtein distance.
+     */
+    protected function isFuzzyMatch(string $a, string $b): bool
+    {
+        // Skip if either string is too short
+        if (strlen($a) < 3 || strlen($b) < 3) {
+            return false;
+        }
+
+        // Calculate allowed distance based on string length
+        // Longer strings can have more typos
+        $maxAllowed = min(
+            $this->fuzzyConfig['max_distance'],
+            (int) floor(strlen($a) / 3) // Allow 1 typo per 3 characters
+        );
+
+        if ($maxAllowed < 1) {
+            return false;
+        }
+
+        $distance = levenshtein($a, $b);
+
+        return $distance > 0 && $distance <= $maxAllowed;
     }
 
     /**

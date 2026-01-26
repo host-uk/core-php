@@ -10,7 +10,7 @@ Each card in $cards array:
 - subtitle: subtitle text (optional)
 - status: { label: 'Online', color: 'green' } (optional)
 - stats: [{ label: 'CPU', value: '45%', progress: 45, progressColor: 'green' }] (optional)
-- details: [{ label: 'Type', value: 'WordPress' }] (optional)
+- details: [{ label: 'Type', value: 'CMS' }] (optional)
 - footer: [{ label: 'Visit', icon: 'arrow-up-right', href: 'url' }] (optional)
 - menu: [{ label: 'Settings', icon: 'cog', href: 'url' or click: 'method' }] (optional)
 --}}

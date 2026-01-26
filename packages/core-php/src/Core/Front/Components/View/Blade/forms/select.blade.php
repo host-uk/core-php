@@ -9,7 +9,7 @@ Usage:
     <option value="dark">Dark</option>
 </x-forms.select>
 
-<x-forms.select id="theme" wire:model="theme" label="Theme" canGate="update" :canResource="$biolink">
+<x-forms.select id="theme" wire:model="theme" label="Theme" canGate="update" :canResource="$page">
     <flux:select.option value="light">Light</flux:select.option>
     <flux:select.option value="dark">Dark</flux:select.option>
 </x-forms.select>

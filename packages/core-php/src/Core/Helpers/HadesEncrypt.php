@@ -165,7 +165,7 @@ TEXT;
 
         // Check if it's already valid PEM format
         if (str_starts_with($keyData, '-----BEGIN')) {
-            // Handle escaped newlines from Docker/Coolify
+            // Handle escaped newlines from Docker environments
             $keyData = str_replace(['\\n', '\n', '\\\\n'], "\n", $keyData);
 
             return $keyData;

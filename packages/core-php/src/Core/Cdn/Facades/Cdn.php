@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static string cdn(string $path)
  * @method static string origin(string $path)
  * @method static string private(string $path)
- * @method static string|null signedUrl(string $path, int $expiry = 3600)
+ * @method static string|null signedUrl(string $path, int|\Carbon\Carbon|null $expiry = null)
  * @method static string apex(string $path)
  * @method static string asset(string $path, ?string $context = null)
  * @method static array urls(string $path)

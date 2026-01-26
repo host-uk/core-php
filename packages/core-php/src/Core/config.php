@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Core PHP Framework
  *
@@ -222,5 +223,40 @@ return [
 
         // Token for debug access (set in .env for production)
         'token' => env('DEBUG_TOKEN'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Seeder Auto-Discovery
+    |--------------------------------------------------------------------------
+    |
+    | Configure how database seeders are discovered and ordered.
+    |
+    | The seeder system automatically finds *Seeder.php files in module
+    | Database/Seeders directories and orders them based on priority
+    | and dependency declarations.
+    |
+    | Priority Guidelines:
+    |   0-20: Foundation seeders (features, configuration)
+    |   20-40: Core data (packages, workspaces)
+    |   40-60: Default priority (general seeders)
+    |   60-80: Content seeders (pages, posts)
+    |   80-100: Demo/test data seeders
+    |
+    */
+    'seeders' => [
+        // Enable auto-discovery of seeders from module paths
+        'auto_discover' => env('SEEDER_AUTO_DISCOVER', true),
+
+        // Paths to scan for module seeders (relative to app_path())
+        // Each path is scanned for */Database/Seeders/*Seeder.php files
+        'paths' => [
+            // Populated dynamically from app_path() in CoreDatabaseSeeder
+            // Override here to specify absolute paths
+        ],
+
+        // Seeder classes to exclude (fully qualified class names)
+        // Example: [Core\Mod\Tenant\Database\Seeders\DemoWorkspaceSeeder::class]
+        'exclude' => [],
     ],
 ];

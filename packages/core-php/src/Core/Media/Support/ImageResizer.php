@@ -300,6 +300,11 @@ class ImageResizer
      */
     protected function saveImage(\GdImage $image, int $type): bool
     {
+        // Enable progressive JPEG if configured
+        if ($type === IMAGETYPE_JPEG && config('media.progressive_jpeg', true)) {
+            imageinterlace($image, true);
+        }
+
         ob_start();
 
         $success = match ($type) {

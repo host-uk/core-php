@@ -15,6 +15,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use Core\Storage\Commands\WarmCacheCommand;
 
 /**
  * Provides resilient cache/session configuration.
@@ -22,6 +23,37 @@ use Illuminate\Support\ServiceProvider;
  * Attempts to use Redis when available, gracefully falls back to database
  * if Redis is unavailable. This ensures the app works out of the box
  * without requiring Redis to be configured.
+ *
+ * ## Cache Drivers
+ *
+ * - **resilient-redis**: Redis with automatic database fallback
+ * - **tiered**: Multi-tier cache (memory -> Redis -> database)
+ *
+ * ## Configuration
+ *
+ * ```php
+ * // config/cache.php
+ * 'default' => 'tiered',
+ *
+ * 'stores' => [
+ *     'tiered' => [
+ *         'driver' => 'tiered',
+ *     ],
+ * ],
+ *
+ * // config/core.php
+ * 'storage' => [
+ *     'tiered_cache' => [
+ *         'enabled' => true,
+ *         'log_enabled' => false,
+ *         'tiers' => [
+ *             ['name' => 'memory', 'driver' => 'array', 'ttl' => 60, 'priority' => 10],
+ *             ['name' => 'redis', 'driver' => 'redis', 'ttl' => 3600, 'priority' => 20],
+ *             ['name' => 'database', 'driver' => 'database', 'ttl' => 86400, 'priority' => 40],
+ *         ],
+ *     ],
+ * ],
+ * ```
  */
 class CacheResilienceProvider extends ServiceProvider
 {
@@ -37,6 +69,24 @@ class CacheResilienceProvider extends ServiceProvider
 
         // Register resilient Redis driver that catches exceptions
         $this->registerResilientRedisDriver();
+
+        // Register tiered cache driver
+        $this->registerTieredCacheDriver();
+
+        // Register CacheWarmer as singleton
+        $this->app->singleton(CacheWarmer::class, function () {
+            return new CacheWarmer();
+        });
+
+        // Register StorageMetrics as singleton
+        $this->app->singleton(StorageMetrics::class, function () {
+            return new StorageMetrics();
+        });
+
+        // Register TieredCacheStore as singleton
+        $this->app->singleton(TieredCacheStore::class, function () {
+            return new TieredCacheStore();
+        });
     }
 
     /**
@@ -56,6 +106,35 @@ class CacheResilienceProvider extends ServiceProvider
                 return Cache::repository(
                     new ResilientRedisStore($redis, $prefix, $connection)
                 );
+            });
+        });
+    }
+
+    /**
+     * Register the tiered cache driver.
+     *
+     * Implements a multi-tier cache that checks faster tiers first
+     * (memory -> Redis -> database) and promotes values up on read.
+     */
+    protected function registerTieredCacheDriver(): void
+    {
+        $this->app->booting(function () {
+            Cache::extend('tiered', function ($app, $config) {
+                $prefix = $config['prefix'] ?? $app['config']['cache.prefix'] ?? '';
+                $tiers = [];
+
+                // Build tier configurations from config
+                $tierConfigs = $config['tiers'] ?? config('core.storage.tiered_cache.tiers', []);
+
+                if (! empty($tierConfigs)) {
+                    foreach ($tierConfigs as $tierConfig) {
+                        $tiers[] = TierConfiguration::fromArray($tierConfig);
+                    }
+                }
+
+                $store = new TieredCacheStore($tiers, $prefix);
+
+                return Cache::repository($store);
             });
         });
     }
@@ -220,6 +299,11 @@ class CacheResilienceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register artisan commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                WarmCacheCommand::class,
+            ]);
+        }
     }
 }

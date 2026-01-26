@@ -2,13 +2,13 @@
 
 namespace Core\Mod\Tenant\Models;
 
+use Core\Mod\Tenant\Services\EntitlementResult;
+use Core\Mod\Tenant\Services\EntitlementService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Core\Mod\Tenant\Services\EntitlementResult;
-use Core\Mod\Tenant\Services\EntitlementService;
 
 class Workspace extends Model
 {
@@ -104,6 +104,22 @@ class Workspace extends Model
         return $this->hasMany(WorkspacePackage::class);
     }
 
+    /**
+     * Get pending invitations for this workspace.
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(WorkspaceInvitation::class);
+    }
+
+    /**
+     * Get pending invitations only.
+     */
+    public function pendingInvitations(): HasMany
+    {
+        return $this->invitations()->pending();
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Namespace Relationships
     // ─────────────────────────────────────────────────────────────────────────
@@ -133,7 +149,7 @@ class Workspace extends Model
      */
     public function packages(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Entitlement\Package::class, 'entitlement_workspace_packages', 'workspace_id', 'package_id')
+        return $this->belongsToMany(Package::class, 'entitlement_workspace_packages', 'workspace_id', 'package_id')
             ->withPivot(['status', 'starts_at', 'expires_at', 'metadata'])
             ->withTimestamps();
     }
@@ -168,6 +184,22 @@ class Workspace extends Model
     public function entitlementLogs(): HasMany
     {
         return $this->hasMany(EntitlementLog::class);
+    }
+
+    /**
+     * Usage alert history for this workspace.
+     */
+    public function usageAlerts(): HasMany
+    {
+        return $this->hasMany(UsageAlertHistory::class);
+    }
+
+    /**
+     * Get active (unresolved) usage alerts for this workspace.
+     */
+    public function activeUsageAlerts(): HasMany
+    {
+        return $this->usageAlerts()->whereNull('resolved_at');
     }
 
     // SocialHost Relationships (Native)
@@ -308,39 +340,8 @@ class Workspace extends Model
         return $this->socialAccounts()->count();
     }
 
-    // BioHost Relationships
-
-    /**
-     * Get bio pages for this workspace.
-     */
-    public function bioPages(): HasMany
-    {
-        return $this->hasMany(\App\Models\BioLink\Page::class);
-    }
-
-    /**
-     * Get bio projects for this workspace.
-     */
-    public function bioProjects(): HasMany
-    {
-        return $this->hasMany(\App\Models\BioLink\Project::class);
-    }
-
-    /**
-     * Get bio domains for this workspace.
-     */
-    public function bioDomains(): HasMany
-    {
-        return $this->hasMany(\App\Models\BioLink\Domain::class);
-    }
-
-    /**
-     * Get bio pixels for this workspace.
-     */
-    public function bioPixels(): HasMany
-    {
-        return $this->hasMany(\App\Models\BioLink\Pixel::class);
-    }
+    // NOTE: Bio service relationships (bioPages, bioProjects, bioDomains, bioPixels)
+    // have been moved to the Host UK app's Mod\Bio module.
 
     // AnalyticsHost Relationships
 
@@ -495,6 +496,40 @@ class Workspace extends Model
         return $this->hasMany(\Core\Mod\Content\Models\ContentAuthor::class);
     }
 
+    // Commerce Relationships (defined in app Mod\Commerce)
+
+    /**
+     * Get subscriptions for this workspace.
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(\Mod\Commerce\Models\Subscription::class);
+    }
+
+    /**
+     * Get invoices for this workspace.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(\Mod\Commerce\Models\Invoice::class);
+    }
+
+    /**
+     * Get payment methods for this workspace.
+     */
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(\Mod\Commerce\Models\PaymentMethod::class);
+    }
+
+    /**
+     * Get orders for this workspace.
+     */
+    public function orders(): MorphMany
+    {
+        return $this->morphMany(\Mod\Commerce\Models\Order::class, 'orderable');
+    }
+
     // Helper Methods
 
     /**
@@ -572,10 +607,74 @@ class Workspace extends Model
         return $this->can('tier.hades')->isAllowed();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Workspace Invitations
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Get the WordPress URL for this workspace.
+     * Invite a user to this workspace by email.
+     *
+     * @param  string  $email  The email address to invite
+     * @param  string  $role  The role to assign (owner, admin, member)
+     * @param  User|null  $invitedBy  The user sending the invitation
+     * @param  int  $expiresInDays  Number of days until invitation expires
      */
-    public function getWordPressUrlAttribute(): string
+    public function invite(string $email, string $role = 'member', ?User $invitedBy = null, int $expiresInDays = 7): WorkspaceInvitation
+    {
+        // Check if there's already a pending invitation for this email
+        $existing = $this->invitations()
+            ->where('email', $email)
+            ->pending()
+            ->first();
+
+        if ($existing) {
+            // Update existing invitation
+            $existing->update([
+                'role' => $role,
+                'invited_by' => $invitedBy?->id,
+                'expires_at' => now()->addDays($expiresInDays),
+            ]);
+
+            return $existing;
+        }
+
+        // Create new invitation
+        $invitation = $this->invitations()->create([
+            'email' => $email,
+            'token' => WorkspaceInvitation::generateToken(),
+            'role' => $role,
+            'invited_by' => $invitedBy?->id,
+            'expires_at' => now()->addDays($expiresInDays),
+        ]);
+
+        // Send notification
+        $invitation->notify(new \Core\Mod\Tenant\Notifications\WorkspaceInvitationNotification($invitation));
+
+        return $invitation;
+    }
+
+    /**
+     * Accept an invitation to this workspace using a token.
+     *
+     * @param  string  $token  The invitation token
+     * @param  User  $user  The user accepting the invitation
+     * @return bool True if accepted, false if invalid/expired
+     */
+    public static function acceptInvitation(string $token, User $user): bool
+    {
+        $invitation = WorkspaceInvitation::findPendingByToken($token);
+
+        if (! $invitation) {
+            return false;
+        }
+
+        return $invitation->accept($user);
+    }
+
+    /**
+     * Get the external CMS URL for this workspace.
+     */
+    public function getCmsUrlAttribute(): string
     {
         return 'https://'.$this->domain;
     }
@@ -680,7 +779,7 @@ class Workspace extends Model
     }
 
     /**
-     * Get the webhook URL that WordPress should POST to.
+     * Get the webhook URL that external CMS should POST to.
      */
     public function getWpConnectorWebhookUrlAttribute(): string
     {

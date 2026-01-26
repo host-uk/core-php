@@ -17,7 +17,48 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Fired when config cache is invalidated.
  *
- * Modules can listen to refresh their own caches.
+ * This event is dispatched when the config cache is manually cleared,
+ * allowing modules to refresh their own caches that depend on config values.
+ *
+ * ## Invalidation Scope
+ *
+ * The event includes context about what was invalidated:
+ * - `keyCode` - Specific key that was invalidated (null = all keys)
+ * - `workspaceId` - Workspace scope (null = system scope)
+ * - `channelId` - Channel scope (null = all channels)
+ *
+ * ## Listening to Invalidation
+ *
+ * ```php
+ * use Core\Config\Events\ConfigInvalidated;
+ *
+ * class MyModuleListener
+ * {
+ *     public function handle(ConfigInvalidated $event): void
+ *     {
+ *         // Check if this affects our module's config
+ *         if ($event->affectsKey('mymodule.api_key')) {
+ *             // Clear our module's cached API client
+ *             Cache::forget('mymodule:api_client');
+ *         }
+ *
+ *         // Or handle full invalidation
+ *         if ($event->isFull()) {
+ *             // Clear all module caches
+ *             Cache::tags(['mymodule'])->flush();
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * ## Invalidation Sources
+ *
+ * This event is fired by:
+ * - `ConfigService::invalidateWorkspace()` - Clears workspace config
+ * - `ConfigService::invalidateKey()` - Clears a specific key
+ *
+ * @see ConfigChanged For changes to specific config values
+ * @see ConfigLocked For when config values are locked
  */
 class ConfigInvalidated
 {

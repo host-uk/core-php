@@ -396,9 +396,9 @@ class StorageOffloadTest extends TestCase
 
     public function test_remote_path_generation_organises_by_category(): void
     {
-        $result = $this->offloadService->upload($this->testFilePath, null, 'biolink');
+        $result = $this->offloadService->upload($this->testFilePath, null, 'page');
 
-        $this->assertStringStartsWith('biolinks/', $result->remote_path);
+        $this->assertStringStartsWith('pages/', $result->remote_path);
     }
 
     public function test_can_get_disk_instance(): void

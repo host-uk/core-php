@@ -142,14 +142,14 @@ class OffloadMigrateCommandTest extends TestCase
     {
         $this->artisan('offload:migrate', [
             'path' => $this->testDirectory,
-            '--category' => 'biolink',
+            '--category' => 'page',
             '--force' => true,
         ])
             ->assertExitCode(0);
 
         $records = StorageOffloadModel::all();
         foreach ($records as $record) {
-            $this->assertEquals('biolink', $record->category);
+            $this->assertEquals('page', $record->category);
         }
     }
 

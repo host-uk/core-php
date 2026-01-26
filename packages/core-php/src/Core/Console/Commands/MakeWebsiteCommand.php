@@ -42,6 +42,13 @@ class MakeWebsiteCommand extends Command
     protected $description = 'Create a new domain-isolated website';
 
     /**
+     * Files created during generation for summary table.
+     *
+     * @var array<array{file: string, description: string}>
+     */
+    protected array $createdFiles = [];
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -51,14 +58,19 @@ class MakeWebsiteCommand extends Command
         $websitePath = $this->getWebsitePath($name);
 
         if (File::isDirectory($websitePath) && ! $this->option('force')) {
-            $this->error("Website [{$name}] already exists!");
-            $this->info("Use --force to overwrite.");
+            $this->newLine();
+            $this->components->error("Website [{$name}] already exists!");
+            $this->newLine();
+            $this->components->warn('Use --force to overwrite the existing website.');
+            $this->newLine();
 
             return self::FAILURE;
         }
 
-        $this->info("Creating website: {$name}");
-        $this->info("Domain: {$domain}");
+        $this->newLine();
+        $this->components->info("Creating website: <comment>{$name}</comment>");
+        $this->components->twoColumnDetail('Domain', "<fg=yellow>{$domain}</>");
+        $this->newLine();
 
         // Create directory structure
         $this->createDirectoryStructure($websitePath);
@@ -69,17 +81,28 @@ class MakeWebsiteCommand extends Command
         // Create optional route files
         $this->createOptionalFiles($websitePath, $name);
 
-        $this->info('');
-        $this->info("Website [{$name}] created successfully!");
-        $this->info('');
-        $this->info('Location: '.$websitePath);
-        $this->info('');
-        $this->info('Next steps:');
-        $this->info("  1. Configure your local dev server to serve {$domain}");
-        $this->info('     (e.g., valet link '.Str::snake($name, '-').')');
-        $this->info("  2. Visit http://{$domain} to see your website");
-        $this->info('  3. Add routes, views, and controllers as needed');
-        $this->info('');
+        // Show summary table of created files
+        $this->newLine();
+        $this->components->twoColumnDetail('<fg=green;options=bold>Created Files</>', '<fg=gray>Description</>');
+        foreach ($this->createdFiles as $file) {
+            $this->components->twoColumnDetail(
+                "<fg=cyan>{$file['file']}</>",
+                "<fg=gray>{$file['description']}</>"
+            );
+        }
+
+        $this->newLine();
+        $this->components->info("Website [{$name}] created successfully!");
+        $this->newLine();
+        $this->components->twoColumnDetail('Location', "<fg=yellow>{$websitePath}</>");
+        $this->newLine();
+
+        $this->components->info('Next steps:');
+        $this->line("  <fg=gray>1.</> Configure your local dev server to serve <fg=yellow>{$domain}</>");
+        $this->line('     <fg=gray>(e.g.,</> valet link '.Str::snake($name, '-').'<fg=gray>)</>');
+        $this->line("  <fg=gray>2.</> Visit <fg=cyan>http://{$domain}</> to see your website");
+        $this->line('  <fg=gray>3.</> Add routes, views, and controllers as needed');
+        $this->newLine();
 
         return self::SUCCESS;
     }
@@ -113,7 +136,7 @@ class MakeWebsiteCommand extends Command
             File::ensureDirectoryExists($directory);
         }
 
-        $this->info('  [+] Created directory structure');
+        $this->components->task('Creating directory structure', fn () => true);
     }
 
     /**
@@ -227,7 +250,8 @@ class Boot extends ServiceProvider
 PHP;
 
         File::put("{$websitePath}/Boot.php", $content);
-        $this->info('  [+] Created Boot.php');
+        $this->createdFiles[] = ['file' => 'Boot.php', 'description' => 'Domain-isolated website provider'];
+        $this->components->task('Creating Boot.php', fn () => true);
     }
 
     /**
@@ -393,7 +417,8 @@ Route::get('/', function () {
 PHP;
 
         File::put("{$websitePath}/Routes/web.php", $content);
-        $this->info('  [+] Created Routes/web.php');
+        $this->createdFiles[] = ['file' => 'Routes/web.php', 'description' => 'Public web routes'];
+        $this->components->task('Creating Routes/web.php', fn () => true);
     }
 
     /**
@@ -426,7 +451,8 @@ Route::prefix('admin/{$websiteName}')->name('{$websiteName}.admin.')->group(func
 PHP;
 
         File::put("{$websitePath}/Routes/admin.php", $content);
-        $this->info('  [+] Created Routes/admin.php');
+        $this->createdFiles[] = ['file' => 'Routes/admin.php', 'description' => 'Admin panel routes'];
+        $this->components->task('Creating Routes/admin.php', fn () => true);
     }
 
     /**
@@ -459,7 +485,8 @@ Route::prefix('{$websiteName}')->name('api.{$websiteName}.')->group(function () 
 PHP;
 
         File::put("{$websitePath}/Routes/api.php", $content);
-        $this->info('  [+] Created Routes/api.php');
+        $this->createdFiles[] = ['file' => 'Routes/api.php', 'description' => 'REST API routes'];
+        $this->components->task('Creating Routes/api.php', fn () => true);
     }
 
     /**
@@ -506,7 +533,8 @@ PHP;
 BLADE;
 
         File::put("{$websitePath}/View/Blade/layouts/app.blade.php", $content);
-        $this->info('  [+] Created View/Blade/layouts/app.blade.php');
+        $this->createdFiles[] = ['file' => 'View/Blade/layouts/app.blade.php', 'description' => 'Base layout template'];
+        $this->components->task('Creating View/Blade/layouts/app.blade.php', fn () => true);
     }
 
     /**
@@ -537,6 +565,41 @@ BLADE;
 BLADE;
 
         File::put("{$websitePath}/View/Blade/home.blade.php", $content);
-        $this->info('  [+] Created View/Blade/home.blade.php');
+        $this->createdFiles[] = ['file' => 'View/Blade/home.blade.php', 'description' => 'Homepage view'];
+        $this->components->task('Creating View/Blade/home.blade.php', fn () => true);
+    }
+
+    /**
+     * Get shell completion suggestions for arguments and options.
+     *
+     * @param  \Symfony\Component\Console\Completion\CompletionInput  $input
+     * @param  \Symfony\Component\Console\Completion\CompletionSuggestions  $suggestions
+     */
+    public function complete(
+        \Symfony\Component\Console\Completion\CompletionInput $input,
+        \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions
+    ): void {
+        if ($input->mustSuggestArgumentValuesFor('name')) {
+            // Suggest common website naming patterns
+            $suggestions->suggestValues([
+                'MarketingSite',
+                'Blog',
+                'Documentation',
+                'LandingPage',
+                'Portal',
+                'Dashboard',
+                'Support',
+            ]);
+        }
+
+        if ($input->mustSuggestOptionValuesFor('domain')) {
+            // Suggest common development domains
+            $suggestions->suggestValues([
+                'example.test',
+                'app.test',
+                'site.test',
+                'dev.test',
+            ]);
+        }
     }
 }

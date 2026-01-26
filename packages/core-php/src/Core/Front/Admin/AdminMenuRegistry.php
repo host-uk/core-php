@@ -12,6 +12,7 @@ namespace Core\Front\Admin;
 
 use Core\Front\Admin\Contracts\AdminMenuProvider;
 use Core\Front\Admin\Contracts\DynamicMenuProvider;
+use Core\Front\Admin\Validation\IconValidator;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -94,7 +95,17 @@ class AdminMenuRegistry
      */
     protected ?object $entitlements = null;
 
-    public function __construct(?object $entitlements = null)
+    /**
+     * Icon validator instance.
+     */
+    protected ?IconValidator $iconValidator = null;
+
+    /**
+     * Whether icon validation is enabled.
+     */
+    protected bool $validateIcons = true;
+
+    public function __construct(?object $entitlements = null, ?IconValidator $iconValidator = null)
     {
         if ($entitlements === null && class_exists(\Core\Mod\Tenant\Services\EntitlementService::class)) {
             $this->entitlements = app(\Core\Mod\Tenant\Services\EntitlementService::class);
@@ -102,8 +113,10 @@ class AdminMenuRegistry
             $this->entitlements = $entitlements;
         }
 
+        $this->iconValidator = $iconValidator ?? new IconValidator();
         $this->cacheTtl = (int) config('core.admin_menu.cache_ttl', self::DEFAULT_CACHE_TTL);
         $this->cachingEnabled = (bool) config('core.admin_menu.cache_enabled', true);
+        $this->validateIcons = (bool) config('core.admin_menu.validate_icons', true);
     }
 
     /**
@@ -537,6 +550,73 @@ class AdminMenuRegistry
     public function getGroupConfig(string $key): array
     {
         return $this->groups[$key] ?? [];
+    }
+
+    /**
+     * Get the icon validator instance.
+     */
+    public function getIconValidator(): IconValidator
+    {
+        return $this->iconValidator;
+    }
+
+    /**
+     * Enable or disable icon validation.
+     */
+    public function setIconValidation(bool $enabled): void
+    {
+        $this->validateIcons = $enabled;
+    }
+
+    /**
+     * Validate an icon and return whether it's valid.
+     *
+     * @param  string  $icon  The icon name to validate
+     * @return bool True if valid, false otherwise
+     */
+    public function validateIcon(string $icon): bool
+    {
+        if (! $this->validateIcons || $this->iconValidator === null) {
+            return true;
+        }
+
+        return $this->iconValidator->isValid($icon);
+    }
+
+    /**
+     * Validate a menu item's icon.
+     *
+     * @param  array  $item  The menu item array
+     * @return array<string> Array of validation error messages (empty if valid)
+     */
+    public function validateMenuItem(array $item): array
+    {
+        $errors = [];
+
+        if (! $this->validateIcons || $this->iconValidator === null) {
+            return $errors;
+        }
+
+        $icon = $item['icon'] ?? null;
+        if ($icon !== null && ! empty($icon)) {
+            $iconErrors = $this->iconValidator->validate($icon);
+            $errors = array_merge($errors, $iconErrors);
+        }
+
+        // Validate children icons if present
+        if (! empty($item['children'])) {
+            foreach ($item['children'] as $index => $child) {
+                $childIcon = $child['icon'] ?? null;
+                if ($childIcon !== null && ! empty($childIcon)) {
+                    $childErrors = $this->iconValidator->validate($childIcon);
+                    foreach ($childErrors as $error) {
+                        $errors[] = "Child item {$index}: {$error}";
+                    }
+                }
+            }
+        }
+
+        return $errors;
     }
 
     /**

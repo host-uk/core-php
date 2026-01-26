@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $category
  * @property string|null $description
  * @property mixed $default_value
+ * @property bool $is_sensitive
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -42,12 +43,22 @@ class ConfigKey extends Model
         'category',
         'description',
         'default_value',
+        'is_sensitive',
     ];
 
     protected $casts = [
         'type' => ConfigType::class,
         'default_value' => 'json',
+        'is_sensitive' => 'boolean',
     ];
+
+    /**
+     * Check if this key contains sensitive data that should be encrypted.
+     */
+    public function isSensitive(): bool
+    {
+        return $this->is_sensitive ?? false;
+    }
 
     /**
      * Parent key (for hierarchical grouping).

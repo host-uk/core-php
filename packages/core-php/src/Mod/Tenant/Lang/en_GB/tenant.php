@@ -189,10 +189,68 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Usage Alerts
+    |--------------------------------------------------------------------------
+    */
+    'usage_alerts' => [
+        'threshold' => [
+            'warning' => 'Warning',
+            'critical' => 'Critical',
+            'limit_reached' => 'Limit Reached',
+        ],
+        'status' => [
+            'ok' => 'OK',
+            'approaching' => 'Approaching Limit',
+            'at_limit' => 'At Limit',
+        ],
+        'labels' => [
+            'used' => 'Used',
+            'limit' => 'Limit',
+            'remaining' => 'Remaining',
+            'percentage' => 'Usage',
+            'feature' => 'Feature',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Emails
     |--------------------------------------------------------------------------
     */
     'emails' => [
+        'usage_alert' => [
+            'warning' => [
+                'subject' => ':feature usage at :percentage%',
+                'heading' => 'Usage Warning',
+                'body' => 'Your **:workspace** workspace is approaching its **:feature** limit.',
+                'usage_line' => 'Current usage: :used of :limit (:percentage%)',
+                'remaining_line' => 'Remaining: :remaining',
+                'action_text' => 'Consider upgrading your plan to ensure uninterrupted service.',
+            ],
+            'critical' => [
+                'subject' => 'Urgent: :feature usage at :percentage%',
+                'heading' => 'Critical Usage Alert',
+                'body' => 'Your **:workspace** workspace is almost at its **:feature** limit.',
+                'usage_line' => 'Current usage: :used of :limit (:percentage%)',
+                'remaining_line' => 'Only :remaining remaining',
+                'action_text' => 'Upgrade now to avoid any service interruptions.',
+            ],
+            'limit_reached' => [
+                'subject' => ':feature limit reached',
+                'heading' => 'Limit Reached',
+                'body' => 'Your **:workspace** workspace has reached its **:feature** limit.',
+                'usage_line' => 'Usage: :used of :limit (100%)',
+                'options_heading' => 'You will not be able to use this feature until:',
+                'options' => [
+                    'upgrade' => 'You upgrade to a higher plan',
+                    'reset' => 'Your usage resets (if applicable)',
+                    'reduce' => 'You reduce your current usage',
+                ],
+            ],
+            'view_usage' => 'View Usage',
+            'upgrade_plan' => 'Upgrade Plan',
+            'help_text' => 'If you have questions about your plan, please contact our support team.',
+        ],
         'deletion_requested' => [
             'subject' => 'Account Deletion Scheduled',
             'greeting' => 'Hi :name,',

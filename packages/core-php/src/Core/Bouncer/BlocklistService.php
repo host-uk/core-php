@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Core\Bouncer;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -22,11 +23,80 @@ use Illuminate\Support\Facades\DB;
  *
  * Uses a Bloom filter-style approach: cache the blocklist as a set
  * for O(1) lookups, rebuild periodically from database.
+ *
+ * ## Blocking Statuses
+ *
+ * | Status | Description |
+ * |--------|-------------|
+ * | `pending` | From honeypot, awaiting human review |
+ * | `approved` | Active block (manual or reviewed) |
+ * | `rejected` | Reviewed and rejected (not blocked) |
+ *
+ * ## Honeypot Integration
+ *
+ * When `auto_block_critical` is enabled (default), IPs hitting critical
+ * honeypot paths are immediately blocked. Otherwise, they're added with
+ * 'pending' status for human review.
+ *
+ * ### Syncing from Honeypot
+ *
+ * Call `syncFromHoneypot()` from a scheduled job to create pending entries
+ * for critical hits from the last 24 hours:
+ *
+ * ```php
+ * // In app/Console/Kernel.php
+ * $schedule->call(function () {
+ *     app(BlocklistService::class)->syncFromHoneypot();
+ * })->hourly();
+ * ```
+ *
+ * ### Reviewing Pending Blocks
+ *
+ * ```php
+ * $blocklist = app(BlocklistService::class);
+ *
+ * // Get all pending entries (paginated for large blocklists)
+ * $pending = $blocklist->getPending(perPage: 50);
+ *
+ * // Approve a block
+ * $blocklist->approve('192.168.1.100');
+ *
+ * // Reject a block (IP will not be blocked)
+ * $blocklist->reject('192.168.1.100');
+ * ```
+ *
+ * ## Cache Behaviour
+ *
+ * - Blocklist is cached for 5 minutes (CACHE_TTL constant)
+ * - Only 'approved' entries with valid expiry are included in cache
+ * - Cache is automatically cleared on block/unblock/approve operations
+ * - Use `clearCache()` to force cache refresh
+ *
+ * ## Manual Blocking
+ *
+ * ```php
+ * $blocklist = app(BlocklistService::class);
+ *
+ * // Block an IP immediately (approved status)
+ * $blocklist->block('192.168.1.100', 'spam', BlocklistService::STATUS_APPROVED);
+ *
+ * // Unblock an IP
+ * $blocklist->unblock('192.168.1.100');
+ *
+ * // Check if IP is blocked
+ * if ($blocklist->isBlocked('192.168.1.100')) {
+ *     // IP is actively blocked
+ * }
+ * ```
+ *
+ * @see Boot For honeypot configuration options
+ * @see BouncerMiddleware For the blocking middleware
  */
 class BlocklistService
 {
     protected const CACHE_KEY = 'bouncer:blocklist';
     protected const CACHE_TTL = 300; // 5 minutes
+    protected const DEFAULT_PER_PAGE = 50;
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
@@ -71,6 +141,9 @@ class BlocklistService
 
     /**
      * Get full blocklist (cached). Only returns approved entries.
+     *
+     * Used for O(1) IP lookup checks. For admin UIs with large blocklists,
+     * use getBlocklistPaginated() instead.
      */
     public function getBlocklist(): array
     {
@@ -88,6 +161,31 @@ class BlocklistService
                 ->pluck('reason', 'ip_address')
                 ->toArray();
         });
+    }
+
+    /**
+     * Get paginated blocklist for admin UI.
+     *
+     * Returns all entries (approved, pending, rejected) with pagination.
+     * Use this for admin interfaces displaying large blocklists.
+     *
+     * @param  int|null  $perPage  Number of entries per page (default: 50)
+     * @param  string|null  $status  Filter by status (null for all statuses)
+     */
+    public function getBlocklistPaginated(?int $perPage = null, ?string $status = null): LengthAwarePaginator
+    {
+        if (! $this->tableExists()) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage ?? self::DEFAULT_PER_PAGE);
+        }
+
+        $query = DB::table('blocked_ips')
+            ->orderBy('blocked_at', 'desc');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->paginate($perPage ?? self::DEFAULT_PER_PAGE);
     }
 
     /**
@@ -141,18 +239,27 @@ class BlocklistService
 
     /**
      * Get pending entries awaiting human review.
+     *
+     * @param  int|null  $perPage  Number of entries per page. Pass null for all entries (legacy behavior).
+     * @return array|LengthAwarePaginator  Array if $perPage is null, paginator otherwise.
      */
-    public function getPending(): array
+    public function getPending(?int $perPage = null): array|LengthAwarePaginator
     {
         if (! $this->tableExists()) {
-            return [];
+            return $perPage === null
+                ? []
+                : new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
 
-        return DB::table('blocked_ips')
+        $query = DB::table('blocked_ips')
             ->where('status', self::STATUS_PENDING)
-            ->orderBy('blocked_at', 'desc')
-            ->get()
-            ->toArray();
+            ->orderBy('blocked_at', 'desc');
+
+        if ($perPage === null) {
+            return $query->get()->toArray();
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**

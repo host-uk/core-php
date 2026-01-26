@@ -5,7 +5,7 @@ Wraps flux:input with built-in authorization checking.
 
 Usage:
 <x-forms.input id="name" wire:model="name" label="Name" />
-<x-forms.input id="name" wire:model="name" label="Name" canGate="update" :canResource="$biolink" />
+<x-forms.input id="name" wire:model="name" label="Name" canGate="update" :canResource="$page" />
 --}}
 
 @props([

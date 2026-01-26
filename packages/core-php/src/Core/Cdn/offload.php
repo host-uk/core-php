@@ -55,7 +55,7 @@ return [
      * File path organisation within bucket.
      */
     'paths' => [
-        'biolink' => 'biolinks',
+        'page' => 'pages',
         'avatar' => 'avatars',
         'media' => 'media',
         'static' => 'static',

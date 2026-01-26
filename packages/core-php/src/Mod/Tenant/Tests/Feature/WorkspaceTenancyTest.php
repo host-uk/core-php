@@ -2,7 +2,6 @@
 
 namespace Core\Mod\Tenant\Tests\Feature;
 
-use Core\Mod\Web\Models\Page;
 use Core\Mod\Social\Models\Account;
 use Core\Mod\Tenant\Models\User;
 use Core\Mod\Tenant\Models\Workspace;
@@ -48,11 +47,11 @@ class WorkspaceTenancyTest extends TestCase
         // Test that all relationship methods exist and return correct type
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->socialAccounts());
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->socialPosts());
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->bioPages());
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->analyticsSites());
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->trustWidgets());
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->notificationSites());
         $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $workspace->pushCampaigns());
+        // NOTE: bioPages relationship has been moved to Host UK app's Mod\Bio module
     }
 
     public function test_workspace_current_resolves_from_authenticated_user()
@@ -96,19 +95,16 @@ class WorkspaceTenancyTest extends TestCase
         // Create various resources for workspace A
         Account::factory()->create(['workspace_id' => $this->workspaceA->id]);
         Account::factory()->create(['workspace_id' => $this->workspaceA->id]);
-        Page::factory()->create(['workspace_id' => $this->workspaceA->id, 'user_id' => $this->userA->id]);
         Website::factory()->create(['workspace_id' => $this->workspaceA->id]);
 
         // Create some for workspace B (should not appear)
         Account::factory()->create(['workspace_id' => $this->workspaceB->id]);
 
         $this->assertEquals(2, $this->workspaceA->socialAccounts()->count());
-        $this->assertEquals(1, $this->workspaceA->bioPages()->count());
         $this->assertEquals(1, $this->workspaceA->analyticsSites()->count());
 
         // Workspace B should have different counts
         $this->assertEquals(1, $this->workspaceB->socialAccounts()->count());
-        $this->assertEquals(0, $this->workspaceB->bioPages()->count());
     }
 
     public function test_models_with_workspace_trait_auto_assign_workspace_on_create()

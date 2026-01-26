@@ -155,7 +155,7 @@ class SitemapController extends Controller
             ['loc' => url('/guides'), 'priority' => '0.7', 'changefreq' => 'weekly'],
             ['loc' => url('/guides/quickstart'), 'priority' => '0.7', 'changefreq' => 'monthly'],
             ['loc' => url('/guides/authentication'), 'priority' => '0.7', 'changefreq' => 'monthly'],
-            ['loc' => url('/guides/biolinks'), 'priority' => '0.6', 'changefreq' => 'monthly'],
+            ['loc' => url('/guides/pages'), 'priority' => '0.6', 'changefreq' => 'monthly'],
             ['loc' => url('/guides/qrcodes'), 'priority' => '0.6', 'changefreq' => 'monthly'],
             ['loc' => url('/guides/errors'), 'priority' => '0.6', 'changefreq' => 'monthly'],
             ['loc' => url('/guides/webhooks'), 'priority' => '0.6', 'changefreq' => 'monthly'],
@@ -178,7 +178,7 @@ class SitemapController extends Controller
         $slugs = [
             'trees-for-agents',
             'btcpayserver-docker',
-            'ansible-coolify',
+            'ansible-deployment',
             'ansible-cloudns',
             'enchantrix',
             'poindexter',

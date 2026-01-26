@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Core\Config;
 
+use Core\Config\Contracts\ConfigProvider;
 use Core\Config\Enums\ScopeType;
 use Core\Config\Models\Channel;
 use Core\Config\Models\ConfigKey;
@@ -50,7 +51,9 @@ class ConfigResolver
     /**
      * Registered virtual providers.
      *
-     * @var array<string, callable>
+     * Supports both ConfigProvider instances and callable functions.
+     *
+     * @var array<string, ConfigProvider|callable>
      */
     protected array $providers = [];
 
@@ -399,17 +402,25 @@ class ConfigResolver
      * Register a virtual provider for a key pattern.
      *
      * Providers supply values from module data without database storage.
+     * Accepts either a ConfigProvider instance or a callable.
      *
-     * @param  string  $pattern  Key pattern (supports * wildcard)
-     * @param  callable  $provider  fn(string $key, ?object $workspace, ?Channel $channel): mixed
+     * @param  string|ConfigProvider  $patternOrProvider  Key pattern (supports * wildcard) or ConfigProvider instance
+     * @param  ConfigProvider|callable|null  $provider  ConfigProvider instance or fn(string $key, ?object $workspace, ?Channel $channel): mixed
      */
-    public function registerProvider(string $pattern, callable $provider): void
+    public function registerProvider(string|ConfigProvider $patternOrProvider, ConfigProvider|callable|null $provider = null): void
     {
-        $this->providers[$pattern] = $provider;
+        // Support both new interface-based and legacy callable patterns
+        if ($patternOrProvider instanceof ConfigProvider) {
+            $this->providers[$patternOrProvider->pattern()] = $patternOrProvider;
+        } elseif ($provider !== null) {
+            $this->providers[$patternOrProvider] = $provider;
+        }
     }
 
     /**
      * Resolve value from virtual providers.
+     *
+     * Supports both ConfigProvider instances and legacy callables.
      *
      * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
@@ -420,7 +431,10 @@ class ConfigResolver
     ): mixed {
         foreach ($this->providers as $pattern => $provider) {
             if ($this->matchesPattern($keyCode, $pattern)) {
-                $value = $provider($keyCode, $workspace, $channel);
+                // Support both ConfigProvider interface and legacy callable
+                $value = $provider instanceof ConfigProvider
+                    ? $provider->resolve($keyCode, $workspace, $channel)
+                    : $provider($keyCode, $workspace, $channel);
 
                 if ($value !== null) {
                     return $value;

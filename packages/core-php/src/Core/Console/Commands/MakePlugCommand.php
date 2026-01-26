@@ -48,6 +48,13 @@ class MakePlugCommand extends Command
     protected const CATEGORIES = ['Social', 'Web3', 'Content', 'Chat', 'Business'];
 
     /**
+     * Operations created during generation for summary table.
+     *
+     * @var array<array{operation: string, description: string}>
+     */
+    protected array $createdOperations = [];
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -56,8 +63,11 @@ class MakePlugCommand extends Command
         $category = Str::studly($this->option('category'));
 
         if (! in_array($category, self::CATEGORIES)) {
-            $this->error("Invalid category [{$category}].");
-            $this->info('Valid categories: '.implode(', ', self::CATEGORIES));
+            $this->newLine();
+            $this->components->error("Invalid category [{$category}].");
+            $this->newLine();
+            $this->components->bulletList(self::CATEGORIES);
+            $this->newLine();
 
             return self::FAILURE;
         }
@@ -65,32 +75,48 @@ class MakePlugCommand extends Command
         $providerPath = $this->getProviderPath($category, $name);
 
         if (File::isDirectory($providerPath) && ! $this->option('force')) {
-            $this->error("Provider [{$name}] already exists in [{$category}]!");
-            $this->info("Use --force to overwrite.");
+            $this->newLine();
+            $this->components->error("Provider [{$name}] already exists in [{$category}]!");
+            $this->newLine();
+            $this->components->warn('Use --force to overwrite the existing provider.');
+            $this->newLine();
 
             return self::FAILURE;
         }
 
-        $this->info("Creating Plug provider: {$category}/{$name}");
+        $this->newLine();
+        $this->components->info("Creating Plug provider: <comment>{$category}/{$name}</comment>");
+        $this->newLine();
 
         // Create directory structure
         File::ensureDirectoryExists($providerPath);
-        $this->info('  [+] Created provider directory');
+        $this->components->task('Creating provider directory', fn () => true);
 
         // Create operations based on flags
         $this->createOperations($providerPath, $category, $name);
 
-        $this->info('');
-        $this->info("Plug provider [{$category}/{$name}] created successfully!");
-        $this->info('');
-        $this->info('Location: '.$providerPath);
-        $this->info('');
-        $this->info('Usage example:');
-        $this->info("  use Plug\\{$category}\\{$name}\\Auth;");
-        $this->info('');
-        $this->info('  $auth = new Auth(\$clientId, \$clientSecret, \$redirectUrl);');
-        $this->info('  $authUrl = $auth->getAuthUrl();');
-        $this->info('');
+        // Show summary table of created operations
+        $this->newLine();
+        $this->components->twoColumnDetail('<fg=green;options=bold>Created Operations</>', '<fg=gray>Description</>');
+        foreach ($this->createdOperations as $op) {
+            $this->components->twoColumnDetail(
+                "<fg=cyan>{$op['operation']}</>",
+                "<fg=gray>{$op['description']}</>"
+            );
+        }
+
+        $this->newLine();
+        $this->components->info("Plug provider [{$category}/{$name}] created successfully!");
+        $this->newLine();
+        $this->components->twoColumnDetail('Location', "<fg=yellow>{$providerPath}</>");
+        $this->newLine();
+
+        $this->components->info('Usage example:');
+        $this->line("  <fg=magenta>use</> Plug\\{$category}\\{$name}\\Auth;");
+        $this->newLine();
+        $this->line('  <fg=gray>$auth</> = <fg=cyan>new</> Auth(<fg=gray>\$clientId</>, <fg=gray>\$clientSecret</>, <fg=gray>\$redirectUrl</>);');
+        $this->line('  <fg=gray>$authUrl</> = <fg=gray>\$auth</>-><fg=yellow>getAuthUrl</>();');
+        $this->newLine();
 
         return self::SUCCESS;
     }
@@ -309,7 +335,8 @@ class Auth
 PHP;
 
         File::put("{$providerPath}/Auth.php", $content);
-        $this->info('  [+] Created Auth.php (OAuth authentication)');
+        $this->createdOperations[] = ['operation' => 'Auth.php', 'description' => 'OAuth 2.0 authentication'];
+        $this->components->task('Creating Auth.php', fn () => true);
     }
 
     /**
@@ -402,7 +429,8 @@ class Post
 PHP;
 
         File::put("{$providerPath}/Post.php", $content);
-        $this->info('  [+] Created Post.php (content creation)');
+        $this->createdOperations[] = ['operation' => 'Post.php', 'description' => 'Content creation/publishing'];
+        $this->components->task('Creating Post.php', fn () => true);
     }
 
     /**
@@ -476,7 +504,8 @@ class Delete
 PHP;
 
         File::put("{$providerPath}/Delete.php", $content);
-        $this->info('  [+] Created Delete.php (content deletion)');
+        $this->createdOperations[] = ['operation' => 'Delete.php', 'description' => 'Content deletion'];
+        $this->components->task('Creating Delete.php', fn () => true);
     }
 
     /**
@@ -566,6 +595,37 @@ class Media
 PHP;
 
         File::put("{$providerPath}/Media.php", $content);
-        $this->info('  [+] Created Media.php (media uploads)');
+        $this->createdOperations[] = ['operation' => 'Media.php', 'description' => 'Media file uploads'];
+        $this->components->task('Creating Media.php', fn () => true);
+    }
+
+    /**
+     * Get shell completion suggestions for arguments and options.
+     *
+     * @param  \Symfony\Component\Console\Completion\CompletionInput  $input
+     * @param  \Symfony\Component\Console\Completion\CompletionSuggestions  $suggestions
+     */
+    public function complete(
+        \Symfony\Component\Console\Completion\CompletionInput $input,
+        \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions
+    ): void {
+        if ($input->mustSuggestArgumentValuesFor('name')) {
+            // Suggest common social platform names
+            $suggestions->suggestValues([
+                'Twitter',
+                'Instagram',
+                'Facebook',
+                'LinkedIn',
+                'TikTok',
+                'YouTube',
+                'Mastodon',
+                'Threads',
+                'Bluesky',
+            ]);
+        }
+
+        if ($input->mustSuggestOptionValuesFor('category')) {
+            $suggestions->suggestValues(self::CATEGORIES);
+        }
     }
 }

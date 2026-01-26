@@ -18,7 +18,59 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Fired when a config value is set or updated.
  *
- * Modules can listen to invalidate caches or trigger side effects.
+ * This event is dispatched after `ConfigService::set()` is called,
+ * providing both the new value and the previous value for comparison.
+ *
+ * ## Event Properties
+ *
+ * - `keyCode` - The config key that changed (e.g., 'cdn.bunny.api_key')
+ * - `value` - The new value
+ * - `previousValue` - The previous value (null if key was not set before)
+ * - `profile` - The ConfigProfile where the value was set
+ * - `channelId` - The channel ID (null if not channel-specific)
+ *
+ * ## Listening to Config Changes
+ *
+ * ```php
+ * use Core\Config\Events\ConfigChanged;
+ *
+ * class MyModuleListener
+ * {
+ *     public function handle(ConfigChanged $event): void
+ *     {
+ *         if ($event->keyCode === 'cdn.bunny.api_key') {
+ *             // API key changed - refresh CDN client
+ *             $this->cdnService->refreshClient();
+ *         }
+ *
+ *         // Check for prefix matches
+ *         if (str_starts_with($event->keyCode, 'mymodule.')) {
+ *             Cache::tags(['mymodule'])->flush();
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * ## In Module Boot.php
+ *
+ * ```php
+ * use Core\Config\Events\ConfigChanged;
+ *
+ * class Boot
+ * {
+ *     public static array $listens = [
+ *         ConfigChanged::class => 'onConfigChanged',
+ *     ];
+ *
+ *     public function onConfigChanged(ConfigChanged $event): void
+ *     {
+ *         // Handle config changes
+ *     }
+ * }
+ * ```
+ *
+ * @see ConfigInvalidated For cache invalidation events
+ * @see ConfigLocked For when config values are locked
  */
 class ConfigChanged
 {

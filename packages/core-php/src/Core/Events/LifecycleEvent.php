@@ -17,6 +17,142 @@ namespace Core\Events;
  * listen to these events via static `$listens` arrays in their Boot class and
  * register their resources through the request methods provided here.
  *
+ * ## Event Flow Diagram
+ *
+ * The following diagram shows how lifecycle events flow through the system:
+ *
+ * ```
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                        LIFECYCLE EVENT FLOW                                  │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ *     ┌──────────────────────┐
+ *     │  Application Start   │
+ *     └──────────┬───────────┘
+ *                │
+ *                ▼
+ *     ┌──────────────────────┐     ┌─────────────────────────────────────────┐
+ *     │  ModuleScanner       │────►│  Scans app/Core, app/Mod, app/Website   │
+ *     │  (Discovery Phase)   │     │  for Boot.php files with $listens       │
+ *     └──────────┬───────────┘     └─────────────────────────────────────────┘
+ *                │
+ *                ▼
+ *     ┌──────────────────────┐     ┌─────────────────────────────────────────┐
+ *     │  ModuleRegistry      │────►│  Registers LazyModuleListener for each  │
+ *     │  (Registration)      │     │  event-module pair with Laravel Events  │
+ *     └──────────┬───────────┘     └─────────────────────────────────────────┘
+ *                │
+ *                ▼
+ *     ┌──────────────────────────────────────────────────────────────────────┐
+ *     │                    REQUEST CONTEXT DETECTION                          │
+ *     └──────────────────────────────────────────────────────────────────────┘
+ *                │
+ *        ┌───────┴───────┬───────────┬───────────┬───────────┬───────────┐
+ *        │               │           │           │           │           │
+ *        ▼               ▼           ▼           ▼           ▼           ▼
+ *   ┌─────────┐    ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+ *   │  Web    │    │  Admin  │ │  API    │ │  Client │ │ Console │ │  Queue  │
+ *   │ Routes  │    │  Panel  │ │ Routes  │ │ Routes  │ │ Booting │ │ Worker  │
+ *   └────┬────┘    └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘
+ *        │               │           │           │           │           │
+ *        ▼               ▼           ▼           ▼           ▼           ▼
+ *   ┌─────────┐    ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+ *   │WebRoutes│    │AdminPanel││ApiRoutes│ │Client   │ │Console  │ │QueueWkr │
+ *   │Register-│    │Booting  │ │Register-│ │Routes   │ │Booting  │ │Booting  │
+ *   │ing      │    │         │ │ing      │ │Register-│ │         │ │         │
+ *   └────┬────┘    └────┬────┘ └────┬────┘ │ing      │ └────┬────┘ └────┬────┘
+ *        │               │           │      └────┬────┘      │           │
+ *        └───────────────┴───────────┴───────────┴───────────┴───────────┘
+ *                                    │
+ *                                    ▼
+ *                         ┌──────────────────────┐
+ *                         │  FrameworkBooted     │
+ *                         │  (After all booted)  │
+ *                         └──────────────────────┘
+ * ```
+ *
+ * ## Event Order
+ *
+ * Events fire in a specific order based on request context:
+ *
+ * | Order | Event | Context | Middleware |
+ * |-------|-------|---------|------------|
+ * | 1 | `WebRoutesRegistering` | Web requests | 'web' |
+ * | 1 | `AdminPanelBooting` | Admin requests | 'admin' |
+ * | 1 | `ApiRoutesRegistering` | API requests | 'api' |
+ * | 1 | `ClientRoutesRegistering` | Client dashboard | 'client' |
+ * | 1 | `ConsoleBooting` | CLI commands | - |
+ * | 1 | `QueueWorkerBooting` | Queue workers | - |
+ * | 1 | `McpToolsRegistering` | MCP server | - |
+ * | 2 | `FrameworkBooted` | All contexts | - |
+ *
+ * Note: Events marked "1" are mutually exclusive based on context.
+ *
+ * ## Module Registration Flow
+ *
+ * ```
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                     MODULE REGISTRATION FLOW                                 │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ *     Module Boot.php                    Framework
+ *     ─────────────────                  ─────────
+ *           │
+ *           │  public static array $listens = [
+ *           │      WebRoutesRegistering::class => 'onWebRoutes',
+ *           │      AdminPanelBooting::class => ['onAdmin', 10],
+ *           │  ];
+ *           │
+ *           │                                   │
+ *           │◄──────────────────────────────────┤ ModuleScanner reads $listens
+ *           │                                   │ without instantiation
+ *           │                                   │
+ *           │                                   ▼
+ *           │                            ┌─────────────────────┐
+ *           │                            │ ModuleRegistry      │
+ *           │                            │ sorts by priority   │
+ *           │                            │ (10 runs before 0)  │
+ *           │                            └──────────┬──────────┘
+ *           │                                       │
+ *           │                                       ▼
+ *           │                            ┌─────────────────────┐
+ *           │                            │ LazyModuleListener  │
+ *           │                            │ registered with     │
+ *           │                            │ Laravel Events      │
+ *           │                            └──────────┬──────────┘
+ *           │                                       │
+ *           │                                       │ Event fires
+ *           │                                       ▼
+ *           │                            ┌─────────────────────┐
+ *           │                            │ LazyModuleListener  │
+ *           │◄───────────────────────────┤ instantiates module │
+ *           │  Module instantiated       │ via container       │
+ *           │  only when event fires     └──────────┬──────────┘
+ *           │                                       │
+ *           ▼                                       │
+ *     ┌─────────────┐                               │
+ *     │ onWebRoutes │◄──────────────────────────────┘
+ *     │ ($event)    │  Method called with event
+ *     └──────┬──────┘
+ *            │
+ *            ▼
+ *     ┌──────────────────────────────────────────────────────┐
+ *     │ $event->routes(fn () => require __DIR__.'/web.php'); │
+ *     │ $event->views('mymod', __DIR__.'/Views');            │
+ *     │ $event->livewire('my-comp', MyComponent::class);     │
+ *     └──────────────────────────────────────────────────────┘
+ *            │
+ *            │ Requests collected in event
+ *            ▼
+ *     ┌─────────────────────────────────────────────────────────────┐
+ *     │ LifecycleEventProvider processes requests:                  │
+ *     │ - Registers view namespaces                                 │
+ *     │ - Registers Livewire components                             │
+ *     │ - Wraps routes with appropriate middleware                  │
+ *     │ - Refreshes route lookups                                   │
+ *     └─────────────────────────────────────────────────────────────┘
+ * ```
+ *
  * ## Request/Collect Pattern
  *
  * This class implements a "request/collect" pattern rather than direct mutation:
@@ -42,6 +178,17 @@ namespace Core\Events;
  * | `policy()` | Register model policies |
  * | `navigation()` | Register navigation items |
  *
+ * ## Event Versioning
+ *
+ * Events support versioning for backwards compatibility. The version number
+ * indicates the API contract version:
+ *
+ * - Version 1: Original API (current)
+ * - Future versions may add methods but maintain backwards compatibility
+ *
+ * Check version with `$event->version()` in your handlers to support multiple
+ * event versions during transitions.
+ *
  * ## Usage Example
  *
  * ```php
@@ -55,10 +202,47 @@ namespace Core\Events;
  *
  * @package Core\Events
  *
+ * @method void navigation(array $item) Request a navigation item be added
+ * @method void routes(callable $callback) Request routes be registered
+ * @method void views(string $namespace, string $path) Request a view namespace be registered
+ * @method void middleware(string $alias, string $class) Request a middleware alias be registered
+ * @method void livewire(string $alias, string $class) Request a Livewire component be registered
+ * @method void command(string $class) Request an Artisan command be registered
+ * @method void translations(string $namespace, string $path) Request translations be loaded
+ * @method void bladeComponentPath(string $path, ?string $namespace = null) Request a Blade component path
+ * @method void policy(string $model, string $policy) Request a policy be registered
+ * @method array navigationRequests() Get collected navigation requests
+ * @method array routeRequests() Get collected route requests
+ * @method array viewRequests() Get collected view requests
+ * @method array middlewareRequests() Get collected middleware requests
+ * @method array livewireRequests() Get collected Livewire requests
+ * @method array commandRequests() Get collected command requests
+ * @method array translationRequests() Get collected translation requests
+ * @method array bladeComponentRequests() Get collected Blade component requests
+ * @method array policyRequests() Get collected policy requests
+ *
  * @see LifecycleEventProvider For event processing
  */
 abstract class LifecycleEvent
 {
+    /**
+     * Event API version.
+     *
+     * Increment this when making breaking changes to the event interface.
+     * Handlers can check this to maintain backwards compatibility.
+     *
+     * Version history:
+     * - 1: Initial release (Core PHP 1.0)
+     */
+    public const VERSION = 1;
+
+    /**
+     * Minimum supported handler version.
+     *
+     * Handlers declaring a version lower than this will receive a deprecation warning.
+     */
+    public const MIN_SUPPORTED_VERSION = 1;
+
     /** @var array<int, array<string, mixed>> Collected navigation item requests */
     protected array $navigationRequests = [];
 
@@ -325,5 +509,54 @@ abstract class LifecycleEvent
     public function policyRequests(): array
     {
         return $this->policyRequests;
+    }
+
+    /**
+     * Get the event API version.
+     *
+     * Use this in your event handlers to check API compatibility:
+     *
+     * ```php
+     * public function onWebRoutes(WebRoutesRegistering $event): void
+     * {
+     *     if ($event->version() >= 2) {
+     *         // Use new v2 features
+     *     } else {
+     *         // Fallback to v1 behavior
+     *     }
+     * }
+     * ```
+     *
+     * @return int The event API version number
+     */
+    public function version(): int
+    {
+        return static::VERSION;
+    }
+
+    /**
+     * Check if this event supports a specific version.
+     *
+     * Returns true if the event's version is greater than or equal to the
+     * requested version.
+     *
+     * @param  int  $version  The version to check against
+     * @return bool True if the event supports the specified version
+     */
+    public function supportsVersion(int $version): bool
+    {
+        return static::VERSION >= $version;
+    }
+
+    /**
+     * Get the event class name without namespace.
+     *
+     * Useful for logging and debugging.
+     *
+     * @return string The short class name (e.g., 'WebRoutesRegistering')
+     */
+    public function eventName(): string
+    {
+        return class_basename(static::class);
     }
 }

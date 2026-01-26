@@ -80,11 +80,11 @@ class UserStatsService
         $limits['workspaces']['used'] = $workspaceCount;
 
         // Social accounts across all workspaces
-        // TODO: Implement when MixPost accounts are linked
+        // TODO: Implement when social accounts are linked
         // $socialAccountCount = ...
 
         // Scheduled posts
-        // TODO: Implement when MixPost posts are linked
+        // TODO: Implement when scheduled posts are linked
         // $scheduledPostCount = ...
 
         // Storage usage
@@ -162,7 +162,7 @@ class UserStatsService
 
         if ($workspaceCount > 0) {
             // SocialHost - check for social accounts
-            // TODO: Check MixPost accounts when integration is complete
+            // TODO: Check social accounts when integration is complete
             $services[0]['status'] = 'active';
             $services[0]['stat'] = $workspaceCount.' workspace(s)';
 

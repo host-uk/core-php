@@ -14,6 +14,7 @@ use Core\Config\ConfigResolver;
 use Core\Config\Enums\ScopeType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Configuration value (junction table).
@@ -46,9 +47,78 @@ class ConfigValue extends Model
     ];
 
     protected $casts = [
-        'value' => 'json',
         'locked' => 'boolean',
     ];
+
+    /**
+     * Encrypted value marker prefix.
+     *
+     * Used to detect if a stored value is encrypted.
+     */
+    protected const ENCRYPTED_PREFIX = 'encrypted:';
+
+    /**
+     * Get the value attribute with automatic decryption for sensitive keys.
+     */
+    public function getValueAttribute(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Decode JSON first
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        // Check if this is an encrypted value
+        if (is_string($decoded) && str_starts_with($decoded, self::ENCRYPTED_PREFIX)) {
+            try {
+                $encrypted = substr($decoded, strlen(self::ENCRYPTED_PREFIX));
+
+                return json_decode(Crypt::decryptString($encrypted), true);
+            } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+                // Return null if decryption fails (key rotation, corruption, etc.)
+                return null;
+            }
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Set the value attribute with automatic encryption for sensitive keys.
+     */
+    public function setValueAttribute(mixed $value): void
+    {
+        // Check if the key is sensitive (need to load it if not already)
+        $key = $this->relationLoaded('key')
+            ? $this->getRelation('key')
+            : ($this->key_id ? ConfigKey::find($this->key_id) : null);
+
+        if ($key?->isSensitive() && $value !== null) {
+            // Encrypt the value
+            $jsonValue = json_encode($value);
+            $encrypted = Crypt::encryptString($jsonValue);
+            $this->attributes['value'] = json_encode(self::ENCRYPTED_PREFIX . $encrypted);
+        } else {
+            // Store as regular JSON
+            $this->attributes['value'] = json_encode($value);
+        }
+    }
+
+    /**
+     * Check if the current stored value is encrypted.
+     */
+    public function isEncrypted(): bool
+    {
+        $raw = $this->attributes['value'] ?? null;
+        if ($raw === null) {
+            return false;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_string($decoded) && str_starts_with($decoded, self::ENCRYPTED_PREFIX);
+    }
 
     /**
      * The profile this value belongs to.

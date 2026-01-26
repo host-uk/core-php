@@ -2,12 +2,12 @@
 
 namespace Core\Mod\Tenant\View\Modal\Admin;
 
+use Core\Mod\Tenant\Models\User;
+use Core\Mod\Tenant\Models\Workspace;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
 
 class WorkspaceManager extends Component
 {
@@ -117,8 +117,8 @@ class WorkspaceManager extends Component
 
         // Check each relation's model exists and has workspace_id column
         $checks = [
-            'bioPages' => ['model' => \App\Models\BioLink\Page::class, 'table' => 'bio_pages'],
-            'bioProjects' => ['model' => \App\Models\BioLink\Project::class, 'table' => 'bio_projects'],
+            'bioPages' => ['model' => \Core\Mod\Web\Models\Page::class, 'table' => 'pages'],
+            'bioProjects' => ['model' => \Core\Mod\Web\Models\Project::class, 'table' => 'page_projects'],
             'socialAccounts' => ['model' => \Core\Mod\Social\Models\Account::class, 'table' => 'social_accounts'],
             'analyticsSites' => ['model' => \Core\Mod\Analytics\Models\Website::class, 'table' => 'analytics_websites'],
             'trustWidgets' => ['model' => \Core\Mod\Trust\Models\Campaign::class, 'table' => 'trust_campaigns'],
@@ -157,8 +157,8 @@ class WorkspaceManager extends Component
 
         // Only include resource types for models that exist and have valid relations
         $checks = [
-            'bio_pages' => ['model' => \App\Models\BioLink\Page::class, 'table' => 'bio_pages', 'label' => 'Bio Pages', 'relation' => 'bioPages', 'icon' => 'link'],
-            'bio_projects' => ['model' => \App\Models\BioLink\Project::class, 'table' => 'bio_projects', 'label' => 'Bio Projects', 'relation' => 'bioProjects', 'icon' => 'folder'],
+            'bio_pages' => ['model' => \Core\Mod\Web\Models\Page::class, 'table' => 'pages', 'label' => 'Bio Pages', 'relation' => 'bioPages', 'icon' => 'link'],
+            'bio_projects' => ['model' => \Core\Mod\Web\Models\Project::class, 'table' => 'page_projects', 'label' => 'Bio Projects', 'relation' => 'bioProjects', 'icon' => 'folder'],
             'social_accounts' => ['model' => \Core\Mod\Social\Models\Account::class, 'table' => 'social_accounts', 'label' => 'Social Accounts', 'relation' => 'socialAccounts', 'icon' => 'share-nodes'],
             'analytics_sites' => ['model' => \Core\Mod\Analytics\Models\Website::class, 'table' => 'analytics_websites', 'label' => 'Analytics Sites', 'relation' => 'analyticsSites', 'icon' => 'chart-line'],
             'trust_widgets' => ['model' => \Core\Mod\Trust\Models\Campaign::class, 'table' => 'trust_campaigns', 'label' => 'Trust Campaigns', 'relation' => 'trustWidgets', 'icon' => 'shield-check'],
@@ -531,7 +531,7 @@ class WorkspaceManager extends Component
                 'color' => 'blue',
                 'fields' => ['name', 'slug'],
                 'model' => \Core\Mod\Web\Models\Page::class,
-                'defaults' => ['type' => 'biolink', 'is_enabled' => true],
+                'defaults' => ['type' => 'page', 'is_enabled' => true],
             ],
             'social_accounts' => [
                 'label' => 'Social Account',

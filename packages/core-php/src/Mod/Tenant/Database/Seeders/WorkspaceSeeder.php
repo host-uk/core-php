@@ -51,7 +51,7 @@ class WorkspaceSeeder extends Seeder
                 'icon' => 'globe',
                 'color' => 'violet',
                 'description' => 'Main website content',
-                'type' => 'wordpress',
+                'type' => 'cms',
                 'sort_order' => 0,
             ],
             [

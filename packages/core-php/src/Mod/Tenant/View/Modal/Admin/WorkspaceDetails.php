@@ -2,10 +2,10 @@
 
 namespace Core\Mod\Tenant\View\Modal\Admin;
 
-use Livewire\Attributes\Computed;
-use Livewire\Component;
 use Core\Mod\Tenant\Models\User;
 use Core\Mod\Tenant\Models\Workspace;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
 
 class WorkspaceDetails extends Component
 {
@@ -90,8 +90,8 @@ class WorkspaceDetails extends Component
         $schema = \Illuminate\Support\Facades\Schema::getFacadeRoot();
 
         $resources = [
-            ['relation' => 'bioPages', 'label' => 'Bio Pages', 'icon' => 'link', 'color' => 'blue', 'model' => \App\Models\BioLink\Page::class],
-            ['relation' => 'bioProjects', 'label' => 'Bio Projects', 'icon' => 'folder', 'color' => 'indigo', 'model' => \App\Models\BioLink\Project::class],
+            ['relation' => 'bioPages', 'label' => 'Bio Pages', 'icon' => 'link', 'color' => 'blue', 'model' => \Core\Mod\Web\Models\Page::class],
+            ['relation' => 'bioProjects', 'label' => 'Bio Projects', 'icon' => 'folder', 'color' => 'indigo', 'model' => \Core\Mod\Web\Models\Project::class],
             ['relation' => 'socialAccounts', 'label' => 'Social Accounts', 'icon' => 'share-nodes', 'color' => 'purple', 'model' => \Core\Mod\Social\Models\Account::class],
             ['relation' => 'socialPosts', 'label' => 'Social Posts', 'icon' => 'paper-plane', 'color' => 'pink', 'model' => \Core\Mod\Social\Models\Post::class],
             ['relation' => 'analyticsSites', 'label' => 'Analytics Sites', 'icon' => 'chart-line', 'color' => 'cyan', 'model' => \Core\Mod\Analytics\Models\Website::class],

@@ -190,6 +190,11 @@ class ImageOptimizer
                 throw new \RuntimeException('Failed to create image from JPEG');
             }
 
+            // Enable progressive JPEG if configured
+            if (config('media.progressive_jpeg', true)) {
+                imageinterlace($image, true);
+            }
+
             // Save with compression
             $success = imagejpeg($image, $path, $quality);
             imagedestroy($image);

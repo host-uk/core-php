@@ -64,6 +64,16 @@ class Boot extends ServiceProvider
             \Core\Mod\Tenant\Services\WorkspaceService::class
         );
 
+        $this->app->singleton(
+            \Core\Mod\Tenant\Services\WorkspaceCacheManager::class,
+            \Core\Mod\Tenant\Services\WorkspaceCacheManager::class
+        );
+
+        $this->app->singleton(
+            \Core\Mod\Tenant\Services\UsageAlertService::class,
+            \Core\Mod\Tenant\Services\UsageAlertService::class
+        );
+
         $this->registerBackwardCompatAliases();
     }
 
@@ -87,6 +97,13 @@ class Boot extends ServiceProvider
             class_alias(
                 \Core\Mod\Tenant\Services\WorkspaceService::class,
                 \App\Services\WorkspaceService::class
+            );
+        }
+
+        if (! class_exists(\App\Services\WorkspaceCacheManager::class)) {
+            class_alias(
+                \Core\Mod\Tenant\Services\WorkspaceCacheManager::class,
+                \App\Services\WorkspaceCacheManager::class
             );
         }
     }
@@ -132,5 +149,10 @@ class Boot extends ServiceProvider
     public function onConsole(ConsoleBooting $event): void
     {
         $event->middleware('admin.domain', Middleware\RequireAdminDomain::class);
+
+        // Artisan commands
+        $event->command(Console\Commands\RefreshUserStats::class);
+        $event->command(Console\Commands\ProcessAccountDeletions::class);
+        $event->command(Console\Commands\CheckUsageAlerts::class);
     }
 }

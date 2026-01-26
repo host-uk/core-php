@@ -2,9 +2,9 @@
 
 namespace Core\Mod\Tenant\Database\Seeders;
 
+use Core\Mod\Tenant\Models\Package;
 use Core\Mod\Tenant\Models\User;
 use Core\Mod\Tenant\Models\Workspace;
-use Core\Mod\Tenant\Models\Package;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -93,12 +93,12 @@ class DemoTestUserSeeder extends Seeder
      */
     protected function createTestBioPage(Workspace $workspace, User $user): void
     {
-        // Only create if BioLink model exists and no test page exists
-        if (! class_exists(\App\Models\BioLink\Page::class)) {
+        // Only create if Web Page model exists and no test page exists
+        if (! class_exists(\Core\Mod\Web\Models\Page::class)) {
             return;
         }
 
-        $existingPage = \App\Models\BioLink\Page::where('workspace_id', $workspace->id)
+        $existingPage = \Core\Mod\Web\Models\Page::where('workspace_id', $workspace->id)
             ->where('url', 'nyx-test')
             ->first();
 
@@ -106,11 +106,11 @@ class DemoTestUserSeeder extends Seeder
             return;
         }
 
-        \App\Models\BioLink\Page::create([
+        \Core\Mod\Web\Models\Page::create([
             'workspace_id' => $workspace->id,
             'user_id' => $user->id,
             'url' => 'nyx-test',
-            'type' => 'biolink',
+            'type' => 'page',
             'settings' => [
                 'name' => 'Nyx Test Page',
                 'description' => 'Test page for Playwright acceptance tests (Lethean Network)',
@@ -145,12 +145,12 @@ class DemoTestUserSeeder extends Seeder
      */
     protected function createTestShortLink(Workspace $workspace, User $user): void
     {
-        // Only create if BioLink model exists
-        if (! class_exists(\App\Models\BioLink\Page::class)) {
+        // Only create if Web Page model exists
+        if (! class_exists(\Core\Mod\Web\Models\Page::class)) {
             return;
         }
 
-        $existingLink = \App\Models\BioLink\Page::where('workspace_id', $workspace->id)
+        $existingLink = \Core\Mod\Web\Models\Page::where('workspace_id', $workspace->id)
             ->where('url', 'nyx-short')
             ->first();
 
@@ -158,7 +158,7 @@ class DemoTestUserSeeder extends Seeder
             return;
         }
 
-        \App\Models\BioLink\Page::create([
+        \Core\Mod\Web\Models\Page::create([
             'workspace_id' => $workspace->id,
             'user_id' => $user->id,
             'url' => 'nyx-short',

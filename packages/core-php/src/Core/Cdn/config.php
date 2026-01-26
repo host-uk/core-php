@@ -34,12 +34,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Signed URL Expiry
+    |--------------------------------------------------------------------------
+    |
+    | Default expiry time (in seconds) for signed URLs when not specified
+    | per-request. Signed URLs provide time-limited access to private content.
+    |
+    */
+    'signed_url_expiry' => env('CDN_SIGNED_URL_EXPIRY', 3600),
+
+    /*
+    |--------------------------------------------------------------------------
     | URL Configuration
     |--------------------------------------------------------------------------
+    |
+    | All URL building uses these config values for consistency.
+    | Never hardcode URLs in service methods.
+    |
     */
     'urls' => [
         // CDN delivery URL (when enabled)
         'cdn' => env('CDN_URL'),
+
+        // Public origin URL (direct storage access, bypassing CDN)
+        'public' => env('CDN_PUBLIC_URL'),
+
+        // Private CDN URL (for signed/gated content)
+        'private' => env('CDN_PRIVATE_URL'),
 
         // Apex domain fallback
         'apex' => env('APP_URL', 'https://core.test'),

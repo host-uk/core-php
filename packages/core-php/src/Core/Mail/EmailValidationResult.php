@@ -98,4 +98,34 @@ class EmailValidationResult
 
         return $this->reason ?? 'Invalid email address';
     }
+
+    /**
+     * Convert the result to an array for caching.
+     *
+     * @return array{is_valid: bool, is_disposable: bool, domain: string|null, reason: string|null}
+     */
+    public function toArray(): array
+    {
+        return [
+            'is_valid' => $this->isValid,
+            'is_disposable' => $this->isDisposable,
+            'domain' => $this->domain,
+            'reason' => $this->reason,
+        ];
+    }
+
+    /**
+     * Create a result from a cached array.
+     *
+     * @param  array{is_valid: bool, is_disposable: bool, domain: string|null, reason: string|null}  $data
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            isValid: $data['is_valid'],
+            isDisposable: $data['is_disposable'],
+            domain: $data['domain'] ?? null,
+            reason: $data['reason'] ?? null
+        );
+    }
 }

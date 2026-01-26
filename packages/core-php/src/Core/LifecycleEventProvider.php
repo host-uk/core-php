@@ -29,6 +29,71 @@ use Livewire\Livewire;
  * It coordinates module discovery, listener registration, and event firing at
  * appropriate points during the application lifecycle.
  *
+ * ## Lifecycle Event Firing Sequence
+ *
+ * ```
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                   LIFECYCLE EVENT FIRING SEQUENCE                            │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ *     Application
+ *         │
+ *         ├─── register() ──────────────────────────────────────────────────────┐
+ *         │         │                                                            │
+ *         │         ├── ModuleScanner::scan()                                    │
+ *         │         │       Discovers Boot.php files with $listens               │
+ *         │         │                                                            │
+ *         │         └── ModuleRegistry::register()                               │
+ *         │                 Wires LazyModuleListener for each event/module       │
+ *         │                                                                      │
+ *         ├─── boot() ──────────────────────────────────────────────────────────┤
+ *         │         │                                                            │
+ *         │         ├── (if queue.worker bound)                                  │
+ *         │         │       └── fireQueueWorkerBooting()                         │
+ *         │         │               Fires: QueueWorkerBooting                    │
+ *         │         │                                                            │
+ *         │         └── $app->booted() callback registered                       │
+ *         │                 └── Fires: FrameworkBooted                           │
+ *         │                                                                      │
+ *         │                                                                      │
+ *     ┌───┴─────────────────────────────────────────────────────────────────────┤
+ *     │   FRONTAGE MODULES FIRE CONTEXT-SPECIFIC EVENTS                          │
+ *     └──────────────────────────────────────────────────────────────────────────┤
+ *         │                                                                      │
+ *         ├─── Front/Web/Boot ────────────────────────────────────────────────── │
+ *         │         └── LifecycleEventProvider::fireWebRoutes()                  │
+ *         │                 Fires: WebRoutesRegistering                          │
+ *         │                 Processes: views, livewire, routes ('web' middleware)│
+ *         │                                                                      │
+ *         ├─── Front/Admin/Boot ──────────────────────────────────────────────── │
+ *         │         └── LifecycleEventProvider::fireAdminBooting()               │
+ *         │                 Fires: AdminPanelBooting                             │
+ *         │                 Processes: views, translations, livewire, routes     │
+ *         │                            ('admin' middleware)                      │
+ *         │                                                                      │
+ *         ├─── Front/Api/Boot ────────────────────────────────────────────────── │
+ *         │         └── LifecycleEventProvider::fireApiRoutes()                  │
+ *         │                 Fires: ApiRoutesRegistering                          │
+ *         │                 Processes: routes ('api' middleware, '/api' prefix)  │
+ *         │                                                                      │
+ *         ├─── Front/Client/Boot ─────────────────────────────────────────────── │
+ *         │         └── LifecycleEventProvider::fireClientRoutes()               │
+ *         │                 Fires: ClientRoutesRegistering                       │
+ *         │                 Processes: views, livewire, routes ('client' mw)     │
+ *         │                                                                      │
+ *         ├─── Front/Cli/Boot ────────────────────────────────────────────────── │
+ *         │         └── LifecycleEventProvider::fireConsoleBooting()             │
+ *         │                 Fires: ConsoleBooting                                │
+ *         │                 Processes: command classes                           │
+ *         │                                                                      │
+ *         └─── Front/Mcp/Boot ────────────────────────────────────────────────── │
+ *                   └── LifecycleEventProvider::fireMcpTools()                   │
+ *                           Fires: McpToolsRegistering                           │
+ *                           Returns: MCP tool handler classes                    │
+ *                                                                                │
+ * └──────────────────────────────────────────────────────────────────────────────┘
+ * ```
+ *
  * ## Lifecycle Phases
  *
  * **Registration Phase (register())**
@@ -43,6 +108,28 @@ use Livewire\Livewire;
  * **Event Firing (static fire* methods)**
  * - Called by frontage modules (Web, Admin, Api, etc.) at appropriate times
  * - Fire events, collect requests, and process them with appropriate middleware
+ *
+ * ## Request Processing Flow
+ *
+ * ```
+ * Event created ──► event() dispatched ──► Listeners collect requests
+ *                                                    │
+ *                                                    ▼
+ *                                          ┌─────────────────────┐
+ *                                          │ $event->routes()    │
+ *                                          │ $event->views()     │
+ *                                          │ $event->livewire()  │
+ *                                          └─────────┬───────────┘
+ *                                                    │
+ *                                                    ▼
+ *                                          ┌─────────────────────┐
+ *                                          │ fire*() processes   │
+ *                                          │ collected requests: │
+ *                                          │ - View namespaces   │
+ *                                          │ - Livewire comps    │
+ *                                          │ - Middleware routes │
+ *                                          └─────────────────────┘
+ * ```
  *
  * ## Module Declaration
  *

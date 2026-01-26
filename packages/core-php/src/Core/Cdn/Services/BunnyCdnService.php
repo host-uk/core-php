@@ -21,6 +21,22 @@ use Illuminate\Support\Facades\Log;
  * - Cache purging (URL, tag, workspace, global)
  * - Statistics retrieval
  * - Pull zone management
+ *
+ * ## Methods
+ *
+ * | Method | Returns | Description |
+ * |--------|---------|-------------|
+ * | `isConfigured()` | `bool` | Check if BunnyCDN is configured |
+ * | `purgeUrl()` | `bool` | Purge a single URL from cache |
+ * | `purgeUrls()` | `bool` | Purge multiple URLs from cache |
+ * | `purgeAll()` | `bool` | Purge entire pull zone cache |
+ * | `purgeByTag()` | `bool` | Purge cache by tag |
+ * | `purgeWorkspace()` | `bool` | Purge all cached content for a workspace |
+ * | `getStats()` | `array\|null` | Get CDN statistics for pull zone |
+ * | `getBandwidth()` | `array\|null` | Get bandwidth usage for pull zone |
+ * | `listStorageFiles()` | `array\|null` | List files in storage zone |
+ * | `uploadFile()` | `bool` | Upload a file to storage zone |
+ * | `deleteFile()` | `bool` | Delete a file from storage zone |
  */
 class BunnyCdnService
 {
@@ -39,6 +55,9 @@ class BunnyCdnService
 
     /**
      * Sanitize an error message to remove sensitive data like API keys.
+     *
+     * @param  string  $message  The error message to sanitize
+     * @return string The sanitized message with API keys replaced by [REDACTED]
      */
     protected function sanitizeErrorMessage(string $message): string
     {
@@ -59,6 +78,8 @@ class BunnyCdnService
 
     /**
      * Check if the service is configured.
+     *
+     * @return bool True if BunnyCDN API key and pull zone ID are configured
      */
     public function isConfigured(): bool
     {
@@ -71,6 +92,9 @@ class BunnyCdnService
 
     /**
      * Purge a single URL from CDN cache.
+     *
+     * @param  string  $url  The full URL to purge from cache
+     * @return bool True if purge was successful, false otherwise
      */
     public function purgeUrl(string $url): bool
     {
@@ -79,6 +103,9 @@ class BunnyCdnService
 
     /**
      * Purge multiple URLs from CDN cache.
+     *
+     * @param  array<string>  $urls  Array of full URLs to purge from cache
+     * @return bool True if all purges were successful, false if any failed
      */
     public function purgeUrls(array $urls): bool
     {
@@ -117,6 +144,8 @@ class BunnyCdnService
 
     /**
      * Purge entire pull zone cache.
+     *
+     * @return bool True if purge was successful, false otherwise
      */
     public function purgeAll(): bool
     {
@@ -139,6 +168,9 @@ class BunnyCdnService
 
     /**
      * Purge cache by tag.
+     *
+     * @param  string  $tag  The cache tag to purge (e.g., 'workspace-uuid')
+     * @return bool True if purge was successful, false otherwise
      */
     public function purgeByTag(string $tag): bool
     {
@@ -168,6 +200,7 @@ class BunnyCdnService
      * Purge all cached content for a workspace.
      *
      * @param  object  $workspace  Workspace model instance (requires uuid property)
+     * @return bool True if purge was successful, false otherwise
      */
     public function purgeWorkspace(object $workspace): bool
     {
@@ -180,6 +213,10 @@ class BunnyCdnService
 
     /**
      * Get CDN statistics for pull zone.
+     *
+     * @param  string|null  $dateFrom  Start date in YYYY-MM-DD format
+     * @param  string|null  $dateTo  End date in YYYY-MM-DD format
+     * @return array<string, mixed>|null Statistics array or null on failure
      */
     public function getStats(?string $dateFrom = null, ?string $dateTo = null): ?array
     {
@@ -217,6 +254,10 @@ class BunnyCdnService
 
     /**
      * Get bandwidth usage for pull zone.
+     *
+     * @param  string|null  $dateFrom  Start date in YYYY-MM-DD format
+     * @param  string|null  $dateTo  End date in YYYY-MM-DD format
+     * @return array{total_bandwidth: int, cached_bandwidth: int, origin_bandwidth: int}|null Bandwidth stats or null on failure
      */
     public function getBandwidth(?string $dateFrom = null, ?string $dateTo = null): ?array
     {
@@ -241,6 +282,10 @@ class BunnyCdnService
      * List files in a storage zone via API.
      *
      * Note: For direct storage operations, use BunnyStorageService instead.
+     *
+     * @param  string  $storageZoneName  Name of the storage zone
+     * @param  string  $path  Path within the storage zone (default: root)
+     * @return array<int, array<string, mixed>>|null Array of file objects or null on failure
      */
     public function listStorageFiles(string $storageZoneName, string $path = '/'): ?array
     {
@@ -274,6 +319,11 @@ class BunnyCdnService
      * Upload a file to storage zone via API.
      *
      * Note: For direct storage operations, use BunnyStorageService instead.
+     *
+     * @param  string  $storageZoneName  Name of the storage zone
+     * @param  string  $path  Target path within the storage zone
+     * @param  string  $contents  File contents to upload
+     * @return bool True if upload was successful, false otherwise
      */
     public function uploadFile(string $storageZoneName, string $path, string $contents): bool
     {
@@ -304,6 +354,10 @@ class BunnyCdnService
      * Delete a file from storage zone via API.
      *
      * Note: For direct storage operations, use BunnyStorageService instead.
+     *
+     * @param  string  $storageZoneName  Name of the storage zone
+     * @param  string  $path  Path of the file to delete
+     * @return bool True if deletion was successful, false otherwise
      */
     public function deleteFile(string $storageZoneName, string $path): bool
     {

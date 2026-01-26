@@ -15,13 +15,19 @@
         "laravel/pennant": "^1.0",
         "livewire/livewire": "^3.0|^4.0"
     },
+    "suggest": {
+        "spatie/laravel-activitylog": "Required for activity logging features (^4.0)"
+    },
     "autoload": {
         "psr-4": {
             "Core\\": "src/Core/",
             "Core\\Website\\": "src/Website/",
             "Core\\Mod\\": "src/Mod/",
             "Core\\Plug\\": "src/Plug/"
-        }
+        },
+        "files": [
+            "src/Core/Media/Thumbnail/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -35,7 +41,8 @@
         "laravel": {
             "providers": [
                 "Core\\LifecycleEventProvider",
-                "Core\\Lang\\LangServiceProvider"
+                "Core\\Lang\\LangServiceProvider",
+                "Core\\Bouncer\\Gate\\Boot"
             ]
         }
     },

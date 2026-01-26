@@ -11,10 +11,32 @@ declare(strict_types=1);
 namespace Core\Crypt;
 
 /**
- * LTHN Protocol QuasiHash.
+ * LTHN Protocol QuasiHash - Deterministic Identifier Generator.
  *
  * A lightweight, deterministic identifier generator for workspace/domain scoping.
- * Used to create vBucket IDs for CDN path isolation.
+ * Used to create vBucket IDs for CDN path isolation and tenant-scoped identifiers.
+ *
+ * ## Algorithm Overview
+ *
+ * The LthnHash algorithm uses a two-step process:
+ *
+ * 1. **Salt Generation**: The input string is reversed and passed through a
+ *    character substitution map (key map), creating a deterministic "salt"
+ * 2. **Hashing**: The original input is concatenated with the salt and hashed
+ *    using SHA-256 (or xxHash/CRC32 for `fastHash()`)
+ *
+ * This produces outputs with good distribution properties while maintaining
+ * determinism - the same input always produces the same output.
+ *
+ * ## Available Hash Algorithms
+ *
+ * | Method | Algorithm | Output Length | Use Case |
+ * |--------|-----------|---------------|----------|
+ * | `hash()` | SHA-256 | 64 hex chars (256 bits) | Default, high quality |
+ * | `shortHash()` | SHA-256 truncated | 16-32 hex chars | Space-constrained IDs |
+ * | `fastHash()` | xxHash or CRC32 | 8-16 hex chars | High-throughput scenarios |
+ * | `vBucketId()` | SHA-256 | 64 hex chars | CDN path isolation |
+ * | `toInt()` | SHA-256 -> int | 60 bits | Sharding/partitioning |
  *
  * ## Security Properties
  *
@@ -40,6 +62,20 @@ namespace Core\Crypt;
  * | 32     | 128  | ~1 in 3.4e38                      | Long-term storage |
  * | 64     | 256  | Negligible                        | Maximum security |
  *
+ * ## Performance Considerations
+ *
+ * For short inputs (< 64 bytes), the default SHA-256 implementation is suitable
+ * for most use cases. For extremely high-throughput scenarios with many short
+ * strings, consider using `fastHash()` which uses xxHash (when available) or
+ * a CRC32-based approach for better performance.
+ *
+ * Benchmark reference (typical values, YMMV):
+ * - SHA-256: ~300k hashes/sec for short strings
+ * - xxHash (via hash extension): ~2M hashes/sec for short strings
+ * - CRC32: ~1.5M hashes/sec for short strings
+ *
+ * Use `benchmark()` to measure actual performance on your system.
+ *
  * ## Key Rotation
  *
  * The class supports multiple key maps for rotation. When verifying, all registered
@@ -50,12 +86,38 @@ namespace Core\Crypt;
  * 3. Verification tries new key first, falls back to old
  * 4. After migration period, remove old key map with `removeKeyMap()`
  *
+ * ## Usage Examples
+ *
+ * ```php
+ * // Generate a vBucket ID for CDN path isolation
+ * $vbucket = LthnHash::vBucketId('workspace.example.com');
+ * // => "a7b3c9d2e1f4g5h6..."
+ *
+ * // Generate a short ID for internal use
+ * $shortId = LthnHash::shortHash('user-12345', LthnHash::MEDIUM_LENGTH);
+ * // => "a7b3c9d2e1f4g5h6i8j9k1l2"
+ *
+ * // High-throughput scenario
+ * $fastId = LthnHash::fastHash('cache-key-123');
+ * // => "1a2b3c4d5e6f7g8h"
+ *
+ * // Sharding: get consistent partition number
+ * $partition = LthnHash::toInt('user@example.com', 16);
+ * // => 7 (always 7 for this input)
+ *
+ * // Verify a hash
+ * $isValid = LthnHash::verify('user-12345', $shortId);
+ * // => true
+ * ```
+ *
  * ## NOT Suitable For
  *
  * - Password hashing (use `password_hash()` instead)
  * - Security tokens (use `random_bytes()` instead)
  * - Cryptographic signatures
  * - Any security-sensitive operations
+ *
+ * @package Core\Crypt
  */
 class LthnHash
 {
@@ -157,11 +219,16 @@ class LthnHash
     }
 
     /**
-     * Verify that a hash matches an input.
+     * Verify that a hash matches an input using constant-time comparison.
      *
      * Tries all registered key maps in order (active key first, then others).
      * This supports key rotation: old hashes remain verifiable while new hashes
      * use the current active key.
+     *
+     * SECURITY NOTE: This method uses hash_equals() for constant-time string
+     * comparison, which prevents timing attacks. Regular string comparison
+     * (== or ===) can leak information about the hash through timing differences.
+     * Always use this method for hash verification rather than direct comparison.
      *
      * @param  string  $input  The original input
      * @param  string  $hash  The hash to verify
@@ -343,5 +410,110 @@ class LthnHash
         $hex = substr($hash, 0, 15);
 
         return gmp_intval(gmp_mod(gmp_init($hex, 16), $max));
+    }
+
+    /**
+     * Generate a fast hash for performance-critical operations.
+     *
+     * Uses xxHash when available (via hash extension), falling back to a
+     * CRC32-based approach. This is significantly faster than SHA-256 for
+     * short inputs but provides less collision resistance.
+     *
+     * Best for:
+     * - High-throughput scenarios (millions of hashes)
+     * - Cache keys and temporary identifiers
+     * - Hash table bucketing
+     *
+     * NOT suitable for:
+     * - Long-term storage identifiers
+     * - Security-sensitive operations
+     * - Cases requiring strong collision resistance
+     *
+     * @param  string  $input  The input string to hash
+     * @param  int  $length  Output length in hex characters (max 16 for xxh64, 8 for crc32)
+     * @return string  Hex hash string
+     */
+    public static function fastHash(string $input, int $length = 16): string
+    {
+        // Apply key map for consistency with standard hash
+        $keyId = self::$activeKey;
+        $reversed = strrev($input);
+        $salted = $input . self::applyKeyMap($reversed, $keyId);
+
+        // Use xxHash if available (PHP 8.1+ with hash extension)
+        if (in_array('xxh64', hash_algos(), true)) {
+            $hash = hash('xxh64', $salted);
+            return substr($hash, 0, min($length, 16));
+        }
+
+        // Fallback: combine two CRC32 variants for 16 hex chars
+        $crc1 = hash('crc32b', $salted);
+        $crc2 = hash('crc32c', strrev($salted));
+        $combined = $crc1 . $crc2;
+
+        return substr($combined, 0, min($length, 16));
+    }
+
+    /**
+     * Run a simple benchmark comparing hash algorithms.
+     *
+     * Returns timing data for hash(), shortHash(), and fastHash() to help
+     * choose the appropriate method for your use case.
+     *
+     * @param  int  $iterations  Number of hash operations to run
+     * @param  string|null  $testInput  Input string to hash (default: random 32 chars)
+     * @return array{
+     *     hash: array{iterations: int, total_ms: float, per_hash_us: float},
+     *     shortHash: array{iterations: int, total_ms: float, per_hash_us: float},
+     *     fastHash: array{iterations: int, total_ms: float, per_hash_us: float},
+     *     fastHash_algorithm: string
+     * }
+     */
+    public static function benchmark(int $iterations = 10000, ?string $testInput = null): array
+    {
+        $testInput ??= bin2hex(random_bytes(16)); // 32 char test string
+
+        // Benchmark hash()
+        $start = hrtime(true);
+        for ($i = 0; $i < $iterations; $i++) {
+            self::hash($testInput . $i);
+        }
+        $hashTime = (hrtime(true) - $start) / 1e6; // Convert to ms
+
+        // Benchmark shortHash()
+        $start = hrtime(true);
+        for ($i = 0; $i < $iterations; $i++) {
+            self::shortHash($testInput . $i);
+        }
+        $shortHashTime = (hrtime(true) - $start) / 1e6;
+
+        // Benchmark fastHash()
+        $start = hrtime(true);
+        for ($i = 0; $i < $iterations; $i++) {
+            self::fastHash($testInput . $i);
+        }
+        $fastHashTime = (hrtime(true) - $start) / 1e6;
+
+        // Determine which algorithm fastHash is using
+        $fastHashAlgo = in_array('xxh64', hash_algos(), true) ? 'xxh64' : 'crc32b+crc32c';
+
+        return [
+            'hash' => [
+                'iterations' => $iterations,
+                'total_ms' => round($hashTime, 2),
+                'per_hash_us' => round(($hashTime * 1000) / $iterations, 3),
+            ],
+            'shortHash' => [
+                'iterations' => $iterations,
+                'total_ms' => round($shortHashTime, 2),
+                'per_hash_us' => round(($shortHashTime * 1000) / $iterations, 3),
+            ],
+            'fastHash' => [
+                'iterations' => $iterations,
+                'total_ms' => round($fastHashTime, 2),
+                'per_hash_us' => round(($fastHashTime * 1000) / $iterations, 3),
+            ],
+            'fastHash_algorithm' => $fastHashAlgo,
+        ];
     }
 }

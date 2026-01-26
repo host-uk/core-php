@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\File;
  *
  * Helps new users set up the framework with sensible defaults.
  * Run: php artisan core:install
+ *
+ * Options:
+ *   --force          Overwrite existing configuration
+ *   --no-interaction Run without prompts using defaults
+ *   --dry-run        Show what would happen without executing
  */
 class InstallCommand extends Command
 {
@@ -26,12 +31,31 @@ class InstallCommand extends Command
      */
     protected $signature = 'core:install
                             {--force : Overwrite existing configuration}
-                            {--no-interaction : Run without prompts using defaults}';
+                            {--no-interaction : Run without prompts using defaults}
+                            {--dry-run : Show what would happen without executing}';
 
     /**
      * The console command description.
      */
     protected $description = 'Install and configure Core PHP Framework';
+
+    /**
+     * Installation steps for progress tracking.
+     *
+     * @var array<string, string>
+     */
+    protected array $installationSteps = [
+        'environment' => 'Setting up environment file',
+        'application' => 'Configuring application settings',
+        'migrations' => 'Running database migrations',
+        'app_key' => 'Generating application key',
+        'storage_link' => 'Creating storage symlink',
+    ];
+
+    /**
+     * Whether this is a dry run.
+     */
+    protected bool $isDryRun = false;
 
     /**
      * Track completed installation steps for rollback.
@@ -50,37 +74,78 @@ class InstallCommand extends Command
      */
     public function handle(): int
     {
+        $this->isDryRun = (bool) $this->option('dry-run');
+
         $this->info('');
         $this->info('  '.__('core::core.installer.title'));
         $this->info('  '.str_repeat('=', strlen(__('core::core.installer.title'))));
+
+        if ($this->isDryRun) {
+            $this->warn('  [DRY RUN] No changes will be made');
+        }
+
         $this->info('');
 
-        // Preserve original state for rollback
-        $this->preserveOriginalState();
+        // Preserve original state for rollback (not needed in dry-run)
+        if (! $this->isDryRun) {
+            $this->preserveOriginalState();
+        }
 
         try {
+            // Show progress bar for all steps
+            $this->info('  Installation Progress:');
+            $this->info('');
+
+            $steps = $this->getInstallationSteps();
+            $progressBar = $this->output->createProgressBar(count($steps));
+            $progressBar->setFormat('  %current%/%max% [%bar%] %percent:3s%% %message%');
+            $progressBar->setMessage('Starting...');
+            $progressBar->start();
+
             // Step 1: Environment file
+            $progressBar->setMessage($this->installationSteps['environment']);
             if (! $this->setupEnvironment()) {
+                $progressBar->finish();
+                $this->newLine();
                 return self::FAILURE;
             }
+            $progressBar->advance();
 
             // Step 2: Application settings
+            $progressBar->setMessage($this->installationSteps['application']);
+            $progressBar->display();
+            $this->newLine();
             $this->configureApplication();
+            $progressBar->advance();
 
             // Step 3: Database
-            if ($this->option('no-interaction') || $this->confirm(__('core::core.installer.prompts.run_migrations'), true)) {
+            $progressBar->setMessage($this->installationSteps['migrations']);
+            $progressBar->display();
+            if ($this->option('no-interaction') || $this->isDryRun || $this->confirm(__('core::core.installer.prompts.run_migrations'), true)) {
                 $this->runMigrations();
             }
+            $progressBar->advance();
 
             // Step 4: Generate app key if needed
+            $progressBar->setMessage($this->installationSteps['app_key']);
             $this->generateAppKey();
+            $progressBar->advance();
 
             // Step 5: Create storage link
+            $progressBar->setMessage($this->installationSteps['storage_link']);
             $this->createStorageLink();
+            $progressBar->advance();
+
+            $progressBar->setMessage('Complete!');
+            $progressBar->finish();
+            $this->newLine(2);
 
             // Done!
-            $this->info('');
-            $this->info('  '.__('core::core.installer.complete'));
+            if ($this->isDryRun) {
+                $this->info('  [DRY RUN] Installation preview complete. No changes were made.');
+            } else {
+                $this->info('  '.__('core::core.installer.complete'));
+            }
             $this->info('');
             $this->info('  '.__('core::core.installer.next_steps').':');
             $this->info('    1. Run: valet link core');
@@ -89,14 +154,40 @@ class InstallCommand extends Command
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
+            $this->newLine();
             $this->error('');
             $this->error('  Installation failed: '.$e->getMessage());
             $this->error('');
 
-            $this->rollback();
+            if (! $this->isDryRun) {
+                $this->rollback();
+            }
 
             return self::FAILURE;
         }
+    }
+
+    /**
+     * Get the list of installation steps to execute.
+     *
+     * @return array<string>
+     */
+    protected function getInstallationSteps(): array
+    {
+        return array_keys($this->installationSteps);
+    }
+
+    /**
+     * Log an action in dry-run mode or execute it.
+     */
+    protected function dryRunOrExecute(string $description, callable $action): mixed
+    {
+        if ($this->isDryRun) {
+            $this->info("    [WOULD] {$description}");
+            return null;
+        }
+
+        return $action();
     }
 
     /**
@@ -176,8 +267,12 @@ class InstallCommand extends Command
             return false;
         }
 
-        File::copy($envExamplePath, $envPath);
-        $this->completedSteps['env_created'] = true;
+        if ($this->isDryRun) {
+            $this->info('    [WOULD] Copy .env.example to .env');
+        } else {
+            File::copy($envExamplePath, $envPath);
+            $this->completedSteps['env_created'] = true;
+        }
         $this->info('  [✓] '.__('core::core.installer.env_created'));
 
         return true;
@@ -190,6 +285,14 @@ class InstallCommand extends Command
     {
         if ($this->option('no-interaction')) {
             $this->info('  [✓] '.__('core::core.installer.default_config'));
+
+            return;
+        }
+
+        if ($this->isDryRun) {
+            $this->info('    [WOULD] Prompt for app name, domain, and database settings');
+            $this->info('    [WOULD] Update .env with configured values');
+            $this->info('  [✓] '.__('core::core.installer.default_config').' (dry-run)');
 
             return;
         }
@@ -276,6 +379,14 @@ class InstallCommand extends Command
     protected function runMigrations(): void
     {
         $this->info('');
+
+        if ($this->isDryRun) {
+            $this->info('    [WOULD] Run: php artisan migrate --force');
+            $this->info('  [✓] '.__('core::core.installer.migrations_complete').' (dry-run)');
+
+            return;
+        }
+
         $this->info('  Running migrations...');
 
         $this->call('migrate', ['--force' => true]);
@@ -291,8 +402,13 @@ class InstallCommand extends Command
         $key = config('app.key');
 
         if (empty($key) || $key === 'base64:') {
-            $this->call('key:generate');
-            $this->info('  [✓] '.__('core::core.installer.key_generated'));
+            if ($this->isDryRun) {
+                $this->info('    [WOULD] Run: php artisan key:generate');
+                $this->info('  [✓] '.__('core::core.installer.key_generated').' (dry-run)');
+            } else {
+                $this->call('key:generate');
+                $this->info('  [✓] '.__('core::core.installer.key_generated'));
+            }
         } else {
             $this->info('  [✓] '.__('core::core.installer.key_exists'));
         }
@@ -307,6 +423,13 @@ class InstallCommand extends Command
 
         if (File::exists($publicStorage)) {
             $this->info('  [✓] '.__('core::core.installer.storage_link_exists'));
+
+            return;
+        }
+
+        if ($this->isDryRun) {
+            $this->info('    [WOULD] Run: php artisan storage:link');
+            $this->info('  [✓] '.__('core::core.installer.storage_link_created').' (dry-run)');
 
             return;
         }
@@ -349,5 +472,22 @@ class InstallCommand extends Command
         }
 
         File::put($envPath, $content);
+    }
+
+    /**
+     * Get shell completion suggestions for options.
+     *
+     * This command has no option values that need completion hints,
+     * but implements the method for consistency with other commands.
+     *
+     * @param  \Symfony\Component\Console\Completion\CompletionInput  $input
+     * @param  \Symfony\Component\Console\Completion\CompletionSuggestions  $suggestions
+     */
+    public function complete(
+        \Symfony\Component\Console\Completion\CompletionInput $input,
+        \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions
+    ): void {
+        // No argument/option values need completion for this command
+        // All options are flags (--force, --no-interaction, --dry-run)
     }
 }

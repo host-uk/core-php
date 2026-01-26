@@ -6,7 +6,10 @@
     $termsUrl = config('core.urls.terms', '/terms');
 @endphp
 <!DOCTYPE html>
-<html lang="en" class="dark scroll-smooth overscroll-none">
+<html lang="en" class="scroll-smooth overscroll-none"
+      x-data="{ darkMode: localStorage.getItem('dark-mode') === 'true' || (localStorage.getItem('dark-mode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches) }"
+      x-init="$watch('darkMode', val => localStorage.setItem('dark-mode', val))"
+      :class="{ 'dark': darkMode }">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -35,7 +38,21 @@
     <!-- Tailwind / Vite -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+    {{-- Prevent flash of wrong theme --}}
+    <script>
+        (function() {
+            var darkMode = localStorage.getItem('dark-mode');
+            if (darkMode === 'true' || (darkMode === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
     <style>
+        /* Prevent flash of unstyled content */
+        html { background-color: #0f172a; }
+        html:not(.dark) { background-color: #f8fafc; }
+
         /* Swing animation for decorative shapes */
         @keyframes swing {
             0%, 100% { transform: rotate(-3deg); }
@@ -47,23 +64,23 @@
         }
     </style>
 </head>
-<body class="font-sans antialiased bg-slate-900 text-slate-100 tracking-tight min-h-screen flex flex-col overflow-x-hidden overscroll-none">
+<body class="font-sans antialiased bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 tracking-tight min-h-screen flex flex-col overflow-x-hidden overscroll-none">
 
     <!-- Decorative background shapes -->
     <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
         <div class="absolute w-[960px] h-24 top-12 left-1/2 -translate-x-1/2 animate-[swing_8s_ease-in-out_infinite] blur-3xl">
-            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-violet-600/30 to-transparent -rotate-[42deg]"></div>
+            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-violet-400/20 dark:via-violet-600/30 to-transparent -rotate-[42deg]"></div>
         </div>
         <div class="absolute w-[960px] h-24 -top-12 left-1/4 animate-[swing_15s_-1s_ease-in-out_infinite] blur-3xl">
-            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-purple-400/20 to-transparent -rotate-[42deg]"></div>
+            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-purple-300/15 dark:via-purple-400/20 to-transparent -rotate-[42deg]"></div>
         </div>
         <div class="absolute w-[960px] h-64 bottom-24 right-1/4 animate-[swing_10s_ease-in-out_infinite] blur-3xl">
-            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-violet-600/10 to-transparent -rotate-[42deg]"></div>
+            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-transparent via-violet-400/10 dark:via-violet-600/10 to-transparent -rotate-[42deg]"></div>
         </div>
     </div>
 
     <!-- Site header -->
-    <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-xl">
+    <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
         <div class="max-w-5xl mx-auto px-4 sm:px-6">
             <div class="flex items-center justify-between h-16">
 
@@ -76,7 +93,7 @@
                     @else
                         <img src="{{ $appIcon }}" alt="{{ $appName }}" class="w-10 h-10">
                     @endif
-                    <span class="font-bold text-lg text-slate-200 group-hover:text-white transition">
+                    <span class="font-bold text-lg text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition">
                         {{ $workspace?->name ?? $appName }}
                     </span>
                 </a>
@@ -84,14 +101,24 @@
                 <!-- Navigation -->
                 <nav class="hidden sm:flex items-center gap-6">
                     @if($workspace)
-                        <a href="/" class="text-sm text-slate-400 hover:text-white transition">Home</a>
-                        <a href="/blog" class="text-sm text-slate-400 hover:text-white transition">Blog</a>
+                        <a href="/" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Home</a>
+                        <a href="/blog" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Blog</a>
                     @endif
                 </nav>
 
                 <!-- Actions -->
                 <div class="flex items-center gap-4">
-                    <a href="{{ $appUrl }}" target="_blank" class="text-sm text-slate-400 hover:text-white transition flex items-center gap-1">
+                    <!-- Theme toggle -->
+                    <button
+                        @click="darkMode = !darkMode"
+                        class="flex items-center justify-center w-9 h-9 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        :aria-label="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+                    >
+                        <i class="fa-solid fa-sun-bright" x-show="darkMode" x-cloak></i>
+                        <i class="fa-solid fa-moon-stars" x-show="!darkMode"></i>
+                    </button>
+
+                    <a href="{{ $appUrl }}" target="_blank" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition flex items-center gap-1">
                         <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
                         <span class="hidden sm:inline">Powered by {{ $appName }}</span>
                     </a>
@@ -107,8 +134,8 @@
     <main class="flex-1 relative">
         <!-- Radial gradient glow at top of content -->
         <div class="absolute flex items-center justify-center top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 pointer-events-none -z-10 w-[800px] aspect-square" aria-hidden="true">
-            <div class="absolute inset-0 translate-z-0 bg-violet-500 rounded-full blur-[120px] opacity-20"></div>
-            <div class="absolute w-64 h-64 translate-z-0 bg-purple-400 rounded-full blur-[80px] opacity-40"></div>
+            <div class="absolute inset-0 translate-z-0 bg-violet-500 rounded-full blur-[120px] opacity-10 dark:opacity-20"></div>
+            <div class="absolute w-64 h-64 translate-z-0 bg-purple-400 rounded-full blur-[80px] opacity-20 dark:opacity-40"></div>
         </div>
 
         {{ $slot }}
@@ -127,9 +154,9 @@
                     </span>
                 </div>
                 <div class="flex items-center gap-6 text-sm text-slate-500">
-                    <a href="{{ $privacyUrl }}" class="hover:text-slate-300 transition">Privacy</a>
-                    <a href="{{ $termsUrl }}" class="hover:text-slate-300 transition">Terms</a>
-                    <a href="{{ $appUrl }}" class="hover:text-slate-300 transition flex items-center gap-1">
+                    <a href="{{ $privacyUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Privacy</a>
+                    <a href="{{ $termsUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition">Terms</a>
+                    <a href="{{ $appUrl }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition flex items-center gap-1">
                         <i class="fa-solid fa-bolt text-violet-400 text-xs"></i>
                         Powered by {{ $appName }}
                     </a>

@@ -63,6 +63,34 @@ return [
         // Report URI for CSP violation reports
         'report_uri' => env('SECURITY_CSP_REPORT_URI'),
 
+        /*
+        |----------------------------------------------------------------------
+        | Nonce-based CSP
+        |----------------------------------------------------------------------
+        |
+        | When enabled, a unique nonce is generated per request and added to
+        | script-src and style-src directives. Inline scripts/styles must
+        | include the nonce attribute to be allowed.
+        |
+        | Usage in Blade:
+        |   <script nonce="{{ csp_nonce() }}">...</script>
+        |   <script @cspnonce>...</script>
+        |
+        */
+
+        // Enable nonce-based CSP (recommended for production)
+        'nonce_enabled' => env('SECURITY_CSP_NONCE_ENABLED', true),
+
+        // Nonce length in bytes (16 = 128 bits, recommended minimum)
+        'nonce_length' => env('SECURITY_CSP_NONCE_LENGTH', 16),
+
+        // Directives to add nonces to
+        'nonce_directives' => ['script-src', 'style-src'],
+
+        // Environments where nonces are skipped (unsafe-inline is used instead)
+        // This avoids issues with hot reload and dev tools
+        'nonce_skip_environments' => ['local', 'development'],
+
         // CSP Directives
         'directives' => [
             'default-src' => ["'self'"],

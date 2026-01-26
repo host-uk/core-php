@@ -5,7 +5,7 @@ Wraps flux:textarea with built-in authorization checking.
 
 Usage:
 <x-forms.textarea id="bio" wire:model="bio" label="Bio" rows="4" />
-<x-forms.textarea id="bio" wire:model="bio" label="Bio" canGate="update" :canResource="$biolink" />
+<x-forms.textarea id="bio" wire:model="bio" label="Bio" canGate="update" :canResource="$page" />
 --}}
 
 @props([

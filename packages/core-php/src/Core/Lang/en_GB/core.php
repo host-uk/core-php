@@ -148,6 +148,12 @@ return [
         'never' => 'Never',
         'just_now' => 'Just now',
         'ago' => ':time ago',
+        'minutes' => '{1} :count minute|[2,*] :count minutes',
+        'hours' => '{1} :count hour|[2,*] :count hours',
+        'days' => '{1} :count day|[2,*] :count days',
+        'weeks' => '{1} :count week|[2,*] :count weeks',
+        'months' => '{1} :count month|[2,*] :count months',
+        'years' => '{1} :count year|[2,*] :count years',
     ],
 
     /*
@@ -175,6 +181,34 @@ return [
         'no_results' => 'No results found.',
         'no_items' => 'No items yet.',
         'get_started' => 'Get started by creating your first item.',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Countable Items (with pluralisation)
+    |--------------------------------------------------------------------------
+    |
+    | These translations support Laravel's pluralisation syntax.
+    | Usage: trans_choice('core::core.items.user', $count)
+    |
+    */
+    'items' => [
+        'user' => '{0} no users|{1} :count user|[2,*] :count users',
+        'item' => '{0} no items|{1} :count item|[2,*] :count items',
+        'result' => '{0} no results|{1} :count result|[2,*] :count results',
+        'file' => '{0} no files|{1} :count file|[2,*] :count files',
+        'page' => '{0} no pages|{1} :count page|[2,*] :count pages',
+        'comment' => '{0} no comments|{1} :count comment|[2,*] :count comments',
+        'notification' => '{0} no notifications|{1} :count notification|[2,*] :count notifications',
+        'message' => '{0} no messages|{1} :count message|[2,*] :count messages',
+        'error' => '{0} no errors|{1} :count error|[2,*] :count errors',
+        'warning' => '{0} no warnings|{1} :count warning|[2,*] :count warnings',
+        'record' => '{0} no records|{1} :count record|[2,*] :count records',
+        'entry' => '{0} no entries|{1} :count entry|[2,*] :count entries',
+        'task' => '{0} no tasks|{1} :count task|[2,*] :count tasks',
+        'issue' => '{0} no issues|{1} :count issue|[2,*] :count issues',
+        'change' => '{0} no changes|{1} :count change|[2,*] :count changes',
+        'selected' => '{0} none selected|{1} :count selected|[2,*] :count selected',
     ],
 
     /*

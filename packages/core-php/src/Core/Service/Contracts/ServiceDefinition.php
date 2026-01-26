@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Core\Service\Contracts;
 
 use Core\Front\Admin\Contracts\AdminMenuProvider;
+use Core\Service\Contracts\ServiceDependency;
 use Core\Service\ServiceVersion;
 
 /**
@@ -22,6 +23,19 @@ use Core\Service\ServiceVersion;
  * - Populates the `platform_services` table for entitlement management
  * - Integrates with the admin menu system via `AdminMenuProvider`
  * - Provides versioning for API compatibility and deprecation tracking
+ *
+ * ## Service Lifecycle Stages
+ *
+ * Services progress through several lifecycle stages:
+ *
+ * | Stage | Description | Key Methods |
+ * |-------|-------------|-------------|
+ * | Discovery | Service class found in module paths | `definition()` |
+ * | Validation | Dependencies checked and verified | `dependencies()`, `version()` |
+ * | Initialization | Service instantiated in correct order | Constructor, DI |
+ * | Runtime | Service handles requests, provides menu | `menuItems()`, `healthCheck()` |
+ * | Deprecation | Service marked for removal | `version()->deprecate()` |
+ * | Sunset | Service no longer available | `version()->isPastSunset()` |
  *
  * ## Service Definition Array
  *
@@ -63,10 +77,27 @@ use Core\Service\ServiceVersion;
  * }
  * ```
  *
+ * ## Health Monitoring
+ *
+ * For services that need health monitoring, also implement `HealthCheckable`:
+ *
+ * ```php
+ * class MyService implements ServiceDefinition, HealthCheckable
+ * {
+ *     public function healthCheck(): HealthCheckResult
+ *     {
+ *         return HealthCheckResult::healthy('All systems operational');
+ *     }
+ * }
+ * ```
+ *
  * @package Core\Service\Contracts
  *
  * @see AdminMenuProvider For menu integration
  * @see ServiceVersion For versioning
+ * @see ServiceDependency For declaring dependencies
+ * @see HealthCheckable For health monitoring
+ * @see ServiceDiscovery For the discovery and resolution process
  */
 interface ServiceDefinition extends AdminMenuProvider
 {
@@ -100,4 +131,29 @@ interface ServiceDefinition extends AdminMenuProvider
      * compatibility with existing services.
      */
     public static function version(): ServiceVersion;
+
+    /**
+     * Get the service dependencies.
+     *
+     * Declare other services that this service depends on. The framework
+     * uses this information to:
+     * - Validate that required dependencies are available at boot time
+     * - Resolve services in correct dependency order
+     * - Detect circular dependencies
+     *
+     * ## Example
+     *
+     * ```php
+     * public static function dependencies(): array
+     * {
+     *     return [
+     *         ServiceDependency::required('auth', '>=1.0.0'),
+     *         ServiceDependency::optional('analytics'),
+     *     ];
+     * }
+     * ```
+     *
+     * @return array<ServiceDependency>
+     */
+    public static function dependencies(): array;
 }

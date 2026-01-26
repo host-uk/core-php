@@ -27,5 +27,6 @@ class Boot
         $event->command(Commands\MakeModCommand::class);
         $event->command(Commands\MakePlugCommand::class);
         $event->command(Commands\MakeWebsiteCommand::class);
+        $event->command(Commands\PruneEmailShieldStatsCommand::class);
     }
 }

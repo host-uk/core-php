@@ -12,21 +12,21 @@ namespace Core\Actions;
  *
  * Convention:
  * - One action per file
- * - Named after what it does: CreateBiolink, PublishPost, SendInvoice
+ * - Named after what it does: CreatePage, PublishPost, SendInvoice
  * - Single public method: handle() or __invoke()
  * - Dependencies injected via constructor
  * - Static run() helper for convenience
  *
  * Usage:
  *   // Via dependency injection
- *   public function __construct(private CreateBiolink $createBiolink) {}
- *   $biolink = $this->createBiolink->handle($user, $data);
+ *   public function __construct(private CreatePage $createPage) {}
+ *   $page = $this->createPage->handle($user, $data);
  *
  *   // Via static helper
- *   $biolink = CreateBiolink::run($user, $data);
+ *   $page = CreatePage::run($user, $data);
  *
  *   // Via app container
- *   $biolink = app(CreateBiolink::class)->handle($user, $data);
+ *   $page = app(CreatePage::class)->handle($user, $data);
  *
  * Directory structure:
  *   app/Mod/{Module}/Actions/

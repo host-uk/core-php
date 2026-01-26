@@ -83,7 +83,7 @@ PEM;
 
     public function test_handles_escaped_newlines_in_key(): void
     {
-        // Simulate how Coolify might pass the key with literal \n
+        // Simulate how Docker environments might pass the key with literal \n
         $keyWithEscapedNewlines = str_replace("\n", '\\n', $this->testPublicKey);
         $_ENV['HADES_PUBLIC_KEY'] = $keyWithEscapedNewlines;
 

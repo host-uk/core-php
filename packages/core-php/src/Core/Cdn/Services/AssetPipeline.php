@@ -18,19 +18,34 @@ use Illuminate\Support\Str;
  * Asset processing pipeline for the dual-bucket CDN architecture.
  *
  * Flow:
- * 1. Store raw upload → private bucket (optional, for processing)
- * 2. Process (resize, optimize, etc.) → handled by caller
- * 3. Store processed → public bucket
+ * 1. Store raw upload -> private bucket (optional, for processing)
+ * 2. Process (resize, optimize, etc.) -> handled by caller
+ * 3. Store processed -> public bucket
  * 4. Push to CDN storage zone
  *
  * Categories define path prefixes:
  * - media: General media uploads
- * - social: SocialHost media
- * - biolink: BioHost assets
+ * - social: Social media assets
+ * - page: Page builder assets
  * - avatar: User/workspace avatars
  * - content: ContentMedia
  * - static: Static assets
- * - widget: TrustHost/NotifyHost widgets
+ * - widget: Widget assets
+ *
+ * ## Methods
+ *
+ * | Method | Returns | Description |
+ * |--------|---------|-------------|
+ * | `store()` | `array` | Process and store an uploaded file to public bucket |
+ * | `storeContents()` | `array` | Store raw content (string/stream) to public bucket |
+ * | `storePrivate()` | `array` | Store to private bucket for DRM/gated content |
+ * | `copy()` | `array` | Copy file between buckets |
+ * | `delete()` | `bool` | Delete an asset from storage and CDN |
+ * | `deleteMany()` | `array` | Delete multiple assets |
+ * | `urls()` | `array` | Get CDN and origin URLs for a path |
+ * | `exists()` | `bool` | Check if a file exists in storage |
+ * | `size()` | `int\|null` | Get file size in bytes |
+ * | `mimeType()` | `string\|null` | Get file MIME type |
  */
 class AssetPipeline
 {
@@ -51,7 +66,7 @@ class AssetPipeline
      * Process and store an uploaded file.
      *
      * @param  UploadedFile  $file  The uploaded file
-     * @param  string  $category  Category key (media, social, biolink, etc.)
+     * @param  string  $category  Category key (media, social, page, etc.)
      * @param  string|null  $filename  Custom filename (auto-generated if null)
      * @param  array  $options  Additional options (workspace_id, user_id, etc.)
      * @return array{path: string, cdn_url: string, origin_url: string, size: int, mime: string}
@@ -160,6 +175,8 @@ class AssetPipeline
      * @param  string  $sourceBucket  Source bucket ('public' or 'private')
      * @param  string  $destBucket  Destination bucket ('public' or 'private')
      * @param  string|null  $destPath  Destination path (same as source if null)
+     * @return array{path: string, bucket: string}
+     * @throws \RuntimeException If source file not found or copy fails
      */
     public function copy(string $sourcePath, string $sourceBucket, string $destBucket, ?string $destPath = null): array
     {
@@ -199,6 +216,7 @@ class AssetPipeline
      *
      * @param  string  $path  File path
      * @param  string  $bucket  'public' or 'private'
+     * @return bool True if deletion was successful
      */
     public function delete(string $path, string $bucket = 'public'): bool
     {
@@ -210,6 +228,7 @@ class AssetPipeline
      *
      * @param  array<string>  $paths  File paths
      * @param  string  $bucket  'public' or 'private'
+     * @return array<string, bool> Map of path to deletion success status
      */
     public function deleteMany(array $paths, string $bucket = 'public'): array
     {
@@ -241,6 +260,7 @@ class AssetPipeline
      * Get URLs for a path.
      *
      * @param  string  $path  File path
+     * @return array{cdn: string, origin: string}
      */
     public function urls(string $path): array
     {
@@ -249,6 +269,11 @@ class AssetPipeline
 
     /**
      * Build storage path from category and filename.
+     *
+     * @param  string  $category  Category key (media, social, etc.)
+     * @param  string  $filename  Filename with extension
+     * @param  array<string, mixed>  $options  Options including workspace_id, user_id
+     * @return string Full storage path
      */
     protected function buildPath(string $category, string $filename, array $options = []): string
     {
@@ -277,6 +302,9 @@ class AssetPipeline
 
     /**
      * Generate a unique filename.
+     *
+     * @param  UploadedFile  $file  The uploaded file
+     * @return string Unique filename with original extension
      */
     protected function generateFilename(UploadedFile $file): string
     {
@@ -288,6 +316,11 @@ class AssetPipeline
 
     /**
      * Queue a CDN push job if auto-push is enabled.
+     *
+     * @param  string  $disk  Laravel disk name
+     * @param  string  $path  Path within the disk
+     * @param  string  $zone  Target CDN zone ('public' or 'private')
+     * @return void
      */
     protected function queueCdnPush(string $disk, string $path, string $zone): void
     {
@@ -318,6 +351,7 @@ class AssetPipeline
      *
      * @param  string  $path  File path
      * @param  string  $bucket  'public' or 'private'
+     * @return bool True if file exists
      */
     public function exists(string $path, string $bucket = 'public'): bool
     {

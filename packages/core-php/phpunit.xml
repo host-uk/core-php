@@ -13,9 +13,13 @@
     <testsuites>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <directory>src/Core/**/Tests/Feature</directory>
+            <directory>src/Mod/**/Tests/Feature</directory>
         </testsuite>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>src/Core/**/Tests/Unit</directory>
+            <directory>src/Mod/**/Tests/Unit</directory>
         </testsuite>
     </testsuites>
     <source>

@@ -55,7 +55,7 @@ class ImageOptimization extends Model
     }
 
     /**
-     * Get the parent optimizable model (BioLink, User, etc.).
+     * Get the parent optimizable model (Page, User, etc.).
      */
     public function optimizable(): MorphTo
     {

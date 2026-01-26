@@ -5,7 +5,7 @@ Wraps flux:checkbox with built-in authorization checking.
 
 Usage:
 <x-forms.checkbox id="notify" wire:model="notify" label="Send notifications" />
-<x-forms.checkbox id="notify" wire:model="notify" label="Send notifications" canGate="update" :canResource="$biolink" />
+<x-forms.checkbox id="notify" wire:model="notify" label="Send notifications" canGate="update" :canResource="$page" />
 --}}
 
 @props([

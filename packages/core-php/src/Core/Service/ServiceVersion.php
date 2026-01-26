@@ -15,6 +15,54 @@ namespace Core\Service;
  *
  * Follows semantic versioning (major.minor.patch) with support
  * for deprecation notices and sunset dates.
+ *
+ * ## Semantic Versioning
+ *
+ * Versions follow [SemVer](https://semver.org/) conventions:
+ *
+ * - **Major**: Breaking changes to the service contract
+ * - **Minor**: New features, backwards compatible
+ * - **Patch**: Bug fixes, backwards compatible
+ *
+ * ## Lifecycle States
+ *
+ * ```
+ * [Active] ──deprecate()──> [Deprecated] ──isPastSunset()──> [Sunset]
+ * ```
+ *
+ * - **Active**: Service is fully supported
+ * - **Deprecated**: Service works but consumers should migrate
+ * - **Sunset**: Service should no longer be used (past sunset date)
+ *
+ * ## Usage Examples
+ *
+ * ```php
+ * // Create a version
+ * $version = new ServiceVersion(2, 1, 0);
+ * echo $version; // "2.1.0"
+ *
+ * // Parse from string
+ * $version = ServiceVersion::fromString('v2.1.0');
+ *
+ * // Mark as deprecated with sunset date
+ * $version = (new ServiceVersion(1, 0, 0))
+ *     ->deprecate(
+ *         'Migrate to v2.x - see docs/migration.md',
+ *         new \DateTimeImmutable('2025-06-01')
+ *     );
+ *
+ * // Check compatibility
+ * $minimum = new ServiceVersion(1, 5, 0);
+ * $current = new ServiceVersion(1, 8, 2);
+ * $current->isCompatibleWith($minimum); // true (same major, >= minor)
+ *
+ * // Check if past sunset
+ * if ($version->isPastSunset()) {
+ *     throw new ServiceSunsetException('Service no longer available');
+ * }
+ * ```
+ *
+ * @package Core\Service
  */
 final readonly class ServiceVersion
 {

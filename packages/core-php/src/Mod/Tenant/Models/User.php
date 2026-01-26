@@ -279,21 +279,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // BioLink Relationships
+    // Page Relationships
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Get all biolinks owned by this user.
+     * Get all pages owned by this user.
      */
-    public function biolinks(): HasMany
+    public function pages(): HasMany
     {
         return $this->hasMany(Page::class);
     }
 
     /**
-     * Get all biolink projects (folders) owned by this user.
+     * Get all page projects (folders) owned by this user.
      */
-    public function biolinkProjects(): HasMany
+    public function pageProjects(): HasMany
     {
         return $this->hasMany(Project::class);
     }
@@ -301,7 +301,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get all custom domains owned by this user.
      */
-    public function biolinkDomains(): HasMany
+    public function pageDomains(): HasMany
     {
         return $this->hasMany(Domain::class);
     }
@@ -309,7 +309,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get all tracking pixels owned by this user.
      */
-    public function biolinkPixels(): HasMany
+    public function pagePixels(): HasMany
     {
         return $this->hasMany(Pixel::class);
     }
@@ -371,21 +371,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Social Proof Relationships
+    // Trust Widget Relationships
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Get all social proof campaigns owned by this user.
+     * Get all trust campaigns owned by this user.
      */
-    public function socialProofCampaigns(): HasMany
+    public function trustCampaigns(): HasMany
     {
         return $this->hasMany(TrustCampaign::class);
     }
 
     /**
-     * Get all social proof notifications owned by this user.
+     * Get all trust notifications owned by this user.
      */
-    public function socialProofNotifications(): HasMany
+    public function trustNotifications(): HasMany
     {
         return $this->hasMany(TrustNotification::class);
     }
@@ -464,7 +464,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canCreateBioPage(): bool
     {
-        return $this->biolinks()->rootPages()->count() < $this->getBioPagesLimit();
+        return $this->pages()->rootPages()->count() < $this->getBioPagesLimit();
     }
 
     /**
@@ -472,7 +472,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function remainingBioPageSlots(): int
     {
-        return max(0, $this->getBioPagesLimit() - $this->biolinks()->rootPages()->count());
+        return max(0, $this->getBioPagesLimit() - $this->pages()->rootPages()->count());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -501,7 +501,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getSubPagesCount(): int
     {
-        return $this->biolinks()->subPages()->count();
+        return $this->pages()->subPages()->count();
     }
 
     /**

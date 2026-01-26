@@ -26,13 +26,83 @@ use Core\Config\Models\ConfigValue;
  * Single hash: ConfigResolver::$values
  * Read path: hash lookup → lazy load scope → compute if needed
  *
- * Usage:
- *   $config = app(ConfigService::class);
- *   $value = $config->get('cdn.bunny.api_key', $workspace);
- *   $config->set('cdn.bunny.api_key', 'new-value', $profile);
+ * ## Usage
  *
- *   // Module Boot.php - provide runtime value (no DB)
- *   $config->provide('mymodule.api_key', env('MYMODULE_API_KEY'));
+ * ```php
+ * $config = app(ConfigService::class);
+ * $value = $config->get('cdn.bunny.api_key', $workspace);
+ * $config->set('cdn.bunny.api_key', 'new-value', $profile);
+ *
+ * // Module Boot.php - provide runtime value (no DB)
+ * $config->provide('mymodule.api_key', env('MYMODULE_API_KEY'));
+ * ```
+ *
+ * ## Cache Invalidation Strategy
+ *
+ * The Config module uses a two-tier caching system:
+ *
+ * ### Tier 1: In-Memory Hash (Process-Scoped)
+ * - `ConfigResolver::$values` - Static array holding all config values
+ * - Cleared on process termination (dies with the request)
+ * - Cleared explicitly via `ConfigResolver::clearAll()` or `ConfigResolver::clear($key)`
+ *
+ * ### Tier 2: Database Resolved Table (Persistent)
+ * - `config_resolved` table - Materialised config resolution
+ * - Survives across requests, shared between all processes
+ * - Cleared via `ConfigResolved::clearScope()`, `clearWorkspace()`, or `clearKey()`
+ *
+ * ### Invalidation Triggers
+ *
+ * 1. **On Config Change (`set()`):**
+ *    - Clears the specific key from both hash and database
+ *    - Re-primes the key for the affected scope
+ *    - Dispatches `ConfigChanged` event for module hooks
+ *
+ * 2. **On Lock/Unlock:**
+ *    - Re-primes the key (lock affects all child scopes)
+ *    - Dispatches `ConfigLocked` event
+ *
+ * 3. **Manual Invalidation:**
+ *    - `invalidateWorkspace($workspace)` - Clears all config for a workspace
+ *    - `invalidateKey($key)` - Clears a key across all scopes
+ *    - Both dispatch `ConfigInvalidated` event
+ *
+ * 4. **Full Re-prime:**
+ *    - `prime($workspace)` - Clears and recomputes all config for a scope
+ *    - `primeAll()` - Primes system config + all workspaces (scheduled job)
+ *
+ * ### Lazy Loading
+ *
+ * When a key is not found in the hash:
+ * 1. If scope not loaded, `loadScope()` loads all resolved values for the scope
+ * 2. If still not found, `resolve()` computes and stores the value
+ * 3. Result is stored in both hash (for current request) and database (persistent)
+ *
+ * ### Events for Module Integration
+ *
+ * Modules can listen to cache events to refresh their own caches:
+ * - `ConfigChanged` - Fired when a config value is set/updated
+ * - `ConfigLocked` - Fired when a config value is locked
+ * - `ConfigInvalidated` - Fired when cache is manually invalidated
+ *
+ * ```php
+ * // In your module's Boot.php
+ * public static array $listens = [
+ *     ConfigChanged::class => 'onConfigChanged',
+ * ];
+ *
+ * public function onConfigChanged(ConfigChanged $event): void
+ * {
+ *     if ($event->keyCode === 'mymodule.api_key') {
+ *         $this->refreshApiClient();
+ *     }
+ * }
+ * ```
+ *
+ * @see ConfigResolver For the caching hash implementation
+ * @see ConfigResolved For the database cache model
+ * @see ConfigChanged Event fired on config changes
+ * @see ConfigInvalidated Event fired on cache invalidation
  */
 class ConfigService
 {
@@ -461,6 +531,20 @@ class ConfigService
      *
      * Populates both hash (process-scoped) and database (persistent).
      *
+     * ## When to Call Prime
+     *
+     * - After creating a new workspace
+     * - After bulk config changes (migrations, imports)
+     * - From a scheduled job (`config:prime` command)
+     * - After significant profile hierarchy changes
+     *
+     * ## What Prime Does
+     *
+     * 1. Clears existing resolved values (hash + DB) for the scope
+     * 2. Runs full resolution for all config keys
+     * 3. Stores results in both hash and database
+     * 4. Marks hash as "loaded" to prevent re-loading
+     *
      * @param  object|null  $workspace  Workspace model instance or null for system scope
      */
     public function prime(?object $workspace = null, string|Channel|null $channel = null): void
@@ -566,6 +650,31 @@ class ConfigService
      *
      * Clears both hash and database. Next read will lazy-prime.
      * Fires ConfigInvalidated event.
+     *
+     * ## Cache Invalidation Behaviour
+     *
+     * This method performs a "soft" invalidation:
+     * - Clears the in-memory hash (immediate effect)
+     * - Clears the database resolved table (persistent effect)
+     * - Does NOT re-compute values immediately
+     * - Values are lazy-loaded on next read (lazy-prime)
+     *
+     * Use `prime()` instead if you need immediate re-computation.
+     *
+     * ## Listening for Invalidation
+     *
+     * ```php
+     * use Core\Config\Events\ConfigInvalidated;
+     *
+     * public function handle(ConfigInvalidated $event): void
+     * {
+     *     if ($event->isFull()) {
+     *         // Full invalidation - clear all module caches
+     *     } elseif ($event->affectsKey('mymodule.setting')) {
+     *         // Specific key was invalidated
+     *     }
+     * }
+     * ```
      *
      * @param  object|null  $workspace  Workspace model instance or null for system scope
      */

@@ -10,6 +10,9 @@ declare(strict_types=1);
 
 namespace Core\Media\Abstracts;
 
+use Core\Media\Events\ConversionProgress;
+use Core\Media\Jobs\ProcessMediaConversion;
+use Core\Media\Support\ConversionProgressReporter;
 use Core\Media\Support\MediaConversionData;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -19,6 +22,33 @@ use Illuminate\Support\Str;
  *
  * Provides common functionality for media processing operations
  * such as image resizing, thumbnail generation, and video processing.
+ *
+ * Supports queueing for large files to prevent request timeouts.
+ * Configure via 'media.queue_threshold_mb' (default: 5MB).
+ *
+ * ## Progress Reporting
+ *
+ * Conversions can report progress through callbacks and/or events:
+ *
+ * ```php
+ * $conversion = new MediaImageResizerConversion();
+ * $conversion->filepath('image.jpg')
+ *     ->onProgress(function (int $percent, string $stage, ?string $message) {
+ *         echo "Progress: {$percent}%\n";
+ *     })
+ *     ->execute();
+ * ```
+ *
+ * Or listen for events:
+ *
+ * ```php
+ * Event::listen(ConversionProgress::class, function ($event) {
+ *     Log::info("Conversion {$event->stage}: {$event->percent}%");
+ * });
+ * ```
+ *
+ * @see ConversionProgress For progress event details
+ * @see ConversionProgressReporter For progress reporting implementation
  */
 abstract class MediaConversion
 {
@@ -31,6 +61,35 @@ abstract class MediaConversion
     protected string $name = '';
 
     protected string $suffix = '';
+
+    /**
+     * Whether to force synchronous processing (bypass queue).
+     */
+    protected bool $forceSync = false;
+
+    /**
+     * Additional options for conversion-specific configuration.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $options = [];
+
+    /**
+     * Progress callback for reporting conversion progress.
+     *
+     * @var callable|null
+     */
+    protected $progressCallback = null;
+
+    /**
+     * Whether to dispatch progress events.
+     */
+    protected bool $dispatchProgressEvents = true;
+
+    /**
+     * Progress reporter instance.
+     */
+    protected ?ConversionProgressReporter $progressReporter = null;
 
     /**
      * Image MIME types.
@@ -167,6 +226,241 @@ abstract class MediaConversion
     public function getSuffix(): string
     {
         return $this->suffix;
+    }
+
+    /**
+     * Force synchronous processing, bypassing the queue.
+     */
+    public function sync(): static
+    {
+        $this->forceSync = true;
+
+        return $this;
+    }
+
+    /**
+     * Set a conversion-specific option.
+     */
+    public function option(string $key, mixed $value): static
+    {
+        $this->options[$key] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get the conversion options.
+     *
+     * @return array<string, mixed>
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
+
+    /**
+     * Set a progress callback.
+     *
+     * The callback receives three arguments:
+     * - int $percent: Progress percentage (0-100)
+     * - string $stage: Progress stage (started, processing, completed, failed)
+     * - ?string $message: Optional status message
+     *
+     * @param  callable  $callback  Progress callback
+     * @return $this
+     */
+    public function onProgress(callable $callback): static
+    {
+        $this->progressCallback = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Enable or disable progress event dispatching.
+     *
+     * @param  bool  $dispatch  Whether to dispatch events
+     * @return $this
+     */
+    public function withProgressEvents(bool $dispatch = true): static
+    {
+        $this->dispatchProgressEvents = $dispatch;
+
+        return $this;
+    }
+
+    /**
+     * Disable progress event dispatching.
+     *
+     * @return $this
+     */
+    public function withoutProgressEvents(): static
+    {
+        return $this->withProgressEvents(false);
+    }
+
+    /**
+     * Get the progress reporter instance.
+     *
+     * Creates and configures a progress reporter for this conversion.
+     * Call this in your handle() method to report progress.
+     *
+     * @return ConversionProgressReporter
+     */
+    protected function getProgressReporter(): ConversionProgressReporter
+    {
+        if ($this->progressReporter === null) {
+            $this->progressReporter = new ConversionProgressReporter(
+                $this->filepath,
+                $this->getEngineName()
+            );
+
+            $this->progressReporter->withEvents($this->dispatchProgressEvents);
+
+            if ($this->progressCallback !== null) {
+                $this->progressReporter->onProgress($this->progressCallback);
+            }
+
+            $this->progressReporter->withContext([
+                'fromDisk' => $this->fromDisk,
+                'toDisk' => $this->toDisk,
+                'name' => $this->name,
+            ]);
+        }
+
+        return $this->progressReporter;
+    }
+
+    /**
+     * Report progress (convenience method).
+     *
+     * Shorthand for getProgressReporter()->progress($percent, $message).
+     *
+     * @param  int  $percent  Progress percentage (0-100)
+     * @param  string|null  $message  Optional status message
+     * @return void
+     */
+    protected function reportProgress(int $percent, ?string $message = null): void
+    {
+        $this->getProgressReporter()->progress($percent, $message);
+    }
+
+    /**
+     * Report progress from item counts (convenience method).
+     *
+     * @param  int  $current  Current item number
+     * @param  int  $total  Total items
+     * @param  string|null  $message  Optional status message
+     * @return void
+     */
+    protected function reportProgressItems(int $current, int $total, ?string $message = null): void
+    {
+        $this->getProgressReporter()->progressItems($current, $total, $message);
+    }
+
+    /**
+     * Execute the conversion, queueing if file exceeds threshold.
+     *
+     * @return MediaConversionData|null Returns null if queued
+     */
+    public function execute(): ?MediaConversionData
+    {
+        if (! $this->canPerform()) {
+            return null;
+        }
+
+        // Check if we should queue this conversion
+        if (! $this->forceSync && $this->shouldQueue()) {
+            $this->dispatchToQueue();
+
+            return null;
+        }
+
+        // Report start
+        $reporter = $this->getProgressReporter();
+        $reporter->start();
+
+        try {
+            $result = $this->handle();
+
+            // Report completion
+            $reporter->complete($result?->path);
+
+            return $result;
+        } catch (\Throwable $e) {
+            // Report failure
+            $reporter->fail($e->getMessage(), $e);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Check if the file size exceeds the queue threshold.
+     */
+    protected function shouldQueue(): bool
+    {
+        $thresholdMb = config('media.queue_threshold_mb', 5);
+
+        if ($thresholdMb <= 0) {
+            return false;
+        }
+
+        $fileSize = $this->getFileSize();
+
+        if ($fileSize === null) {
+            return false;
+        }
+
+        $thresholdBytes = $thresholdMb * 1024 * 1024;
+
+        return $fileSize > $thresholdBytes;
+    }
+
+    /**
+     * Get the source file size in bytes.
+     */
+    protected function getFileSize(): ?int
+    {
+        $disk = $this->filesystem($this->fromDisk);
+
+        if (! $disk->exists($this->filepath)) {
+            return null;
+        }
+
+        return $disk->size($this->filepath);
+    }
+
+    /**
+     * Dispatch the conversion to the queue.
+     */
+    protected function dispatchToQueue(): void
+    {
+        $config = [
+            'filepath' => $this->filepath,
+            'fromDisk' => $this->fromDisk,
+            'toDisk' => $this->toDisk,
+            'name' => $this->name,
+            'suffix' => $this->suffix,
+            'options' => $this->buildQueueOptions(),
+        ];
+
+        $queue = config('media.queue_name', 'default');
+
+        ProcessMediaConversion::dispatch(static::class, $config)
+            ->onQueue($queue);
+    }
+
+    /**
+     * Build options array for queue serialization.
+     *
+     * Override in subclasses to include conversion-specific options.
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildQueueOptions(): array
+    {
+        return $this->options;
     }
 
     /**

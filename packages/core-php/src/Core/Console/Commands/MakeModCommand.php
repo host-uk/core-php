@@ -42,6 +42,13 @@ class MakeModCommand extends Command
     protected $description = 'Create a new module in the Mod namespace';
 
     /**
+     * Files created during generation for summary table.
+     *
+     * @var array<array{file: string, description: string}>
+     */
+    protected array $createdFiles = [];
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -50,13 +57,18 @@ class MakeModCommand extends Command
         $modulePath = $this->getModulePath($name);
 
         if (File::isDirectory($modulePath) && ! $this->option('force')) {
-            $this->error("Module [{$name}] already exists!");
-            $this->info("Use --force to overwrite.");
+            $this->newLine();
+            $this->components->error("Module [{$name}] already exists!");
+            $this->newLine();
+            $this->components->warn('Use --force to overwrite the existing module.');
+            $this->newLine();
 
             return self::FAILURE;
         }
 
-        $this->info("Creating module: {$name}");
+        $this->newLine();
+        $this->components->info("Creating module: <comment>{$name}</comment>");
+        $this->newLine();
 
         // Create directory structure
         $this->createDirectoryStructure($modulePath);
@@ -67,15 +79,26 @@ class MakeModCommand extends Command
         // Create optional route files based on flags
         $this->createOptionalFiles($modulePath, $name);
 
-        $this->info('');
-        $this->info("Module [{$name}] created successfully!");
-        $this->info('');
-        $this->info('Location: '.$modulePath);
-        $this->info('');
-        $this->info('Next steps:');
-        $this->info('  1. Add your module logic to the Boot.php event handlers');
-        $this->info('  2. Create Models, Views, and Controllers as needed');
-        $this->info('');
+        // Show summary table of created files
+        $this->newLine();
+        $this->components->twoColumnDetail('<fg=green;options=bold>Created Files</>', '<fg=gray>Description</>');
+        foreach ($this->createdFiles as $file) {
+            $this->components->twoColumnDetail(
+                "<fg=cyan>{$file['file']}</>",
+                "<fg=gray>{$file['description']}</>"
+            );
+        }
+
+        $this->newLine();
+        $this->components->info("Module [{$name}] created successfully!");
+        $this->newLine();
+        $this->components->twoColumnDetail('Location', "<fg=yellow>{$modulePath}</>");
+        $this->newLine();
+
+        $this->components->info('Next steps:');
+        $this->line('  <fg=gray>1.</> Add your module logic to the Boot.php event handlers');
+        $this->line('  <fg=gray>2.</> Create Models, Views, and Controllers as needed');
+        $this->newLine();
 
         return self::SUCCESS;
     }
@@ -120,7 +143,7 @@ class MakeModCommand extends Command
             File::ensureDirectoryExists($directory);
         }
 
-        $this->info('  [+] Created directory structure');
+        $this->components->task('Creating directory structure', fn () => true);
     }
 
     /**
@@ -174,7 +197,8 @@ class Boot
 PHP;
 
         File::put("{$modulePath}/Boot.php", $content);
-        $this->info('  [+] Created Boot.php');
+        $this->createdFiles[] = ['file' => 'Boot.php', 'description' => 'Event-driven module loader'];
+        $this->components->task('Creating Boot.php', fn () => true);
     }
 
     /**
@@ -385,7 +409,8 @@ Route::prefix('{$moduleName}')->group(function () {
 PHP;
 
         File::put("{$modulePath}/Routes/web.php", $content);
-        $this->info('  [+] Created Routes/web.php');
+        $this->createdFiles[] = ['file' => 'Routes/web.php', 'description' => 'Public web routes'];
+        $this->components->task('Creating Routes/web.php', fn () => true);
     }
 
     /**
@@ -418,7 +443,8 @@ Route::prefix('{$moduleName}')->name('{$moduleName}.admin.')->group(function () 
 PHP;
 
         File::put("{$modulePath}/Routes/admin.php", $content);
-        $this->info('  [+] Created Routes/admin.php');
+        $this->createdFiles[] = ['file' => 'Routes/admin.php', 'description' => 'Admin panel routes'];
+        $this->components->task('Creating Routes/admin.php', fn () => true);
     }
 
     /**
@@ -451,7 +477,8 @@ Route::prefix('{$moduleName}')->name('api.{$moduleName}.')->group(function () {
 PHP;
 
         File::put("{$modulePath}/Routes/api.php", $content);
-        $this->info('  [+] Created Routes/api.php');
+        $this->createdFiles[] = ['file' => 'Routes/api.php', 'description' => 'REST API routes'];
+        $this->components->task('Creating Routes/api.php', fn () => true);
     }
 
     /**
@@ -472,6 +499,31 @@ PHP;
 BLADE;
 
         File::put("{$modulePath}/View/Blade/index.blade.php", $content);
-        $this->info('  [+] Created View/Blade/index.blade.php');
+        $this->createdFiles[] = ['file' => 'View/Blade/index.blade.php', 'description' => 'Sample index view'];
+        $this->components->task('Creating View/Blade/index.blade.php', fn () => true);
+    }
+
+    /**
+     * Get shell completion suggestions for arguments.
+     *
+     * @param  \Symfony\Component\Console\Completion\CompletionInput  $input
+     * @param  \Symfony\Component\Console\Completion\CompletionSuggestions  $suggestions
+     */
+    public function complete(
+        \Symfony\Component\Console\Completion\CompletionInput $input,
+        \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions
+    ): void {
+        if ($input->mustSuggestArgumentValuesFor('name')) {
+            // Suggest common module naming patterns
+            $suggestions->suggestValues([
+                'Auth',
+                'Blog',
+                'Content',
+                'Dashboard',
+                'Media',
+                'Settings',
+                'Users',
+            ]);
+        }
     }
 }

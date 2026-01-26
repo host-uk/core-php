@@ -10,6 +10,13 @@ declare(strict_types=1);
 
 namespace Core\Lang;
 
+use Core\Lang\Console\Commands\TranslationCoverageCommand;
+use Core\Lang\Console\Commands\TranslationMemoryCommand;
+use Core\Lang\Coverage\TranslationCoverage;
+use Core\Lang\TranslationMemory\Contracts\TranslationMemoryRepository;
+use Core\Lang\TranslationMemory\JsonTranslationMemoryRepository;
+use Core\Lang\TranslationMemory\TranslationMemory;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Translation\Translator;
@@ -21,6 +28,7 @@ use Illuminate\Translation\Translator;
  * - Automatic discovery via Laravel's package discovery
  * - Fallback locale chain support (e.g., en_GB -> en -> fallback)
  * - Translation key validation with development warnings
+ * - Translation memory with fuzzy matching and TMX import/export
  *
  * Configuration options in config/core.php:
  *   'lang' => [
@@ -28,10 +36,31 @@ use Illuminate\Translation\Translator;
  *       'validate_keys' => true,            // Warn about missing keys in dev
  *       'log_missing_keys' => true,         // Log missing keys
  *       'missing_key_log_level' => 'debug', // Log level for missing keys
+ *       'icu_enabled' => true,              // Enable ICU message format support
+ *       'translation_memory' => [
+ *           'enabled' => true,
+ *           'storage_path' => storage_path('framework/translation-memory'),
+ *           'driver' => 'json', // json, database
+ *           'fuzzy' => [
+ *               'min_similarity' => 0.6,
+ *               'max_results' => 10,
+ *               'algorithm' => 'combined', // levenshtein, token, ngram, combined
+ *           ],
+ *       ],
  *   ]
  */
 class LangServiceProvider extends ServiceProvider
 {
+    /**
+     * Register services.
+     */
+    public function register(): void
+    {
+        $this->registerIcuFormatter();
+        $this->registerCoverageService();
+        $this->registerTranslationMemory();
+    }
+
     /**
      * Bootstrap services.
      */
@@ -41,6 +70,76 @@ class LangServiceProvider extends ServiceProvider
         $this->publishTranslations();
         $this->setupFallbackChain();
         $this->setupMissingKeyValidation();
+        $this->registerCommands();
+    }
+
+    /**
+     * Register the ICU message formatter.
+     */
+    protected function registerIcuFormatter(): void
+    {
+        $this->app->singleton(IcuMessageFormatter::class, function (Application $app) {
+            return new IcuMessageFormatter($app->getLocale());
+        });
+
+        // Register an alias for easier access
+        $this->app->alias(IcuMessageFormatter::class, 'icu.formatter');
+    }
+
+    /**
+     * Register the translation coverage service.
+     */
+    protected function registerCoverageService(): void
+    {
+        $this->app->singleton(TranslationCoverage::class);
+    }
+
+    /**
+     * Register the translation memory service.
+     */
+    protected function registerTranslationMemory(): void
+    {
+        // Register the repository
+        $this->app->singleton(TranslationMemoryRepository::class, function (Application $app) {
+            $driver = config('core.lang.translation_memory.driver', 'json');
+
+            if ($driver === 'json') {
+                $storagePath = config(
+                    'core.lang.translation_memory.storage_path',
+                    storage_path('framework/translation-memory')
+                );
+
+                return new JsonTranslationMemoryRepository($storagePath);
+            }
+
+            // Default to JSON repository
+            return new JsonTranslationMemoryRepository(
+                storage_path('framework/translation-memory')
+            );
+        });
+
+        // Register the main service
+        $this->app->singleton(TranslationMemory::class, function (Application $app) {
+            return new TranslationMemory(
+                $app->make(TranslationMemoryRepository::class)
+            );
+        });
+
+        // Register an alias for easier access
+        $this->app->alias(TranslationMemory::class, 'translation.memory');
+    }
+
+    /**
+     * Register console commands.
+     */
+    protected function registerCommands(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                TranslationCoverageCommand::class,
+                TranslationMemoryCommand::class,
+            ]);
+        }
     }
 
     /**

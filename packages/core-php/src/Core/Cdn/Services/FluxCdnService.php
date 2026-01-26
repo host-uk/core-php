@@ -20,13 +20,34 @@ use Flux\Flux;
  * In production: Uses CDN URLs (cdn.host.uk.com/flux/flux.min.js)
  *
  * Requires Flux assets to be uploaded to CDN storage zone.
+ *
+ * URL building is delegated to CdnUrlBuilder for consistency across services.
+ *
+ * ## Methods
+ *
+ * | Method | Returns | Description |
+ * |--------|---------|-------------|
+ * | `scripts()` | `string` | Get Flux scripts tag with CDN awareness |
+ * | `editorScripts()` | `string` | Get Flux editor scripts (Pro only) |
+ * | `editorStyles()` | `string` | Get Flux editor styles (Pro only) |
+ * | `shouldUseCdn()` | `bool` | Check if CDN should be used |
+ * | `getCdnAssetPaths()` | `array<string, string>` | Get source-to-CDN path mapping |
+ *
+ * @see CdnUrlBuilder For the underlying URL building logic
  */
 class FluxCdnService
 {
+    protected CdnUrlBuilder $urlBuilder;
+
+    public function __construct(?CdnUrlBuilder $urlBuilder = null)
+    {
+        $this->urlBuilder = $urlBuilder ?? new CdnUrlBuilder;
+    }
     /**
      * Get the Flux scripts tag with CDN awareness.
      *
-     * @param  array  $options  Options like ['nonce' => 'abc123']
+     * @param  array<string, mixed>  $options  Options like ['nonce' => 'abc123']
+     * @return string HTML script tag
      */
     public function scripts(array $options = []): string
     {
@@ -47,6 +68,9 @@ class FluxCdnService
 
     /**
      * Get the Flux editor scripts tag with CDN awareness.
+     *
+     * @return string HTML script tag for Flux editor
+     * @throws \Exception When Flux Pro is not available
      */
     public function editorScripts(): string
     {
@@ -69,6 +93,9 @@ class FluxCdnService
 
     /**
      * Get the Flux editor styles tag with CDN awareness.
+     *
+     * @return string HTML link tag for Flux editor styles
+     * @throws \Exception When Flux Pro is not available
      */
     public function editorStyles(): string
     {
@@ -90,6 +117,9 @@ class FluxCdnService
 
     /**
      * Get version hash from Flux manifest.
+     *
+     * @param  string  $key  Manifest key to look up
+     * @return string 8-character hash for cache busting
      */
     protected function getVersionHash(string $key = '/flux.js'): string
     {
@@ -108,7 +138,10 @@ class FluxCdnService
 
     /**
      * Check if we should use CDN for Flux assets.
+     *
      * Respects CDN_FORCE_LOCAL for testing.
+     *
+     * @return bool True if CDN should be used, false for local assets
      */
     public function shouldUseCdn(): bool
     {
@@ -120,18 +153,24 @@ class FluxCdnService
      *
      * Flux assets are shared across all workspaces, so they don't use
      * workspace-specific vBucket prefixes.
+     *
+     * @param  string  $path  Asset path relative to CDN root
+     * @param  string|null  $version  Optional version hash for cache busting
+     * @return string Full CDN URL with optional version query parameter
      */
     protected function cdnUrl(string $path, ?string $version = null): string
     {
         $cdnUrl = config('cdn.urls.cdn');
 
         if (empty($cdnUrl)) {
-            return asset($path).($version ? "?id={$version}" : '');
+            $baseUrl = asset($path);
+
+            return $this->urlBuilder->withVersion($baseUrl, $version);
         }
 
-        $url = rtrim($cdnUrl, '/').'/'.ltrim($path, '/');
+        $url = $this->urlBuilder->cdn($path);
 
-        return $version ? "{$url}?id={$version}" : $url;
+        return $this->urlBuilder->withVersion($url, $version);
     }
 
     /**

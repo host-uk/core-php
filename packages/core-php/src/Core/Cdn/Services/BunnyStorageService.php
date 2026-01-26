@@ -12,6 +12,8 @@ namespace Core\Cdn\Services;
 
 use Core\Config\ConfigService;
 use Core\Crypt\LthnHash;
+use Core\Service\Contracts\HealthCheckable;
+use Core\Service\HealthCheckResult;
 use Bunny\Storage\Client;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -24,8 +26,9 @@ use Illuminate\Support\Facades\Storage;
  * - Private zone: DRM/gated content
  *
  * Supports vBucket scoping for workspace-isolated CDN paths.
+ * Implements HealthCheckable for monitoring CDN connectivity.
  */
-class BunnyStorageService
+class BunnyStorageService implements HealthCheckable
 {
     protected ?Client $publicClient = null;
 
@@ -45,6 +48,80 @@ class BunnyStorageService
      * Base delay in milliseconds for exponential backoff.
      */
     protected const RETRY_BASE_DELAY_MS = 100;
+
+    /**
+     * Common MIME type mappings by file extension.
+     *
+     * @var array<string, string>
+     */
+    protected const MIME_TYPES = [
+        // Images
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'svg' => 'image/svg+xml',
+        'ico' => 'image/x-icon',
+        'avif' => 'image/avif',
+        'heic' => 'image/heic',
+        'heif' => 'image/heif',
+
+        // Documents
+        'pdf' => 'application/pdf',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+
+        // Text/Code
+        'txt' => 'text/plain',
+        'html' => 'text/html',
+        'htm' => 'text/html',
+        'css' => 'text/css',
+        'js' => 'application/javascript',
+        'mjs' => 'application/javascript',
+        'json' => 'application/json',
+        'xml' => 'application/xml',
+        'csv' => 'text/csv',
+        'md' => 'text/markdown',
+
+        // Audio
+        'mp3' => 'audio/mpeg',
+        'wav' => 'audio/wav',
+        'ogg' => 'audio/ogg',
+        'flac' => 'audio/flac',
+        'aac' => 'audio/aac',
+        'm4a' => 'audio/mp4',
+
+        // Video
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'mkv' => 'video/x-matroska',
+        'avi' => 'video/x-msvideo',
+        'mov' => 'video/quicktime',
+        'm4v' => 'video/mp4',
+
+        // Archives
+        'zip' => 'application/zip',
+        'tar' => 'application/x-tar',
+        'gz' => 'application/gzip',
+        'rar' => 'application/vnd.rar',
+        '7z' => 'application/x-7z-compressed',
+
+        // Fonts
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'otf' => 'font/otf',
+        'eot' => 'application/vnd.ms-fontobject',
+
+        // Other
+        'wasm' => 'application/wasm',
+        'map' => 'application/json',
+    ];
 
     public function __construct(
         protected ConfigService $config,
@@ -154,14 +231,19 @@ class BunnyStorageService
             return false;
         }
 
-        return $this->executeWithRetry(function () use ($client, $localPath, $remotePath, $zone) {
-            $client->upload($localPath, $remotePath);
+        $contentType = $this->detectContentType($localPath);
+
+        return $this->executeWithRetry(function () use ($client, $localPath, $remotePath, $contentType) {
+            // The Bunny SDK upload method accepts optional headers parameter
+            // Pass content-type for proper CDN handling
+            $client->upload($localPath, $remotePath, ['Content-Type' => $contentType]);
 
             return true;
         }, [
             'local' => $localPath,
             'remote' => $remotePath,
             'zone' => $zone,
+            'content_type' => $contentType,
         ], 'Upload');
     }
 
@@ -171,6 +253,76 @@ class BunnyStorageService
     protected function getMaxFileSize(): int
     {
         return (int) $this->config->get('cdn.bunny.max_file_size', self::DEFAULT_MAX_FILE_SIZE);
+    }
+
+    /**
+     * Detect the MIME content type for a file.
+     *
+     * First tries to detect from file contents using PHP's built-in function,
+     * then falls back to extension-based detection.
+     *
+     * @param  string  $path  File path (local or remote)
+     * @param  string|null  $contents  File contents for content-based detection
+     * @return string MIME type (defaults to application/octet-stream)
+     */
+    public function detectContentType(string $path, ?string $contents = null): string
+    {
+        // Try content-based detection if contents provided and finfo available
+        if ($contents !== null && function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mimeType = finfo_buffer($finfo, $contents);
+                finfo_close($finfo);
+                if ($mimeType !== false && $mimeType !== 'application/octet-stream') {
+                    return $mimeType;
+                }
+            }
+        }
+
+        // Try mime_content_type for local files
+        if (file_exists($path) && function_exists('mime_content_type')) {
+            $mimeType = @mime_content_type($path);
+            if ($mimeType !== false && $mimeType !== 'application/octet-stream') {
+                return $mimeType;
+            }
+        }
+
+        // Fall back to extension-based detection
+        return $this->getContentTypeFromExtension($path);
+    }
+
+    /**
+     * Get content type based on file extension.
+     *
+     * @param  string  $path  File path to extract extension from
+     * @return string MIME type (defaults to application/octet-stream)
+     */
+    public function getContentTypeFromExtension(string $path): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return self::MIME_TYPES[$extension] ?? 'application/octet-stream';
+    }
+
+    /**
+     * Check if a MIME type is for a binary file.
+     */
+    public function isBinaryContentType(string $mimeType): bool
+    {
+        // Text types are not binary
+        if (str_starts_with($mimeType, 'text/')) {
+            return false;
+        }
+
+        // Some application types are text-based
+        $textApplicationTypes = [
+            'application/json',
+            'application/xml',
+            'application/javascript',
+            'application/x-javascript',
+        ];
+
+        return ! in_array($mimeType, $textApplicationTypes, true);
     }
 
     /**
@@ -229,13 +381,18 @@ class BunnyStorageService
             return false;
         }
 
-        return $this->executeWithRetry(function () use ($client, $remotePath, $contents) {
-            $client->putContents($remotePath, $contents);
+        $contentType = $this->detectContentType($remotePath, $contents);
+
+        return $this->executeWithRetry(function () use ($client, $remotePath, $contents, $contentType) {
+            // The Bunny SDK putContents method accepts optional headers parameter
+            // Pass content-type for proper CDN handling
+            $client->putContents($remotePath, $contents, ['Content-Type' => $contentType]);
 
             return true;
         }, [
             'remote' => $remotePath,
             'zone' => $zone,
+            'content_type' => $contentType,
         ], 'putContents');
     }
 
@@ -394,5 +551,161 @@ class BunnyStorageService
         $scopedPath = $this->vBucketPath($domain, $path);
 
         return $this->list($scopedPath, $zone);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Health Check (implements HealthCheckable)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Perform a health check on the CDN storage zones.
+     *
+     * Tests connectivity by listing the root directory of configured storage zones.
+     * Returns a HealthCheckResult with status, latency, and zone information.
+     */
+    public function healthCheck(): HealthCheckResult
+    {
+        $publicConfigured = $this->isConfigured('public');
+        $privateConfigured = $this->isConfigured('private');
+
+        if (! $publicConfigured && ! $privateConfigured) {
+            return HealthCheckResult::unknown('No CDN storage zones configured');
+        }
+
+        $results = [];
+        $startTime = microtime(true);
+        $hasError = false;
+        $isDegraded = false;
+
+        // Check public zone
+        if ($publicConfigured) {
+            $publicResult = $this->checkZoneHealth('public');
+            $results['public'] = $publicResult;
+            if (! $publicResult['success']) {
+                $hasError = true;
+            } elseif ($publicResult['latency_ms'] > 1000) {
+                $isDegraded = true;
+            }
+        }
+
+        // Check private zone
+        if ($privateConfigured) {
+            $privateResult = $this->checkZoneHealth('private');
+            $results['private'] = $privateResult;
+            if (! $privateResult['success']) {
+                $hasError = true;
+            } elseif ($privateResult['latency_ms'] > 1000) {
+                $isDegraded = true;
+            }
+        }
+
+        $totalLatency = (microtime(true) - $startTime) * 1000;
+
+        if ($hasError) {
+            return HealthCheckResult::unhealthy(
+                'One or more CDN storage zones are unreachable',
+                ['zones' => $results],
+                $totalLatency
+            );
+        }
+
+        if ($isDegraded) {
+            return HealthCheckResult::degraded(
+                'CDN storage zones responding slowly',
+                ['zones' => $results],
+                $totalLatency
+            );
+        }
+
+        return HealthCheckResult::healthy(
+            'All configured CDN storage zones operational',
+            ['zones' => $results],
+            $totalLatency
+        );
+    }
+
+    /**
+     * Check health of a specific storage zone.
+     *
+     * @param  string  $zone  'public' or 'private'
+     * @return array{success: bool, latency_ms: float, error?: string}
+     */
+    protected function checkZoneHealth(string $zone): array
+    {
+        $startTime = microtime(true);
+
+        try {
+            $client = $zone === 'private' ? $this->privateClient() : $this->publicClient();
+
+            if (! $client) {
+                return [
+                    'success' => false,
+                    'latency_ms' => 0,
+                    'error' => 'Client not initialized',
+                ];
+            }
+
+            // List root directory as a simple connectivity check
+            // This is a read-only operation that should be fast
+            $client->listFiles('/');
+
+            $latencyMs = (microtime(true) - $startTime) * 1000;
+
+            return [
+                'success' => true,
+                'latency_ms' => round($latencyMs, 2),
+            ];
+        } catch (\Exception $e) {
+            $latencyMs = (microtime(true) - $startTime) * 1000;
+
+            Log::warning('BunnyStorage: Health check failed', [
+                'zone' => $zone,
+                'error' => $e->getMessage(),
+                'latency_ms' => $latencyMs,
+            ]);
+
+            return [
+                'success' => false,
+                'latency_ms' => round($latencyMs, 2),
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Perform a quick connectivity check.
+     *
+     * Simpler than healthCheck() - just returns true/false.
+     *
+     * @param  string  $zone  'public', 'private', or 'any' (default)
+     */
+    public function isReachable(string $zone = 'any'): bool
+    {
+        if ($zone === 'any') {
+            // Check if any configured zone is reachable
+            if ($this->isConfigured('public')) {
+                $result = $this->checkZoneHealth('public');
+                if ($result['success']) {
+                    return true;
+                }
+            }
+
+            if ($this->isConfigured('private')) {
+                $result = $this->checkZoneHealth('private');
+                if ($result['success']) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (! $this->isConfigured($zone)) {
+            return false;
+        }
+
+        $result = $this->checkZoneHealth($zone);
+
+        return $result['success'];
     }
 }

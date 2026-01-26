@@ -14,6 +14,7 @@ use Core\Config\Enums\ScopeType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Configuration profile (M2 layer).
@@ -29,9 +30,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $priority
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
  */
 class ConfigProfile extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'config_profiles';
 
     protected $fillable = [

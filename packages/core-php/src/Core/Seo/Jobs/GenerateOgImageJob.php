@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Log;
 /**
  * Generate OG Image Job
  *
- * Queue-based generation of Open Graph images for bio.
- * Regenerates images when biolink settings change.
+ * Queue-based generation of Open Graph images for pages.
+ * Regenerates images when page settings change.
  */
 class GenerateOgImageJob implements ShouldQueue
 {
@@ -48,7 +48,7 @@ class GenerateOgImageJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public int $biolinkId,
+        public int $pageId,
         public string $template = 'default',
         public bool $force = false
     ) {
@@ -76,10 +76,10 @@ class GenerateOgImageJob implements ShouldQueue
         }
 
         $ogService = app(\Core\Mod\Web\Services\DynamicOgImageService::class);
-        $biolink = \Core\Mod\Web\Models\Page::find($this->biolinkId);
+        $page = \Core\Mod\Web\Models\Page::find($this->pageId);
 
-        if (! $biolink) {
-            Log::warning("OG image generation skipped: biolink {$this->biolinkId} not found");
+        if (! $page) {
+            Log::warning("OG image generation skipped: page {$this->pageId} not found");
 
             return;
         }
@@ -90,19 +90,19 @@ class GenerateOgImageJob implements ShouldQueue
         }
 
         // Skip if image exists and is not stale (unless forced)
-        if (! $this->force && $ogService->exists($biolink) && ! $ogService->isStale($biolink)) {
+        if (! $this->force && $ogService->exists($page) && ! $ogService->isStale($page)) {
             return;
         }
 
         try {
-            $url = $ogService->generate($biolink, $this->template);
+            $url = $ogService->generate($page, $this->template);
 
-            Log::info("OG image generated for biolink {$biolink->id}", [
+            Log::info("OG image generated for page {$page->id}", [
                 'url' => $url,
                 'template' => $this->template,
             ]);
         } catch (\Exception $e) {
-            Log::error("Failed to generate OG image for biolink {$biolink->id}", [
+            Log::error("Failed to generate OG image for page {$page->id}", [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -118,6 +118,6 @@ class GenerateOgImageJob implements ShouldQueue
      */
     public function tags(): array
     {
-        return ['og-image', "biolink:{$this->biolinkId}"];
+        return ['og-image', "page:{$this->pageId}"];
     }
 }

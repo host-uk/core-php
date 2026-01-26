@@ -182,9 +182,9 @@ class PrivacyHelperTest extends TestCase
     #[Test]
     public function it_generates_unique_visitor_cache_key(): void
     {
-        $key = PrivacyHelper::uniqueVisitorCacheKey('biolink:123', '192.168.1.1');
+        $key = PrivacyHelper::uniqueVisitorCacheKey('page:123', '192.168.1.1');
 
-        $this->assertStringStartsWith('biolink:123:', $key);
+        $this->assertStringStartsWith('page:123:', $key);
         $this->assertStringContainsString('192.168.1.1', $key);
         $this->assertStringContainsString(now()->format('Y-m-d'), $key);
     }
@@ -192,8 +192,8 @@ class PrivacyHelperTest extends TestCase
     #[Test]
     public function it_generates_same_key_for_same_visitor_same_day(): void
     {
-        $key1 = PrivacyHelper::uniqueVisitorCacheKey('biolink:123', '192.168.1.1');
-        $key2 = PrivacyHelper::uniqueVisitorCacheKey('biolink:123', '192.168.1.1');
+        $key1 = PrivacyHelper::uniqueVisitorCacheKey('page:123', '192.168.1.1');
+        $key2 = PrivacyHelper::uniqueVisitorCacheKey('page:123', '192.168.1.1');
 
         $this->assertSame($key1, $key2);
     }
@@ -201,8 +201,8 @@ class PrivacyHelperTest extends TestCase
     #[Test]
     public function it_generates_different_keys_for_different_prefixes(): void
     {
-        $key1 = PrivacyHelper::uniqueVisitorCacheKey('biolink:123', '192.168.1.1');
-        $key2 = PrivacyHelper::uniqueVisitorCacheKey('biolink:456', '192.168.1.1');
+        $key1 = PrivacyHelper::uniqueVisitorCacheKey('page:123', '192.168.1.1');
+        $key2 = PrivacyHelper::uniqueVisitorCacheKey('page:456', '192.168.1.1');
 
         $this->assertNotSame($key1, $key2);
     }

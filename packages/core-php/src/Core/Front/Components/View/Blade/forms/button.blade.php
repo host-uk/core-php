@@ -6,7 +6,7 @@ Wraps flux:button with built-in authorization checking.
 Usage:
 <x-forms.button>Save</x-forms.button>
 <x-forms.button variant="primary">Save</x-forms.button>
-<x-forms.button canGate="update" :canResource="$biolink">Save</x-forms.button>
+<x-forms.button canGate="update" :canResource="$page">Save</x-forms.button>
 --}}
 
 @props([

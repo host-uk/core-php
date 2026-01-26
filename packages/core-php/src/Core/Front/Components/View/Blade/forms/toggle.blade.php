@@ -6,7 +6,7 @@ Wraps flux:switch with built-in authorization checking.
 Usage:
 <x-forms.toggle id="is_public" wire:model="is_public" label="Public" />
 <x-forms.toggle id="is_public" wire:model="is_public" label="Public" instantSave />
-<x-forms.toggle id="is_public" wire:model="is_public" label="Public" canGate="update" :canResource="$biolink" />
+<x-forms.toggle id="is_public" wire:model="is_public" label="Public" canGate="update" :canResource="$page" />
 --}}
 
 @props([

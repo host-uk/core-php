@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 namespace Core\Cdn\Services;
 
-use Core\Crypt\LthnHash;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
@@ -19,19 +19,67 @@ use Illuminate\Support\Facades\Storage;
  * Context-aware URL resolver for CDN/storage architecture.
  *
  * Provides intelligent URL resolution based on request context:
- * - Admin/internal requests → Origin URLs (Hetzner)
- * - Public/embed requests → CDN URLs (BunnyCDN)
- * - API requests → Both URLs returned
+ * - Admin/internal requests -> Origin URLs (Hetzner)
+ * - Public/embed requests -> CDN URLs (BunnyCDN)
+ * - API requests -> Both URLs returned
  *
  * Supports vBucket scoping for workspace-isolated CDN paths using LTHN QuasiHash.
+ *
+ * URL building is delegated to CdnUrlBuilder for consistency across services.
+ *
+ * ## Methods
+ *
+ * | Method | Returns | Description |
+ * |--------|---------|-------------|
+ * | `vBucketId()` | `string` | Generate vBucket ID for a domain |
+ * | `vBucketCdn()` | `string` | Get CDN URL with vBucket scoping |
+ * | `vBucketOrigin()` | `string` | Get origin URL with vBucket scoping |
+ * | `vBucketPath()` | `string` | Build vBucket-scoped storage path |
+ * | `vBucketUrls()` | `array` | Get both URLs with vBucket scoping |
+ * | `cdn()` | `string` | Get CDN delivery URL for a path |
+ * | `origin()` | `string` | Get origin URL (Hetzner) for a path |
+ * | `private()` | `string` | Get private storage URL for a path |
+ * | `signedUrl()` | `string\|null` | Get signed URL for private content |
+ * | `apex()` | `string` | Get apex domain URL for a path |
+ * | `asset()` | `string` | Get context-aware URL for a path |
+ * | `urls()` | `array` | Get both CDN and origin URLs |
+ * | `allUrls()` | `array` | Get all URLs (cdn, origin, private, apex) |
+ * | `detectContext()` | `string` | Detect current request context |
+ * | `isAdminContext()` | `bool` | Check if current context is admin |
+ * | `pushToCdn()` | `bool` | Push a file to CDN storage zone |
+ * | `deleteFromCdn()` | `bool` | Delete a file from CDN storage zone |
+ * | `purge()` | `bool` | Purge a path from CDN cache |
+ * | `cachedAsset()` | `string` | Get cached CDN URL with intelligent caching |
+ * | `publicDisk()` | `Filesystem` | Get the public storage disk |
+ * | `privateDisk()` | `Filesystem` | Get the private storage disk |
+ * | `storePublic()` | `bool` | Store file to public bucket |
+ * | `storePrivate()` | `bool` | Store file to private bucket |
+ * | `deleteAsset()` | `bool` | Delete file from storage and CDN |
+ * | `pathPrefix()` | `string` | Get path prefix for a category |
+ * | `categoryPath()` | `string` | Build full path with category prefix |
+ *
+ * @see CdnUrlBuilder For the underlying URL building logic
  */
 class StorageUrlResolver
 {
     protected BunnyStorageService $bunnyStorage;
 
-    public function __construct(BunnyStorageService $bunnyStorage)
+    protected CdnUrlBuilder $urlBuilder;
+
+    public function __construct(BunnyStorageService $bunnyStorage, ?CdnUrlBuilder $urlBuilder = null)
     {
         $this->bunnyStorage = $bunnyStorage;
+        $this->urlBuilder = $urlBuilder ?? new CdnUrlBuilder;
+    }
+
+    /**
+     * Get the URL builder instance.
+     *
+     * @return CdnUrlBuilder
+     */
+    public function getUrlBuilder(): CdnUrlBuilder
+    {
+        return $this->urlBuilder;
     }
 
     /**
@@ -45,7 +93,7 @@ class StorageUrlResolver
      */
     public function vBucketId(string $domain): string
     {
-        return LthnHash::vBucketId($domain);
+        return $this->urlBuilder->vBucketId($domain);
     }
 
     /**
@@ -56,9 +104,7 @@ class StorageUrlResolver
      */
     public function vBucketCdn(string $domain, string $path): string
     {
-        $vBucketId = $this->vBucketId($domain);
-
-        return $this->cdn("{$vBucketId}/{$path}");
+        return $this->urlBuilder->vBucket($domain, $path);
     }
 
     /**
@@ -69,9 +115,9 @@ class StorageUrlResolver
      */
     public function vBucketOrigin(string $domain, string $path): string
     {
-        $vBucketId = $this->vBucketId($domain);
+        $scopedPath = $this->urlBuilder->vBucketPath($domain, $path);
 
-        return $this->origin("{$vBucketId}/{$path}");
+        return $this->urlBuilder->origin($scopedPath);
     }
 
     /**
@@ -82,9 +128,7 @@ class StorageUrlResolver
      */
     public function vBucketPath(string $domain, string $path): string
     {
-        $vBucketId = $this->vBucketId($domain);
-
-        return "{$vBucketId}/".ltrim($path, '/');
+        return $this->urlBuilder->vBucketPath($domain, $path);
     }
 
     /**
@@ -96,14 +140,7 @@ class StorageUrlResolver
      */
     public function vBucketUrls(string $domain, string $path): array
     {
-        $vBucketId = $this->vBucketId($domain);
-        $scopedPath = "{$vBucketId}/{$path}";
-
-        return [
-            'cdn' => $this->cdn($scopedPath),
-            'origin' => $this->origin($scopedPath),
-            'vbucket' => $vBucketId,
-        ];
+        return $this->urlBuilder->vBucketUrls($domain, $path);
     }
 
     /**
@@ -114,7 +151,7 @@ class StorageUrlResolver
      */
     public function cdn(string $path): string
     {
-        return $this->buildUrl(config('cdn.urls.cdn'), $path);
+        return $this->urlBuilder->cdn($path);
     }
 
     /**
@@ -125,7 +162,7 @@ class StorageUrlResolver
      */
     public function origin(string $path): string
     {
-        return $this->buildUrl(config('cdn.urls.public'), $path);
+        return $this->urlBuilder->origin($path);
     }
 
     /**
@@ -136,7 +173,7 @@ class StorageUrlResolver
      */
     public function private(string $path): string
     {
-        return $this->buildUrl(config('cdn.urls.private'), $path);
+        return $this->urlBuilder->private($path);
     }
 
     /**
@@ -144,31 +181,31 @@ class StorageUrlResolver
      * Generates time-limited access URLs for gated/DRM content.
      *
      * @param  string  $path  Path relative to storage root
-     * @param  int  $expiry  Expiry time in seconds (default 1 hour)
+     * @param  int|Carbon|null  $expiry  Expiry time in seconds, or a Carbon instance for absolute expiry.
+     *                                    Defaults to config('cdn.signed_url_expiry', 3600) when null.
      * @return string|null Signed URL or null if token not configured
      */
-    public function signedUrl(string $path, int $expiry = 3600): ?string
+    public function signedUrl(string $path, int|Carbon|null $expiry = null): ?string
     {
-        $token = config('cdn.bunny.private.token');
+        return $this->urlBuilder->signed($path, $expiry);
+    }
 
-        if (empty($token)) {
-            return null;
+    /**
+     * Build the base URL for signed private URLs.
+     * Uses config for the private pull zone URL.
+     *
+     * @deprecated Use CdnUrlBuilder::signed() instead
+     */
+    protected function buildSignedUrlBase(): string
+    {
+        $pullZone = config('cdn.bunny.private.pull_zone');
+
+        // Support both full URL and just hostname in config
+        if (str_starts_with($pullZone, 'https://') || str_starts_with($pullZone, 'http://')) {
+            return rtrim($pullZone, '/');
         }
 
-        $pullZone = config('cdn.bunny.private.pull_zone');
-        $expires = time() + $expiry;
-        $path = '/'.ltrim($path, '/');
-
-        // BunnyCDN token authentication format (using HMAC for security)
-        // See: https://docs.bunny.net/docs/cdn-token-authentication
-        $hashableBase = $token.$path.$expires;
-        $hash = base64_encode(hash_hmac('sha256', $hashableBase, $token, true));
-
-        // URL-safe base64
-        $hash = str_replace(['+', '/'], ['-', '_'], $hash);
-        $hash = rtrim($hash, '=');
-
-        return "https://{$pullZone}{$path}?token={$hash}&expires={$expires}";
+        return "https://{$pullZone}";
     }
 
     /**
@@ -179,7 +216,7 @@ class StorageUrlResolver
      */
     public function apex(string $path): string
     {
-        return $this->buildUrl(config('cdn.urls.apex'), $path);
+        return $this->urlBuilder->apex($path);
     }
 
     /**
@@ -193,7 +230,7 @@ class StorageUrlResolver
     {
         $context = $context ?? $this->detectContext();
 
-        return $context === 'admin' ? $this->origin($path) : $this->cdn($path);
+        return $this->urlBuilder->asset($path, $context);
     }
 
     /**
@@ -204,10 +241,7 @@ class StorageUrlResolver
      */
     public function urls(string $path): array
     {
-        return [
-            'cdn' => $this->cdn($path),
-            'origin' => $this->origin($path),
-        ];
+        return $this->urlBuilder->urls($path);
     }
 
     /**
@@ -218,16 +252,13 @@ class StorageUrlResolver
      */
     public function allUrls(string $path): array
     {
-        return [
-            'cdn' => $this->cdn($path),
-            'origin' => $this->origin($path),
-            'private' => $this->private($path),
-            'apex' => $this->apex($path),
-        ];
+        return $this->urlBuilder->allUrls($path);
     }
 
     /**
-     * Detect the current request context.
+     * Detect the current request context based on headers and route.
+     *
+     * Checks for admin headers and route prefixes to determine context.
      *
      * @return string 'admin' or 'public'
      */
@@ -253,6 +284,8 @@ class StorageUrlResolver
 
     /**
      * Check if the current context is admin/internal.
+     *
+     * @return bool True if in admin context
      */
     public function isAdminContext(): bool
     {
@@ -325,18 +358,16 @@ class StorageUrlResolver
 
     /**
      * Build a URL from base URL and path.
+     *
+     * @param  string|null  $baseUrl  Base URL (falls back to apex if null)
+     * @param  string  $path  Path to append
+     * @return string Full URL
+     *
+     * @deprecated Use CdnUrlBuilder::build() instead
      */
     protected function buildUrl(?string $baseUrl, string $path): string
     {
-        if (empty($baseUrl)) {
-            // Fallback to apex domain if no base URL configured
-            $baseUrl = config('cdn.urls.apex', config('app.url'));
-        }
-
-        $baseUrl = rtrim($baseUrl, '/');
-        $path = ltrim($path, '/');
-
-        return "{$baseUrl}/{$path}";
+        return $this->urlBuilder->build($baseUrl, $path);
     }
 
     /**
@@ -429,11 +460,11 @@ class StorageUrlResolver
     /**
      * Get the path prefix for a content category.
      *
-     * @param  string  $category  Category key from config (media, social, biolink, etc.)
+     * @param  string  $category  Category key from config (media, social, page, etc.)
      */
     public function pathPrefix(string $category): string
     {
-        return config("cdn.paths.{$category}", $category);
+        return $this->urlBuilder->pathPrefix($category);
     }
 
     /**
@@ -444,8 +475,25 @@ class StorageUrlResolver
      */
     public function categoryPath(string $category, string $path): string
     {
-        $prefix = $this->pathPrefix($category);
+        return $this->urlBuilder->categoryPath($category, $path);
+    }
 
-        return "{$prefix}/{$path}";
+    /**
+     * Resolve expiry parameter to a Unix timestamp.
+     *
+     * @param  int|Carbon|null  $expiry  Expiry in seconds, Carbon instance, or null for config default
+     * @return int Unix timestamp when the URL expires
+     *
+     * @deprecated Use CdnUrlBuilder internally instead
+     */
+    protected function resolveExpiry(int|Carbon|null $expiry): int
+    {
+        if ($expiry instanceof Carbon) {
+            return $expiry->timestamp;
+        }
+
+        $expirySeconds = $expiry ?? (int) config('cdn.signed_url_expiry', 3600);
+
+        return time() + $expirySeconds;
     }
 }

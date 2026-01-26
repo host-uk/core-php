@@ -29,7 +29,7 @@ class WorkspaceFactory extends Factory
             'icon' => fake()->randomElement(['globe', 'building', 'newspaper', 'megaphone']),
             'color' => fake()->randomElement(['violet', 'blue', 'green', 'amber', 'rose']),
             'description' => fake()->sentence(),
-            'type' => 'wordpress',
+            'type' => 'cms',
             'settings' => [],
             'is_active' => true,
             'sort_order' => fake()->numberBetween(1, 100),
@@ -37,12 +37,12 @@ class WorkspaceFactory extends Factory
     }
 
     /**
-     * Create a WordPress workspace.
+     * Create a CMS workspace.
      */
-    public function wordpress(): static
+    public function cms(): static
     {
         return $this->state(fn (array $attributes) => [
-            'type' => 'wordpress',
+            'type' => 'cms',
         ]);
     }
 
@@ -75,7 +75,7 @@ class WorkspaceFactory extends Factory
             'name' => 'Host UK',
             'slug' => 'main',
             'domain' => 'hestia.host.uk.com',
-            'type' => 'wordpress',
+            'type' => 'cms',
         ]);
     }
 }

@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 namespace Core\Search;
 
+use Core\Search\Analytics\SearchAnalytics;
+use Core\Search\Suggestions\SearchSuggestions;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -24,7 +26,11 @@ class Boot extends ServiceProvider
      */
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__.'/config.php', 'search');
+
         $this->app->singleton(Unified::class);
+        $this->app->singleton(SearchAnalytics::class);
+        $this->app->singleton(SearchSuggestions::class);
 
         $this->registerBackwardCompatAliases();
     }
@@ -34,7 +40,30 @@ class Boot extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->loadMigrations();
+        $this->publishConfig();
+    }
+
+    /**
+     * Load migrations for search analytics.
+     */
+    protected function loadMigrations(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->loadMigrationsFrom(__DIR__.'/Analytics/migrations');
+        }
+    }
+
+    /**
+     * Publish configuration.
+     */
+    protected function publishConfig(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/config.php' => config_path('search.php'),
+            ], 'search-config');
+        }
     }
 
     /**

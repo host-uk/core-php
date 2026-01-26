@@ -86,4 +86,15 @@ class MediaImageResizerConversion extends MediaConversion
 
         return MediaConversionData::conversion($this);
     }
+
+    /**
+     * Build options array for queue serialization.
+     */
+    protected function buildQueueOptions(): array
+    {
+        return array_merge(parent::buildQueueOptions(), [
+            'width' => $this->width,
+            'height' => $this->height,
+        ]);
+    }
 }
