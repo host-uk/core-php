@@ -13,30 +13,14 @@
     <testsuites>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
-            <directory>packages/core-php/tests/Feature</directory>
-            <directory>packages/core-php/src/Core/**/Tests/Feature</directory>
-            <directory>packages/core-php/src/Mod/**/Tests/Feature</directory>
-            <directory>packages/core-admin/tests/Feature</directory>
-            <directory>packages/core-api/tests/Feature</directory>
-            <directory>packages/core-mcp/tests/Feature</directory>
         </testsuite>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
-            <directory>packages/core-php/tests/Unit</directory>
-            <directory>packages/core-php/src/Core/**/Tests/Unit</directory>
-            <directory>packages/core-php/src/Mod/**/Tests/Unit</directory>
-            <directory>packages/core-admin/tests/Unit</directory>
-            <directory>packages/core-api/tests/Unit</directory>
-            <directory>packages/core-mcp/tests/Unit</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
-            <directory>app</directory>
-            <directory>packages/core-php/src</directory>
-            <directory>packages/core-admin/src</directory>
-            <directory>packages/core-api/src</directory>
-            <directory>packages/core-mcp/src</directory>
+            <directory>src</directory>
         </include>
     </source>
     <coverage includeUncoveredFiles="true">

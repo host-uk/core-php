@@ -2,19 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Tests;
+namespace Core\Tests;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Core\LifecycleEventProvider;
+use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    /**
-     * Automatically load migrations from packages.
-     */
-    protected function defineDatabaseMigrations(): void
+    protected function getPackageProviders($app): array
     {
-        // Load core-php migrations
-        $this->loadMigrationsFrom(__DIR__.'/../packages/core-php/src/Mod/Tenant/Migrations');
-        $this->loadMigrationsFrom(__DIR__.'/../packages/core-php/src/Mod/Social/Migrations');
+        return [
+            LifecycleEventProvider::class,
+        ];
+    }
+
+    protected function defineEnvironment($app): void
+    {
+        // Override the default scan paths to use test fixtures
+        $app['config']->set('app.path', $this->getFixturePath());
+    }
+
+    protected function getFixturePath(string $path = ''): string
+    {
+        return __DIR__.'/Fixtures'.($path ? "/{$path}" : '');
     }
 }

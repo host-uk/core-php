@@ -461,6 +461,6 @@ By contributing, you agree that your contributions will be licensed under the EU
 
 - Open a [Discussion](https://github.com/host-uk/core-php/discussions)
 - Join our [Discord](https://discord.gg/host-uk)
-- Read the [Documentation](https://host-uk.github.io/core-php/)
+- Read the [Documentation](https://core.help/)
 
 Thank you for contributing! 🎉

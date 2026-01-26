@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Core PHP Framework',
   description: 'Modular monolith framework for Laravel',
-  base: '/core-php/',
+  base: '/',
 
   ignoreDeadLinks: [
     // Ignore localhost links

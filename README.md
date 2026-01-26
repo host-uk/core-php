@@ -11,13 +11,13 @@ A modular monolith framework for Laravel with event-driven architecture, lazy mo
 
 ## Documentation
 
-📚 **[Read the full documentation →](https://host-uk.github.io/core-php/)**
+📚 **[Read the full documentation →](https://core.help/)**
 
-- [Getting Started](https://host-uk.github.io/core-php/guide/getting-started)
-- [Installation Guide](https://host-uk.github.io/core-php/guide/installation)
-- [Architecture Overview](https://host-uk.github.io/core-php/architecture/lifecycle-events)
-- [API Reference](https://host-uk.github.io/core-php/packages/api)
-- [Security Guide](https://host-uk.github.io/core-php/security/overview)
+- [Getting Started](https://core.help/guide/getting-started)
+- [Installation Guide](https://core.help/guide/installation)
+- [Architecture Overview](https://core.help/architecture/lifecycle-events)
+- [API Reference](https://core.help/packages/api)
+- [Security Guide](https://core.help/security/overview)
 
 ## Features
 

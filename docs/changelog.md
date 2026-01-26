@@ -206,6 +206,6 @@ Special thanks to the open-source community!
 ---
 
 For more information, visit:
-- [Documentation](https://host-uk.github.io/core-php/)
+- [Documentation](https://core.help/)
 - [GitHub Repository](https://github.com/host-uk/core-php)
 - [Issue Tracker](https://github.com/host-uk/core-php/issues)

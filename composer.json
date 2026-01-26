@@ -1,108 +1,62 @@
 {
-    "name": "host-uk/core-app",
-    "type": "project",
-    "description": "Core PHP Framework - Demo Application",
-    "keywords": ["laravel", "modular", "monolith", "framework"],
+    "name": "host-uk/core",
+    "description": "Modular monolith framework for Laravel - event-driven architecture with lazy module loading",
+    "keywords": ["laravel", "modular", "monolith", "framework", "events", "modules"],
     "license": "EUPL-1.2",
+    "authors": [
+        {
+            "name": "Host UK",
+            "email": "support@host.uk.com"
+        }
+    ],
     "require": {
         "php": "^8.2",
-        "host-uk/core": "@dev",
-        "host-uk/core-admin": "@dev",
-        "host-uk/core-api": "@dev",
-        "host-uk/core-mcp": "@dev",
-        "laravel/framework": "^12.0",
-        "laravel/pennant": "^1.18",
-        "laravel/tinker": "^2.10.1",
-        "livewire/flux": "^2.0",
-        "livewire/flux-pro": "^2.10",
-        "livewire/livewire": "^3.0"
+        "laravel/framework": "^11.0|^12.0",
+        "laravel/pennant": "^1.0",
+        "livewire/livewire": "^3.0|^4.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.18",
-        "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "orchestra/testbench": "*",
-        "phpunit/phpunit": "^11.5.3",
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.5",
         "spatie/laravel-activitylog": "^4.8"
+    },
+    "suggest": {
+        "spatie/laravel-activitylog": "Required for activity logging features (^4.0)"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/",
-            "Website\\": "app/Website/",
-            "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
-        }
+            "Core\\": "src/Core/",
+            "Core\\Website\\": "src/Website/",
+            "Core\\Mod\\": "src/Mod/",
+            "Core\\Plug\\": "src/Plug/"
+        },
+        "files": [
+            "src/Core/Media/Thumbnail/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/",
-            "Core\\Tests\\": "packages/core-php/tests/",
-            "Core\\Mod\\Mcp\\Tests\\": "packages/core-mcp/tests/",
-            "Core\\Mod\\Tenant\\Tests\\": "packages/core-php/src/Mod/Tenant/Tests/",
-            "Mod\\": "packages/core-php/tests/Fixtures/Mod/",
-            "Plug\\": "packages/core-php/tests/Fixtures/Plug/",
-            "Website\\": "packages/core-php/tests/Fixtures/Website/"
+            "Core\\Tests\\": "tests/",
+            "Mod\\": "tests/Fixtures/Mod/",
+            "Plug\\": "tests/Fixtures/Plug/",
+            "Website\\": "tests/Fixtures/Website/"
         }
     },
-    "repositories": [
-        {
-            "name": "flux-pro",
-            "type": "composer",
-            "url": "https://composer.fluxui.dev"
-        },
-        {
-            "type": "path",
-            "url": "packages/core-php",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/core-admin",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/core-api",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "packages/core-mcp",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "scripts": {
-        "post-autoload-dump": [
-            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
-        ],
-        "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
-        ],
-        "post-root-package-install": [
-            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-        ],
-        "post-create-project-cmd": [
-            "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@php artisan migrate --graceful --ansi"
-        ],
-        "test": "vendor/bin/phpunit"
+        "test": "vendor/bin/phpunit",
+        "pint": "vendor/bin/pint"
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "providers": [
+                "Core\\LifecycleEventProvider",
+                "Core\\Lang\\LangServiceProvider",
+                "Core\\Bouncer\\Gate\\Boot"
+            ]
         }
     },
     "config": {

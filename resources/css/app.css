@@ -1,5 +1,0 @@
-@import "tailwindcss";
-
-/* Include app views for class detection */
-@source "../../app";
-@source "../../packages";
