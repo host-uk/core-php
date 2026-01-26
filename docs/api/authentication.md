@@ -63,8 +63,8 @@ API keys follow the format: `{prefix}_{environment}_{random}`
 - **Random:** 32 characters
 
 **Examples:**
-- `sk_live_EXAMPLE_KEY_REPLACE_ME`
-- `sk_test_EXAMPLE_KEY_REPLACE_ME`
+- `sk_live_`
+- `sk_test_`
 
 ### Key Security
 
