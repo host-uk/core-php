@@ -31,9 +31,8 @@ use Core\Mod\Tenant\Models\Workspace;
 use Core\Mod\Tenant\Services\WorkspaceService;
 use Core\Mod\Trust\Models\Campaign as TrustCampaign;
 use Core\Mod\Trust\Models\Notification as TrustNotification;
-use Core\Mod\Web\Models\Page as BioPage;
-use Core\Mod\Web\Models\Project as BioProject;
-use Core\Mod\Web\Services\ThemeService;
+// TODO: Bio service admin moved to Host UK app (Mod\Bio)
+// These imports are commented out until the admin panel is refactored
 
 #[Title('Services')]
 class ServicesAdmin extends Component
@@ -758,69 +757,37 @@ class ServicesAdmin extends Component
     // BIO STATS (workspace-scoped)
     // ========================================
 
+    // TODO: Bio service admin moved to Host UK app (Mod\Bio)
+    // These computed properties are stubbed until the admin panel is refactored
+
     #[Computed]
     public function bioStats(): array
     {
-        $workspaceId = $this->workspace?->id;
-
-        if (! $workspaceId) {
-            return ['total_pages' => 0, 'active_pages' => 0, 'total_clicks' => 0, 'total_projects' => 0, 'biolinks' => 0, 'shortlinks' => 0];
-        }
-
-        return [
-            'total_pages' => BioPage::where('workspace_id', $workspaceId)->count(),
-            'active_pages' => BioPage::where('workspace_id', $workspaceId)->where('is_enabled', true)->count(),
-            'total_clicks' => BioPage::where('workspace_id', $workspaceId)->sum('clicks'),
-            'total_projects' => BioProject::where('workspace_id', $workspaceId)->count(),
-            'biolinks' => BioPage::where('workspace_id', $workspaceId)->where('type', 'biolink')->count(),
-            'shortlinks' => BioPage::where('workspace_id', $workspaceId)->where('type', 'link')->count(),
-        ];
+        return ['total_pages' => 0, 'active_pages' => 0, 'total_clicks' => 0, 'total_projects' => 0, 'biolinks' => 0, 'shortlinks' => 0];
     }
 
     #[Computed]
     public function bioStatCards(): array
     {
-        return [
-            ['value' => number_format($this->bioStats['total_pages']), 'label' => __('hub::hub.services.stats.bio.total_pages'), 'icon' => 'file', 'color' => 'violet'],
-            ['value' => number_format($this->bioStats['active_pages']), 'label' => __('hub::hub.services.stats.bio.active_pages'), 'icon' => 'check-circle', 'color' => 'green'],
-            ['value' => number_format($this->bioStats['total_clicks']), 'label' => __('hub::hub.services.stats.bio.total_clicks'), 'icon' => 'cursor-arrow-rays', 'color' => 'blue'],
-            ['value' => number_format($this->bioStats['total_projects']), 'label' => __('hub::hub.services.stats.bio.projects'), 'icon' => 'folder', 'color' => 'orange'],
-        ];
+        return [];
     }
 
     #[Computed]
     public function bioPages(): \Illuminate\Support\Collection
     {
-        $workspaceId = $this->workspace?->id;
-
-        if (! $workspaceId) {
-            return collect();
-        }
-
-        return BioPage::where('workspace_id', $workspaceId)
-            ->orderByDesc('clicks')
-            ->get();
+        return collect();
     }
 
     #[Computed]
     public function bioProjects(): \Illuminate\Support\Collection
     {
-        $workspaceId = $this->workspace?->id;
-
-        if (! $workspaceId) {
-            return collect();
-        }
-
-        return BioProject::where('workspace_id', $workspaceId)
-            ->withCount('biolinks')
-            ->orderBy('name')
-            ->get();
+        return collect();
     }
 
     #[Computed]
     public function bioThemes(): array
     {
-        return app(ThemeService::class)->getAllThemes();
+        return [];
     }
 
     // ========================================

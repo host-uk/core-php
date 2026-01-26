@@ -29,35 +29,67 @@ class HoneypotHit extends Model
 
     /**
      * Severity levels for honeypot hits.
+     *
+     * These can be overridden via config('core.bouncer.honeypot.severity_levels').
      */
     public const SEVERITY_WARNING = 'warning';   // Ignored robots.txt (/teapot)
     public const SEVERITY_CRITICAL = 'critical'; // Active probing (/admin)
 
     /**
+     * Default critical paths (used when config is not available).
+     */
+    protected static array $defaultCriticalPaths = [
+        'admin',
+        'wp-admin',
+        'wp-login.php',
+        'administrator',
+        'phpmyadmin',
+        '.env',
+        '.git',
+    ];
+
+    /**
+     * Get the severity level string for 'critical'.
+     */
+    public static function getSeverityCritical(): string
+    {
+        return config('core.bouncer.honeypot.severity_levels.critical', self::SEVERITY_CRITICAL);
+    }
+
+    /**
+     * Get the severity level string for 'warning'.
+     */
+    public static function getSeverityWarning(): string
+    {
+        return config('core.bouncer.honeypot.severity_levels.warning', self::SEVERITY_WARNING);
+    }
+
+    /**
+     * Get the list of critical paths.
+     */
+    public static function getCriticalPaths(): array
+    {
+        return config('core.bouncer.honeypot.critical_paths', self::$defaultCriticalPaths);
+    }
+
+    /**
      * Determine severity based on path.
+     *
+     * Uses configurable critical paths from config('core.bouncer.honeypot.critical_paths').
      */
     public static function severityForPath(string $path): string
     {
-        // Paths that indicate active malicious probing
-        $criticalPaths = [
-            'admin',
-            'wp-admin',
-            'wp-login.php',
-            'administrator',
-            'phpmyadmin',
-            '.env',
-            '.git',
-        ];
+        $criticalPaths = self::getCriticalPaths();
 
         $path = ltrim($path, '/');
 
         foreach ($criticalPaths as $critical) {
             if (str_starts_with($path, $critical)) {
-                return self::SEVERITY_CRITICAL;
+                return self::getSeverityCritical();
             }
         }
 
-        return self::SEVERITY_WARNING;
+        return self::getSeverityWarning();
     }
 
     /**

@@ -4,27 +4,73 @@ declare(strict_types=1);
 
 namespace Website\Hub\View\Modal\Admin;
 
-use Core\Mod\Web\Models\Domain;
-use Core\Mod\Web\Models\Page;
-use Core\Mod\Social\Models\Account;
-use Core\Mod\Social\Models\Post;
+use Core\Admin\Search\SearchProviderRegistry;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
- * Global search component with ⌘K keyboard shortcut.
+ * Global search component with Command+K keyboard shortcut.
  *
- * Searches across biolinks, domains, social accounts, and posts.
+ * Searches across all registered SearchProvider implementations.
  * Accessible from any page via keyboard shortcut or search button.
+ *
+ * Features:
+ * - Command+K / Ctrl+K to open
+ * - Arrow key navigation
+ * - Enter to select
+ * - Escape to close
+ * - Recent searches (stored in session)
+ * - Debounced search input
+ * - Grouped results by provider type
  */
 class GlobalSearch extends Component
 {
+    /**
+     * Whether the search modal is open.
+     */
     public bool $open = false;
 
+    /**
+     * The current search query.
+     */
     public string $query = '';
 
+    /**
+     * Currently selected result index for keyboard navigation.
+     */
     public int $selectedIndex = 0;
+
+    /**
+     * Recent searches stored in session.
+     */
+    public array $recentSearches = [];
+
+    /**
+     * Maximum number of recent searches to store.
+     */
+    protected int $maxRecentSearches = 5;
+
+    /**
+     * The search provider registry.
+     */
+    protected SearchProviderRegistry $registry;
+
+    /**
+     * Boot the component with dependencies.
+     */
+    public function boot(SearchProviderRegistry $registry): void
+    {
+        $this->registry = $registry;
+    }
+
+    /**
+     * Mount the component.
+     */
+    public function mount(): void
+    {
+        $this->recentSearches = session('global_search.recent', []);
+    }
 
     /**
      * Open the search modal.
@@ -93,9 +139,72 @@ class GlobalSearch extends Component
      */
     public function navigateTo(array $result): void
     {
+        // Add to recent searches
+        $this->addToRecentSearches($result);
+
         $this->closeSearch();
 
         $this->dispatch('navigate-to-url', url: $result['url']);
+    }
+
+    /**
+     * Navigate to a recent search item.
+     */
+    public function navigateToRecent(int $index): void
+    {
+        if (isset($this->recentSearches[$index])) {
+            $result = $this->recentSearches[$index];
+            $this->closeSearch();
+            $this->dispatch('navigate-to-url', url: $result['url']);
+        }
+    }
+
+    /**
+     * Clear all recent searches.
+     */
+    public function clearRecentSearches(): void
+    {
+        $this->recentSearches = [];
+        session()->forget('global_search.recent');
+    }
+
+    /**
+     * Remove a single recent search.
+     */
+    public function removeRecentSearch(int $index): void
+    {
+        if (isset($this->recentSearches[$index])) {
+            array_splice($this->recentSearches, $index, 1);
+            session(['global_search.recent' => $this->recentSearches]);
+        }
+    }
+
+    /**
+     * Add a result to recent searches.
+     */
+    protected function addToRecentSearches(array $result): void
+    {
+        // Remove if already exists (to move to top)
+        $this->recentSearches = array_values(array_filter(
+            $this->recentSearches,
+            fn ($item) => $item['id'] !== $result['id'] || $item['type'] !== $result['type']
+        ));
+
+        // Add to the beginning
+        array_unshift($this->recentSearches, [
+            'id' => $result['id'],
+            'title' => $result['title'],
+            'subtitle' => $result['subtitle'] ?? null,
+            'url' => $result['url'],
+            'type' => $result['type'],
+            'icon' => $result['icon'],
+        ]);
+
+        // Limit the number of recent searches
+        $this->recentSearches = array_slice($this->recentSearches, 0, $this->maxRecentSearches);
+
+        // Save to session
+        session(['global_search.recent' => $this->recentSearches]);
     }
 
     /**
@@ -109,18 +218,9 @@ class GlobalSearch extends Component
         }
 
         $user = auth()->user();
-        if (! $user) {
-            return [];
-        }
+        $workspace = $user?->defaultHostWorkspace();
 
-        $workspace = $user->defaultHostWorkspace();
-
-        return [
-            'biolinks' => $this->searchBiolinks($user->id),
-            'domains' => $this->searchDomains($user->id),
-            'accounts' => $workspace ? $this->searchAccounts($workspace->id) : [],
-            'posts' => $workspace ? $this->searchPosts($workspace->id) : [],
-        ];
+        return $this->registry->search($this->query, $user, $workspace);
     }
 
     /**
@@ -129,117 +229,29 @@ class GlobalSearch extends Component
     #[Computed]
     public function flatResults(): array
     {
-        $flat = [];
-
-        foreach ($this->results as $type => $items) {
-            foreach ($items as $item) {
-                $flat[] = $item;
-            }
-        }
-
-        return $flat;
+        return $this->registry->flattenResults($this->results);
     }
 
     /**
-     * Search bio.
+     * Check if there are any results.
      */
-    protected function searchBiolinks(int $userId): array
+    #[Computed]
+    public function hasResults(): bool
     {
-        $escapedQuery = $this->escapeLikeWildcards($this->query);
-
-        return Page::where('user_id', $userId)
-            ->where(function ($query) use ($escapedQuery) {
-                $query->where('url', 'like', "%{$escapedQuery}%")
-                    ->orWhereRaw("JSON_EXTRACT(settings, '$.title') LIKE ?", ["%{$escapedQuery}%"]);
-            })
-            ->limit(5)
-            ->get()
-            ->map(fn ($biolink) => [
-                'type' => 'biolink',
-                'icon' => 'link',
-                'title' => $biolink->settings['title'] ?? $biolink->url,
-                'subtitle' => "/{$biolink->url}",
-                'url' => route('bio.edit', $biolink),
-            ])
-            ->toArray();
+        return ! empty($this->flatResults);
     }
 
     /**
-     * Search domains.
+     * Check if we should show recent searches.
      */
-    protected function searchDomains(int $userId): array
+    #[Computed]
+    public function showRecentSearches(): bool
     {
-        $escapedQuery = $this->escapeLikeWildcards($this->query);
-
-        return Domain::where('user_id', $userId)
-            ->where('host', 'like', "%{$escapedQuery}%")
-            ->limit(5)
-            ->get()
-            ->map(fn ($domain) => [
-                'type' => 'domain',
-                'icon' => 'globe-alt',
-                'title' => $domain->host,
-                'subtitle' => $domain->is_verified ? 'Verified' : 'Pending verification',
-                'url' => route('domains.index'),
-            ])
-            ->toArray();
-    }
-
-    /**
-     * Search social accounts.
-     */
-    protected function searchAccounts(int $workspaceId): array
-    {
-        $escapedQuery = $this->escapeLikeWildcards($this->query);
-
-        return Account::where('workspace_id', $workspaceId)
-            ->where(function ($query) use ($escapedQuery) {
-                $query->where('name', 'like', "%{$escapedQuery}%")
-                    ->orWhere('username', 'like', "%{$escapedQuery}%");
-            })
-            ->limit(5)
-            ->get()
-            ->map(fn ($account) => [
-                'type' => 'account',
-                'icon' => 'user-circle',
-                'title' => $account->name,
-                'subtitle' => "@{$account->username} · {$account->provider}",
-                'url' => route('social.accounts.index'),
-            ])
-            ->toArray();
-    }
-
-    /**
-     * Search social posts.
-     */
-    protected function searchPosts(int $workspaceId): array
-    {
-        $escapedQuery = $this->escapeLikeWildcards($this->query);
-
-        return Post::where('workspace_id', $workspaceId)
-            ->whereRaw("JSON_EXTRACT(content, '$.default.body') LIKE ?", ["%{$escapedQuery}%"])
-            ->limit(5)
-            ->get()
-            ->map(fn ($post) => [
-                'type' => 'post',
-                'icon' => 'document-text',
-                'title' => str($post->content['default']['body'] ?? '')->limit(50)->toString(),
-                'subtitle' => $post->scheduled_at?->format('d M Y H:i') ?? 'Draft',
-                'url' => route('social.posts.edit', $post),
-            ])
-            ->toArray();
+        return strlen($this->query) < 2 && ! empty($this->recentSearches);
     }
 
     public function render()
     {
         return view('hub::admin.global-search');
-    }
-
-    /**
-     * Escape LIKE wildcard characters to prevent unintended matches.
-     */
-    protected function escapeLikeWildcards(string $value): string
-    {
-        return str_replace(['%', '_'], ['\\%', '\\_'], $value);
     }
 }

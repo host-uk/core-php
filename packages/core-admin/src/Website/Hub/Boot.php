@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Website\Hub;
 
-use Core\Events\DomainResolving;
 use Core\Events\AdminPanelBooting;
+use Core\Events\DomainResolving;
 use Core\Front\Admin\AdminMenuRegistry;
 use Core\Front\Admin\Concerns\HasMenuPermissions;
 use Core\Front\Admin\Contracts\AdminMenuProvider;
@@ -85,6 +85,7 @@ class Boot extends ServiceProvider implements AdminMenuProvider
 
         // Register Livewire components
         $event->livewire('hub.admin.workspace-switcher', \Website\Hub\View\Modal\Admin\WorkspaceSwitcher::class);
+        $event->livewire('hub.admin.global-search', \Website\Hub\View\Modal\Admin\GlobalSearch::class);
 
         // Register menu provider
         app(AdminMenuRegistry::class)->register($this);
@@ -136,7 +137,7 @@ class Boot extends ServiceProvider implements AdminMenuProvider
                     'label' => __('hub::hub.quick_actions.profile.title'),
                     'icon' => 'user',
                     'href' => route('hub.account'),
-                    'active' => request()->routeIs('hub.account') && !request()->routeIs('hub.account.*'),
+                    'active' => request()->routeIs('hub.account') && ! request()->routeIs('hub.account.*'),
                 ],
             ],
 

@@ -92,6 +92,11 @@
     <flux:toast position="bottom end" />
 @endpersist
 
+<!-- Global Search (Command+K) -->
+@persist('global-search')
+    <livewire:hub.admin.global-search />
+@endpersist
+
 <!-- Developer Bar (Hades accounts only) -->
 @include('hub::admin.components.developer-bar')
 

@@ -9,6 +9,7 @@ use Core\Headers\DetectLocation;
 use Core\Mod\Hub\Models\HoneypotHit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Honeypot endpoint that returns 418 I'm a Teapot.
@@ -28,27 +29,40 @@ class TeapotController
         $severity = HoneypotHit::severityForPath($path);
         $ip = $request->ip();
 
-        // Optional services - use app() since route skips web middleware
-        $geoIp = app(DetectLocation::class);
+        // Rate limit honeypot logging to prevent DoS via log flooding.
+        // Each IP gets limited to N log entries per time window.
+        $rateLimitKey = 'honeypot:log:'.$ip;
+        $maxAttempts = (int) config('core.bouncer.honeypot.rate_limit_max', 10);
+        $decaySeconds = (int) config('core.bouncer.honeypot.rate_limit_window', 60);
 
-        HoneypotHit::create([
-            'ip_address' => $ip,
-            'user_agent' => substr($userAgent ?? '', 0, 1000),
-            'referer' => substr($request->header('Referer', ''), 0, 2000),
-            'path' => $path,
-            'method' => $request->method(),
-            'headers' => $this->sanitizeHeaders($request->headers->all()),
-            'country' => $geoIp?->getCountryCode($ip),
-            'city' => $geoIp?->getCity($ip),
-            'is_bot' => $botName !== null,
-            'bot_name' => $botName,
-            'severity' => $severity,
-        ]);
+        if (! RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            RateLimiter::hit($rateLimitKey, $decaySeconds);
 
-        // Auto-block critical hits (active probing)
-        // Skip localhost in dev to avoid blocking yourself
+            // Optional services - use app() since route skips web middleware
+            $geoIp = app(DetectLocation::class);
+
+            HoneypotHit::create([
+                'ip_address' => $ip,
+                'user_agent' => substr($userAgent ?? '', 0, 1000),
+                'referer' => substr($request->header('Referer', ''), 0, 2000),
+                'path' => $path,
+                'method' => $request->method(),
+                'headers' => $this->sanitizeHeaders($request->headers->all()),
+                'country' => $geoIp?->getCountryCode($ip),
+                'city' => $geoIp?->getCity($ip),
+                'is_bot' => $botName !== null,
+                'bot_name' => $botName,
+                'severity' => $severity,
+            ]);
+        }
+
+        // Auto-block critical hits (active probing) if enabled in config.
+        // Skip localhost in dev to avoid blocking yourself.
+        $autoBlockEnabled = config('core.bouncer.honeypot.auto_block_critical', true);
         $isLocalhost = in_array($ip, ['127.0.0.1', '::1'], true);
-        if ($severity === HoneypotHit::SEVERITY_CRITICAL && ! $isLocalhost) {
+        $isCritical = $severity === HoneypotHit::getSeverityCritical();
+
+        if ($autoBlockEnabled && $isCritical && ! $isLocalhost) {
             app(BlocklistService::class)->block($ip, 'honeypot_critical');
         }
 

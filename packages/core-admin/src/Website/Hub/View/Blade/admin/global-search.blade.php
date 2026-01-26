@@ -1,14 +1,22 @@
 {{--
-Global search component with ⌘K keyboard shortcut.
+Global search component with Command+K keyboard shortcut.
 
 Include in your layout:
-<admin:global-search />
+<livewire:hub.admin.global-search />
+
+Features:
+- Command+K / Ctrl+K to open
+- Arrow key navigation (up/down)
+- Enter to select
+- Escape to close
+- Recent searches
+- Grouped results by provider type
 --}}
 
 <div
     x-data="{
         init() {
-            // Listen for ⌘K / Ctrl+K keyboard shortcut
+            // Listen for Command+K / Ctrl+K keyboard shortcut
             document.addEventListener('keydown', (e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                     e.preventDefault();
@@ -19,21 +27,6 @@ Include in your layout:
     }"
     x-on:navigate-to-url.window="Livewire.navigate($event.detail.url)"
 >
-    {{-- Search trigger button (optional - can be placed in navbar) --}}
-    @if(false)
-    <button
-        wire:click="openSearch"
-        type="button"
-        class="flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-500 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
-    >
-        <core:icon name="magnifying-glass" class="h-4 w-4" />
-        <span>{{ __('hub::hub.search.button') }}</span>
-        <kbd class="ml-2 hidden rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 sm:inline-block">
-            ⌘K
-        </kbd>
-    </button>
-    @endif
-
     {{-- Search modal --}}
     <core:modal wire:model="open" class="max-w-xl" variant="bare">
         <div
@@ -69,33 +62,43 @@ Include in your layout:
                 <div class="max-h-96 overflow-y-auto border-t border-zinc-200 dark:border-zinc-700">
                     @php $currentIndex = 0; @endphp
 
-                    @forelse($this->results as $type => $items)
-                        @if(count($items) > 0)
+                    @forelse($this->results as $type => $group)
+                        @if(count($group['results']) > 0)
                             {{-- Category header --}}
-                            <div class="sticky top-0 bg-zinc-50 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
-                                {{ str($type)->title()->plural() }}
+                            <div class="sticky top-0 z-10 flex items-center gap-2 bg-zinc-50 px-4 py-2 dark:bg-zinc-800/80 backdrop-blur-sm">
+                                <core:icon :name="$group['icon']" class="h-3.5 w-3.5 text-zinc-400" />
+                                <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    {{ $group['label'] }}
+                                </span>
                             </div>
 
                             {{-- Results list --}}
-                            @foreach($items as $item)
+                            @foreach($group['results'] as $item)
                                 <button
                                     wire:click="navigateTo({{ json_encode($item) }})"
                                     type="button"
                                     class="flex w-full items-center gap-3 px-4 py-3 text-left transition {{ $selectedIndex === $currentIndex ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50' }}"
                                 >
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
-                                        <core:icon name="{{ $item['icon'] }}" class="h-5 w-5" />
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-lg {{ $selectedIndex === $currentIndex ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400' }}">
+                                        <core:icon :name="$item['icon']" class="h-5 w-5" />
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <div class="truncate font-medium text-zinc-900 dark:text-white">
+                                        <div class="truncate font-medium {{ $selectedIndex === $currentIndex ? 'text-blue-900 dark:text-blue-100' : 'text-zinc-900 dark:text-white' }}">
                                             {{ $item['title'] }}
                                         </div>
-                                        <div class="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                                            {{ $item['subtitle'] }}
-                                        </div>
+                                        @if($item['subtitle'])
+                                            <div class="truncate text-sm {{ $selectedIndex === $currentIndex ? 'text-blue-600 dark:text-blue-300' : 'text-zinc-500 dark:text-zinc-400' }}">
+                                                {{ $item['subtitle'] }}
+                                            </div>
+                                        @endif
                                     </div>
                                     @if($selectedIndex === $currentIndex)
-                                        <core:icon name="arrow-right" class="h-4 w-4 text-blue-500" />
+                                        <div class="flex items-center gap-1">
+                                            <kbd class="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-mono text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
+                                                Enter
+                                            </kbd>
+                                            <core:icon name="arrow-right" class="h-4 w-4 text-blue-500" />
+                                        </div>
                                     @endif
                                 </button>
                                 @php $currentIndex++; @endphp
@@ -111,7 +114,7 @@ Include in your layout:
                         </div>
                     @endforelse
 
-                    @if(collect($this->results)->flatten(1)->isEmpty() && strlen($query) >= 2)
+                    @if(!$this->hasResults && strlen($query) >= 2)
                         <div class="px-4 py-12 text-center">
                             <core:icon name="magnifying-glass" class="mx-auto h-10 w-10 text-zinc-300 dark:text-zinc-600" />
                             <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -139,12 +142,67 @@ Include in your layout:
                         </span>
                     </div>
                 </div>
+
+            @elseif($this->showRecentSearches)
+                {{-- Recent searches --}}
+                <div class="border-t border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-800/80">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            {{ __('hub::hub.search.recent') }}
+                        </span>
+                        <button
+                            wire:click="clearRecentSearches"
+                            type="button"
+                            class="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                        >
+                            {{ __('hub::hub.search.clear_recent') }}
+                        </button>
+                    </div>
+                    <div class="max-h-72 overflow-y-auto">
+                        @foreach($recentSearches as $index => $recent)
+                            <div class="group flex items-center">
+                                <button
+                                    wire:click="navigateToRecent({{ $index }})"
+                                    type="button"
+                                    class="flex flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition"
+                                >
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-400 dark:bg-zinc-700 dark:text-zinc-500">
+                                        <core:icon :name="$recent['icon']" class="h-4 w-4" />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                                            {{ $recent['title'] }}
+                                        </div>
+                                        @if($recent['subtitle'])
+                                            <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                                {{ $recent['subtitle'] }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <core:icon name="clock-rotate-left" class="h-4 w-4 text-zinc-300 dark:text-zinc-600" />
+                                </button>
+                                <button
+                                    wire:click="removeRecentSearch({{ $index }})"
+                                    type="button"
+                                    class="p-2 mr-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="{{ __('hub::hub.search.remove') }}"
+                                >
+                                    <core:icon name="x-mark" class="h-4 w-4" />
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
             @else
                 {{-- Initial state --}}
                 <div class="border-t border-zinc-200 px-4 py-12 text-center dark:border-zinc-700">
                     <core:icon name="magnifying-glass" class="mx-auto h-10 w-10 text-zinc-300 dark:text-zinc-600" />
                     <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
                         {{ __('hub::hub.search.start_typing') }}
+                    </p>
+                    <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                        {{ __('hub::hub.search.tips') }}
                     </p>
                 </div>
             @endif

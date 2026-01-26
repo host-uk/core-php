@@ -427,12 +427,16 @@ return [
     // Global Search
     'search' => [
         'button' => 'Search...',
-        'placeholder' => 'Search biolinks, accounts, posts...',
+        'placeholder' => 'Search pages, workspaces, settings...',
         'no_results' => 'No results found for ":query"',
         'navigate' => 'to navigate',
         'select' => 'to select',
         'close' => 'to close',
         'start_typing' => 'Start typing to search...',
+        'tips' => 'Search pages, settings, and more',
+        'recent' => 'Recent',
+        'clear_recent' => 'Clear',
+        'remove' => 'Remove',
     ],
 
     // Workspace Switcher

@@ -29,9 +29,16 @@
             <div class="flex items-center space-x-1">
 
                 <!-- Search button -->
-                <button class="flex items-center justify-center w-11 h-11 hover:bg-gray-100 lg:hover:bg-gray-200 dark:hover:bg-gray-700/50 dark:lg:hover:bg-gray-800 rounded-full transition-colors">
-                    <span class="sr-only">Search</span>
-                    <core:icon name="magnifying-glass" size="fa-lg" class="text-gray-500 dark:text-gray-400" />
+                <button
+                    x-data
+                    @click="$dispatch('open-global-search')"
+                    class="flex items-center justify-center gap-2 px-3 h-9 hover:bg-gray-100 lg:hover:bg-gray-200 dark:hover:bg-gray-700/50 dark:lg:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                    <core:icon name="magnifying-glass" class="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span class="hidden sm:inline text-sm text-gray-500 dark:text-gray-400">{{ __('hub::hub.search.button') }}</span>
+                    <kbd class="hidden lg:inline-flex items-center gap-0.5 rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                        <span class="text-xs">{{ PHP_OS_FAMILY === 'Darwin' ? '⌘' : 'Ctrl' }}</span>K
+                    </kbd>
                 </button>
 
                 <!-- Notifications button -->
