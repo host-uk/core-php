@@ -18,3 +18,4 @@ public/build
 .phpunit.result.cache
 .phpunit.cache
 /coverage
+/docs/.vitepress/dist

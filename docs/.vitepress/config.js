@@ -8,15 +8,24 @@ export default defineConfig({
   ignoreDeadLinks: [
     // Ignore localhost links
     /^https?:\/\/localhost/,
-    // Ignore internal doc links that haven't been created yet
-    /\/packages\/admin\/(tables|security)/,
+    // Old monorepo changelog paths (packages now in separate repos)
+    /\/packages\/core-(php|admin|api|mcp)\/changelog/,
+    // Security pages not yet created
+    /\/security\/(api-authentication|rate-limiting|workspace-isolation|sql-validation|gdpr)/,
+    // Package pages not yet created
+    /\/packages\/admin\/(tables|security|hlcrf|activity)/,
+    /\/packages\/api\/(openapi|analytics|alerts|logging)/,
+    /\/packages\/mcp\/commerce/,
     /\/packages\/core\/(services|seeders|security|email-shield|action-gate|i18n)/,
+    // Architecture pages not yet created
     /\/architecture\/(custom-events|performance)/,
+    // Patterns pages not yet created
     /\/patterns-guide\/(multi-tenancy|workspace-caching|search|admin-menus|services|repositories|responsive-design|factories|webhooks)/,
+    // Other pages not yet created
     /\/testing\//,
     /\/contributing/,
     /\/guide\/testing/,
-    // Ignore changelog relative paths
+    // Ignore relative changelog paths
     /\.\/packages\//,
   ],
 
