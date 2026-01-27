@@ -14,6 +14,6 @@ Route::middleware(['web'])->group(function () {
     Route::get('/trees', TreesIndex::class)->name('trees');
 
     // Agent referral tracking (Trees for Agents)
-    Route::get('/ref/{provider}/{model?}', [\Core\Mod\Tenant\Controllers\ReferralController::class, 'track'])
+    Route::get('/ref/{provider}/{model?}', [\Core\Tenant\Controllers\ReferralController::class, 'track'])
         ->name('referral.agent');
 });

@@ -12,8 +12,8 @@ pest()->group('slow');
 use Core\Media\Image\ImageOptimization;
 use Core\Media\Image\ImageOptimizer;
 use Core\Media\Image\OptimizationResult;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 

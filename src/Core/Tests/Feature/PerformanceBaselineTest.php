@@ -22,7 +22,7 @@ declare(strict_types=1);
  * - Social: <600ms (acceptable: <1000ms)
  */
 
-use Core\Mod\Tenant\Models\User;
+use Core\Tenant\Models\User;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {

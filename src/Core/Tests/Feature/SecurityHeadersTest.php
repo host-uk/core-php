@@ -74,7 +74,7 @@ describe('Security Headers on Public Routes', function () {
 
 describe('Security Headers on Authenticated Routes', function () {
     beforeEach(function () {
-        $this->user = \Core\Mod\Tenant\Models\User::factory()->create();
+        $this->user = \Core\Tenant\Models\User::factory()->create();
     });
 
     it('has security headers on hub routes', function () {
@@ -98,7 +98,7 @@ describe('Security Headers on Authenticated Routes', function () {
 
 describe('Security Headers on API Routes', function () {
     beforeEach(function () {
-        $this->user = \Core\Mod\Tenant\Models\User::factory()->create([
+        $this->user = \Core\Tenant\Models\User::factory()->create([
             'account_type' => 'hades',
         ]);
     });

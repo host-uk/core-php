@@ -72,12 +72,12 @@ class Channel extends Model
     /**
      * Workspace this channel belongs to (null = system channel).
      *
-     * Requires Core\Mod\Tenant module to be installed.
+     * Requires Core\Tenant module to be installed.
      */
     public function workspace(): BelongsTo
     {
-        if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-            return $this->belongsTo(\Core\Mod\Tenant\Models\Workspace::class);
+        if (class_exists(\Core\Tenant\Models\Workspace::class)) {
+            return $this->belongsTo(\Core\Tenant\Models\Workspace::class);
         }
 
         // Return a null relationship when Tenant module is not installed

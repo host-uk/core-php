@@ -7,7 +7,7 @@ namespace Core\Tests\Feature;
 use Core\Front\Admin\AdminMenuRegistry;
 use Core\Front\Admin\Concerns\HasMenuPermissions;
 use Core\Front\Admin\Contracts\AdminMenuProvider;
-use Core\Mod\Tenant\Services\EntitlementService;
+use Core\Tenant\Services\EntitlementService;
 use Core\Tests\TestCase;
 use Mockery;
 

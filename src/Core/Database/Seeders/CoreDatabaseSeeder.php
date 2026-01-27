@@ -292,7 +292,7 @@ class CoreDatabaseSeeder extends Seeder
      * Check if a seeder matches a pattern.
      *
      * Patterns can be:
-     * - Full class name: Core\Mod\Tenant\Database\Seeders\FeatureSeeder
+     * - Full class name: Core\Tenant\Database\Seeders\FeatureSeeder
      * - Short name: FeatureSeeder
      * - Partial match: Feature (matches FeatureSeeder)
      *

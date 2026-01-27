@@ -39,12 +39,12 @@ class Sidemenu extends Component
 
         // Use current workspace from session, not default
         $workspace = null;
-        if (class_exists(\Core\Mod\Tenant\Services\WorkspaceService::class)) {
-            $workspace = app(\Core\Mod\Tenant\Services\WorkspaceService::class)->currentModel();
+        if (class_exists(\Core\Tenant\Services\WorkspaceService::class)) {
+            $workspace = app(\Core\Tenant\Services\WorkspaceService::class)->currentModel();
         }
 
         $isAdmin = false;
-        if (class_exists(\Core\Mod\Tenant\Models\User::class) && $user instanceof \Core\Mod\Tenant\Models\User) {
+        if (class_exists(\Core\Tenant\Models\User::class) && $user instanceof \Core\Tenant\Models\User) {
             $isAdmin = $user->isHades();
         }
 

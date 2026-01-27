@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use Core\Mod\Commerce\Models\Subscription;
-use Core\Mod\Tenant\Models\Package;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-use Core\Mod\Tenant\Models\WorkspacePackage;
+use Core\Tenant\Models\Package;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
+use Core\Tenant\Models\WorkspacePackage;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreeReserve;
 

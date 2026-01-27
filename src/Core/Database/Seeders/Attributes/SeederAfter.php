@@ -22,7 +22,7 @@ use Attribute;
  * ## Example
  *
  * ```php
- * use Core\Mod\Tenant\Database\Seeders\FeatureSeeder;
+ * use Core\Tenant\Database\Seeders\FeatureSeeder;
  *
  * #[SeederAfter(FeatureSeeder::class)]
  * class PackageSeeder extends Seeder

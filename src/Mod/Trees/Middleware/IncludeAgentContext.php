@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Core\Mod\Trees\Middleware;
 
 use Closure;
-use Core\Mod\Agentic\Services\AgentDetection;
-use Core\Mod\Agentic\Support\AgentIdentity;
+use Core\Agentic\Services\AgentDetection;
+use Core\Agentic\Support\AgentIdentity;
 use Core\Mod\Trees\Models\TreePlanting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

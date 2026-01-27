@@ -16,9 +16,9 @@ declare(strict_types=1);
  * No manual route lists to maintain - new routes are tested automatically.
  */
 
-use Core\Mod\Tenant\Enums\UserTier;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
+use Core\Tenant\Enums\UserTier;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
 use Illuminate\Support\Facades\Route;
 
 uses()->group('admin-smoke');

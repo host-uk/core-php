@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreePlantingStats;
 use Core\Mod\Trees\Models\TreeReserve;

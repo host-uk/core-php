@@ -19,10 +19,10 @@ use Core\Mod\Analytics\Models\AnalyticsGoal;
 use Core\Mod\Analytics\Models\AnalyticsWebsite;
 use Core\Mod\Commerce\Models\Order;
 use Core\Mod\Commerce\Models\Payment;
-use Core\Mod\Tenant\Models\Package;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Models\Workspace;
-use Core\Mod\Tenant\Services\EntitlementService;
+use Core\Tenant\Models\Package;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
+use Core\Tenant\Services\EntitlementService;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 

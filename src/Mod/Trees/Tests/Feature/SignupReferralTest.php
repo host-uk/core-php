@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Core\Mod\Tenant\Models\User;
+use Core\Tenant\Models\User;
 use Core\Mod\Trees\Listeners\PlantTreeForAgentReferral;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreeReserve;

@@ -35,8 +35,8 @@ class WorkspaceConfig extends Component
         $this->config = $config;
 
         // Try to resolve WorkspaceService if Tenant module is installed
-        if (class_exists(\Core\Mod\Tenant\Services\WorkspaceService::class)) {
-            $this->workspaceService = app(\Core\Mod\Tenant\Services\WorkspaceService::class);
+        if (class_exists(\Core\Tenant\Services\WorkspaceService::class)) {
+            $this->workspaceService = app(\Core\Tenant\Services\WorkspaceService::class);
         }
     }
 

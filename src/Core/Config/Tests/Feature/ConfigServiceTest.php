@@ -18,7 +18,7 @@ use Core\Config\Models\ConfigKey;
 use Core\Config\Models\ConfigProfile;
 use Core\Config\Models\ConfigResolved;
 use Core\Config\Models\ConfigValue;
-use Core\Mod\Tenant\Models\Workspace;
+use Core\Tenant\Models\Workspace;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 

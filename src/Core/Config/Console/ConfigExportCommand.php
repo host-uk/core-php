@@ -45,13 +45,13 @@ class ConfigExportCommand extends Command
         // Resolve workspace
         $workspace = null;
         if ($workspaceSlug) {
-            if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            if (! class_exists(\Core\Tenant\Models\Workspace::class)) {
                 $this->components->error('Tenant module not installed. Cannot export workspace config.');
 
                 return self::FAILURE;
             }
 
-            $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
+            $workspace = \Core\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
 
             if (! $workspace) {
                 $this->components->error("Workspace not found: {$workspaceSlug}");
@@ -99,8 +99,8 @@ class ConfigExportCommand extends Command
     public function complete(CompletionInput $input, \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
     {
         if ($input->mustSuggestOptionValuesFor('workspace')) {
-            if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-                $suggestions->suggestValues(\Core\Mod\Tenant\Models\Workspace::pluck('slug')->toArray());
+            if (class_exists(\Core\Tenant\Models\Workspace::class)) {
+                $suggestions->suggestValues(\Core\Tenant\Models\Workspace::pluck('slug')->toArray());
             }
         }
 

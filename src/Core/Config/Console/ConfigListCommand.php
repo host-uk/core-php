@@ -33,13 +33,13 @@ class ConfigListCommand extends Command
         $workspace = null;
 
         if ($workspaceSlug) {
-            if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            if (! class_exists(\Core\Tenant\Models\Workspace::class)) {
                 $this->error('Tenant module not installed. Cannot filter by workspace.');
 
                 return self::FAILURE;
             }
 
-            $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
+            $workspace = \Core\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
 
             if (! $workspace) {
                 $this->error("Workspace not found: {$workspaceSlug}");

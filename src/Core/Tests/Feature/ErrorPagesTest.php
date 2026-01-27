@@ -87,7 +87,7 @@ describe('404 Error Page', function () {
 describe('403 Error Page', function () {
     it('returns 403 for forbidden access', function () {
         // Create a regular user (not hades)
-        $user = \Core\Mod\Tenant\Models\User::factory()->create([
+        $user = \Core\Tenant\Models\User::factory()->create([
             'account_type' => 'apollo',
         ]);
 

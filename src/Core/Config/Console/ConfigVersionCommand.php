@@ -50,13 +50,13 @@ class ConfigVersionCommand extends Command
         // Resolve workspace
         $workspace = null;
         if ($workspaceSlug) {
-            if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+            if (! class_exists(\Core\Tenant\Models\Workspace::class)) {
                 $this->components->error('Tenant module not installed. Cannot manage workspace versions.');
 
                 return self::FAILURE;
             }
 
-            $workspace = \Core\Mod\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
+            $workspace = \Core\Tenant\Models\Workspace::where('slug', $workspaceSlug)->first();
 
             if (! $workspace) {
                 $this->components->error("Workspace not found: {$workspaceSlug}");
@@ -409,8 +409,8 @@ class ConfigVersionCommand extends Command
         }
 
         if ($input->mustSuggestOptionValuesFor('workspace')) {
-            if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-                $suggestions->suggestValues(\Core\Mod\Tenant\Models\Workspace::pluck('slug')->toArray());
+            if (class_exists(\Core\Tenant\Models\Workspace::class)) {
+                $suggestions->suggestValues(\Core\Tenant\Models\Workspace::pluck('slug')->toArray());
             }
         }
     }

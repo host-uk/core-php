@@ -601,8 +601,8 @@ class ConfigService
 
         // Re-compute this key for the affected scope
         $workspace = null;
-        if ($workspaceId !== null && class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-            $workspace = \Core\Mod\Tenant\Models\Workspace::find($workspaceId);
+        if ($workspaceId !== null && class_exists(\Core\Tenant\Models\Workspace::class)) {
+            $workspace = \Core\Tenant\Models\Workspace::find($workspaceId);
         }
         $channel = $channelId ? Channel::find($channelId) : null;
 
@@ -629,7 +629,7 @@ class ConfigService
      * Prime cache for all workspaces.
      *
      * Run this from a scheduled command or queue job.
-     * Requires Core\Mod\Tenant module to prime workspace-level config.
+     * Requires Core\Tenant module to prime workspace-level config.
      */
     public function primeAll(): void
     {
@@ -637,8 +637,8 @@ class ConfigService
         $this->prime(null);
 
         // Prime each workspace (requires Tenant module)
-        if (class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-            \Core\Mod\Tenant\Models\Workspace::chunk(100, function ($workspaces) {
+        if (class_exists(\Core\Tenant\Models\Workspace::class)) {
+            \Core\Tenant\Models\Workspace::chunk(100, function ($workspaces) {
                 foreach ($workspaces as $workspace) {
                     $this->prime($workspace);
                 }

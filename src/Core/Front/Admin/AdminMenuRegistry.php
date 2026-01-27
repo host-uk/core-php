@@ -92,7 +92,7 @@ class AdminMenuRegistry
     protected int $cacheTtl;
 
     /**
-     * EntitlementService instance (Core\Mod\Tenant\Services\EntitlementService when available).
+     * EntitlementService instance (Core\Tenant\Services\EntitlementService when available).
      */
     protected ?object $entitlements = null;
 
@@ -108,8 +108,8 @@ class AdminMenuRegistry
 
     public function __construct(?object $entitlements = null, ?IconValidator $iconValidator = null)
     {
-        if ($entitlements === null && class_exists(\Core\Mod\Tenant\Services\EntitlementService::class)) {
-            $this->entitlements = app(\Core\Mod\Tenant\Services\EntitlementService::class);
+        if ($entitlements === null && class_exists(\Core\Tenant\Services\EntitlementService::class)) {
+            $this->entitlements = app(\Core\Tenant\Services\EntitlementService::class);
         } else {
             $this->entitlements = $entitlements;
         }

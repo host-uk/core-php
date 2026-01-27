@@ -91,7 +91,7 @@ describe('Database Migrations', function () {
     it('critical seeder classes exist in modules', function () {
         // Check for module seeders - these live in Mod namespaces
         $moduleSeederClasses = [
-            \Core\Mod\Tenant\Database\Seeders\PackageSeeder::class,
+            \Core\Tenant\Database\Seeders\PackageSeeder::class,
             \Core\Mod\Commerce\Database\Seeders\TaxRateSeeder::class,
         ];
 

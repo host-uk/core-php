@@ -256,7 +256,7 @@ return [
         ],
 
         // Seeder classes to exclude (fully qualified class names)
-        // Example: [Core\Mod\Tenant\Database\Seeders\DemoWorkspaceSeeder::class]
+        // Example: [Core\Tenant\Database\Seeders\DemoWorkspaceSeeder::class]
         'exclude' => [],
     ],
 ];

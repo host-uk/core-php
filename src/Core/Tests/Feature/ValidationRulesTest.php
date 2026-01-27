@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 use Core\Helpers\Rules\HexRule;
 use Core\Mod\Social\Enums\ResourceStatus;
-use Core\Mod\Tenant\Models\User;
-use Core\Mod\Tenant\Rules\CheckUserPasswordRule;
-use Core\Mod\Tenant\Rules\ResourceStatusRule;
+use Core\Tenant\Models\User;
+use Core\Tenant\Rules\CheckUserPasswordRule;
+use Core\Tenant\Rules\ResourceStatusRule;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 

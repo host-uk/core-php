@@ -74,11 +74,11 @@ class ConfigPanel extends Component
     #[Computed]
     public function workspaces(): \Illuminate\Database\Eloquent\Collection
     {
-        if (! class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
+        if (! class_exists(\Core\Tenant\Models\Workspace::class)) {
             return new \Illuminate\Database\Eloquent\Collection;
         }
 
-        return \Core\Mod\Tenant\Models\Workspace::orderBy('name')->get();
+        return \Core\Tenant\Models\Workspace::orderBy('name')->get();
     }
 
     #[Computed]
@@ -112,8 +112,8 @@ class ConfigPanel extends Component
     #[Computed]
     public function selectedWorkspace(): ?object
     {
-        if ($this->workspaceId && class_exists(\Core\Mod\Tenant\Models\Workspace::class)) {
-            return \Core\Mod\Tenant\Models\Workspace::find($this->workspaceId);
+        if ($this->workspaceId && class_exists(\Core\Tenant\Models\Workspace::class)) {
+            return \Core\Tenant\Models\Workspace::find($this->workspaceId);
         }
 
         return null;

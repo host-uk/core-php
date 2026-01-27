@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Core\Mod\Tenant\Models\AgentReferralBonus;
+use Core\Tenant\Models\AgentReferralBonus;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreeReserve;
 

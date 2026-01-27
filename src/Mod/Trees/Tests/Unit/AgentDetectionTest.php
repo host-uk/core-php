@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Core\Mod\Agentic\Services\AgentDetection;
-use Core\Mod\Agentic\Support\AgentIdentity;
+use Core\Agentic\Services\AgentDetection;
+use Core\Agentic\Support\AgentIdentity;
 use Illuminate\Http\Request;
 
 describe('AgentDetection Service', function () {

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Core\Mod\Trees\Listeners;
 
 use Core\Helpers\PrivacyHelper;
-use Core\Mod\Tenant\Controllers\ReferralController;
-use Core\Mod\Tenant\Models\AgentReferralBonus;
+use Core\Tenant\Controllers\ReferralController;
+use Core\Tenant\Models\AgentReferralBonus;
 use Core\Mod\Trees\Models\TreePlanting;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Log;
