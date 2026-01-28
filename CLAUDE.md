@@ -1,89 +1,62 @@
-# Core PHP Framework
+# CLAUDE.md
 
-A modular monolith framework for Laravel. This is the open-source foundation extracted from Host Hub.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Quick Reference
+## Commands
 
 ```bash
-composer test                 # Run tests
-composer install              # Install dependencies
+composer test                    # Run all tests
+composer test -- --filter=Name   # Run single test by name
+composer pint                    # Format code with Laravel Pint
 ```
 
 ## Architecture
 
 ### Event-Driven Module Loading
 
-1. **ModuleScanner** scans directories for `Boot.php` files with `$listens` arrays
-2. **ModuleRegistry** wires lazy listeners for each event-module pair
-3. **LazyModuleListener** defers module instantiation until events fire
-4. **LifecycleEventProvider** fires events and processes collected requests
-
-### Lifecycle Events
-
-Located in `src/Core/Events/`:
-
-- `WebRoutesRegistering` - public web routes
-- `AdminPanelBooting` - admin panel
-- `ApiRoutesRegistering` - REST API
-- `ClientRoutesRegistering` - authenticated client routes
-- `ConsoleBooting` - artisan commands
-- `McpToolsRegistering` - MCP tools
-- `FrameworkBooted` - late initialisation
-
-### Key Classes
-
-| Class | Location | Purpose |
-|-------|----------|---------|
-| `CoreServiceProvider` | `src/Core/` | Package entry point |
-| `LifecycleEventProvider` | `src/Core/` | Fires events, processes requests |
-| `ModuleScanner` | `src/Core/Module/` | Scans for `$listens` declarations |
-| `ModuleRegistry` | `src/Core/Module/` | Wires lazy listeners |
-| `LazyModuleListener` | `src/Core/Module/` | Deferred module instantiation |
-
-### Contracts
-
-- `AdminMenuProvider` - admin navigation interface
-- `ServiceDefinition` - SaaS service registration
-
-## File Structure
+Modules declare interest in lifecycle events via static `$listens` arrays and are only instantiated when those events fire:
 
 ```
-src/Core/
-├── CoreServiceProvider.php      # Package entry
-├── LifecycleEventProvider.php   # Event firing
-├── Events/                      # Lifecycle events
-│   ├── LifecycleEvent.php       # Base class
-│   ├── WebRoutesRegistering.php
-│   ├── AdminPanelBooting.php
-│   └── ...
-├── Module/                      # Module system
-│   ├── ModuleScanner.php
-│   ├── ModuleRegistry.php
-│   └── LazyModuleListener.php
-├── Front/                       # Frontage contracts
-│   └── Admin/Contracts/
-│       └── AdminMenuProvider.php
-├── Service/Contracts/
-│   └── ServiceDefinition.php
-└── Console/Commands/            # Artisan commands
-    ├── MakeModCommand.php
-    ├── MakeWebsiteCommand.php
-    └── MakePlugCommand.php
+LifecycleEventProvider::register()
+  └── ModuleScanner::scan()        # Finds Boot.php files with $listens
+  └── ModuleRegistry::register()   # Wires LazyModuleListener for each event
 ```
 
-## Module Pattern
+### Frontages
+
+Frontages are ServiceProviders in `src/Core/Front/` that fire context-specific lifecycle events:
+
+| Frontage | Event | Middleware | Fires When |
+|----------|-------|------------|------------|
+| Web | `WebRoutesRegistering` | `web` | Public routes |
+| Admin | `AdminPanelBooting` | `admin` | Admin panel |
+| Api | `ApiRoutesRegistering` | `api` | REST endpoints |
+| Client | `ClientRoutesRegistering` | `client` | Authenticated SaaS |
+| Cli | `ConsoleBooting` | - | Artisan commands |
+| Mcp | `McpToolsRegistering` | - | MCP tool handlers |
+
+### L1 Packages
+
+Subdirectories under `src/Core/` are self-contained "L1 packages" with their own Boot.php, migrations, tests, and views:
+
+```
+src/Core/Activity/        # Activity logging
+src/Core/Bouncer/         # Security blocking/redirects
+src/Core/Cdn/             # CDN integration
+src/Core/Config/          # Dynamic configuration
+src/Core/Lang/            # Translation system
+src/Core/Media/           # Media handling
+src/Core/Search/          # Search functionality
+```
+
+### Module Pattern
 
 ```php
-<?php
-
-namespace Mod\Example;
-
-use Core\Events\WebRoutesRegistering;
-
 class Boot
 {
     public static array $listens = [
         WebRoutesRegistering::class => 'onWebRoutes',
+        AdminPanelBooting::class => ['onAdmin', 10],  // With priority
     ];
 
     public function onWebRoutes(WebRoutesRegistering $event): void
@@ -94,20 +67,41 @@ class Boot
 }
 ```
 
-## Namespacing
+### Namespace Mapping
 
-Default namespace detection:
-- `/Core` paths → `Core\` namespace
-- `/Mod` paths → `Mod\` namespace
-- `/Website` paths → `Website\` namespace
-- `/Plug` paths → `Plug\` namespace
+| Path | Namespace |
+|------|-----------|
+| `src/Core/` | `Core\` |
+| `src/Mod/` | `Core\Mod\` |
+| `src/Plug/` | `Core\Plug\` |
+| `src/Website/` | `Core\Website\` |
+| `app/Mod/` | `Mod\` |
 
-Custom mapping via `ModuleScanner::setNamespaceMap()`.
+### Actions Pattern
+
+Single-purpose business logic classes with static `run()` helper:
+
+```php
+use Core\Actions\Action;
+
+class CreateOrder
+{
+    use Action;
+
+    public function handle(User $user, array $data): Order
+    {
+        return Order::create($data);
+    }
+}
+
+// Usage: CreateOrder::run($user, $validated);
+```
 
 ## Testing
 
-Tests use Orchestra Testbench. Fixtures in `tests/Fixtures/`.
+Uses Orchestra Testbench. Tests can live:
+- `tests/Feature/` and `tests/Unit/` - main test suites
+- `src/Core/{Package}/Tests/` - L1 package co-located tests
+- `src/Mod/{Module}/Tests/` - module co-located tests
 
-## License
-
-EUPL-1.2 (copyleft, GPL-compatible).
+Test fixtures are in `tests/Fixtures/`.
