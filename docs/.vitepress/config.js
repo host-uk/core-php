@@ -79,7 +79,12 @@ export default defineConfig({
       {
         text: 'Deploy',
         activeMatch: '/deploy/',
-        items: []
+        items: [
+          { text: 'Overview', link: '/deploy/' },
+          { text: 'LinuxKit VMs', link: '/deploy/linuxkit' },
+          { text: 'Templates', link: '/deploy/templates' },
+          { text: 'Docker', link: '/deploy/docker' }
+        ]
       },
       {
         text: 'Packages',
@@ -110,6 +115,19 @@ export default defineConfig({
             { text: 'AUR', link: '/publish/aur' },
             { text: 'Chocolatey', link: '/publish/chocolatey' },
             { text: 'LinuxKit', link: '/publish/linuxkit' }
+          ]
+        }
+      ],
+
+      // Deploy section
+      '/deploy/': [
+        {
+          text: 'Deploy',
+          items: [
+            { text: 'Overview', link: '/deploy/' },
+            { text: 'LinuxKit VMs', link: '/deploy/linuxkit' },
+            { text: 'Templates', link: '/deploy/templates' },
+            { text: 'Docker', link: '/deploy/docker' }
           ]
         }
       ],
