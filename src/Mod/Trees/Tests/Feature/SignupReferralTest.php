@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Core\Tenant\Models\User;
 use Core\Mod\Trees\Listeners\PlantTreeForAgentReferral;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreeReserve;
+use Core\Tenant\Models\User;
 use Illuminate\Auth\Events\Registered;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);

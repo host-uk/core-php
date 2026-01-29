@@ -34,7 +34,7 @@ class ActivityLogServiceTest extends TestCase
     protected function defineDatabaseMigrations(): void
     {
         // Run the activity log migrations
-        $this->loadMigrationsFrom(__DIR__.'/../../vendor/spatie/laravel-activitylog/database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
     }
 
     public function test_fresh_returns_new_instance(): void

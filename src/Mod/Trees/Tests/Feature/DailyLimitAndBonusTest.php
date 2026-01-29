@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Core\Tenant\Models\AgentReferralBonus;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreeReserve;
+use Core\Tenant\Models\AgentReferralBonus;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 

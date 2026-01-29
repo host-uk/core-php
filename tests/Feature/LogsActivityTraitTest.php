@@ -85,7 +85,7 @@ class LogsActivityTraitTest extends TestCase
 
     protected function defineDatabaseMigrations(): void
     {
-        $this->loadMigrationsFrom(__DIR__.'/../../vendor/spatie/laravel-activitylog/database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
     }
 
     public function test_creates_activity_on_model_create(): void

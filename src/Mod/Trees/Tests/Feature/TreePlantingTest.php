@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Core\Tenant\Models\User;
-use Core\Tenant\Models\Workspace;
 use Core\Mod\Trees\Models\TreePlanting;
 use Core\Mod\Trees\Models\TreePlantingStats;
 use Core\Mod\Trees\Models\TreeReserve;
+use Core\Tenant\Models\User;
+use Core\Tenant\Models\Workspace;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 

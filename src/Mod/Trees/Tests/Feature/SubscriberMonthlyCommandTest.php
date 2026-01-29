@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Core\Mod\Commerce\Models\Subscription;
+use Core\Mod\Trees\Models\TreePlanting;
+use Core\Mod\Trees\Models\TreeReserve;
 use Core\Tenant\Models\Package;
 use Core\Tenant\Models\User;
 use Core\Tenant\Models\Workspace;
 use Core\Tenant\Models\WorkspacePackage;
-use Core\Mod\Trees\Models\TreePlanting;
-use Core\Mod\Trees\Models\TreeReserve;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
