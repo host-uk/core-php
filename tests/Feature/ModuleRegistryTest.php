@@ -92,7 +92,7 @@ class ModuleRegistryTest extends TestCase
         $listeners = $registry->getListenersFor(WebRoutesRegistering::class);
 
         $this->assertArrayHasKey('Mod\\Example\\Boot', $listeners);
-        $this->assertEquals('onWebRoutes', $listeners['Mod\\Example\\Boot']);
+        $this->assertEquals('onWebRoutes', $listeners['Mod\\Example\\Boot']['method']);
     }
 
     public function test_get_events_returns_registered_events(): void

@@ -41,6 +41,8 @@
     "autoload-dev": {
         "psr-4": {
             "Core\\Tests\\": "tests/",
+            "Core\\TestCore\\": "tests/Fixtures/Core/TestCore/",
+            "App\\Custom\\": "tests/Fixtures/Custom/",
             "Mod\\": "tests/Fixtures/Mod/",
             "Plug\\": "tests/Fixtures/Plug/",
             "Website\\": "tests/Fixtures/Website/"

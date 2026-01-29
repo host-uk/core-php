@@ -55,7 +55,7 @@ class ModuleScannerTest extends TestCase
 
     public function test_scan_finds_modules_in_website_path(): void
     {
-        $result = $this->scanner->scan([$this->getFixturePath('Mod')]);
+        $result = $this->scanner->scan([$this->getFixturePath('Website')]);
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey(WebRoutesRegistering::class, $result);

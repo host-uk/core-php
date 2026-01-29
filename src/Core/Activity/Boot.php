@@ -60,8 +60,10 @@ class Boot
         // Register view namespace
         $event->views('core.activity', __DIR__.'/View/Blade');
 
-        // Register Livewire component
-        Livewire::component('core.activity-feed', ActivityFeed::class);
+        // Register Livewire component (only if Livewire is available)
+        if (app()->bound('livewire')) {
+            Livewire::component('core.activity-feed', ActivityFeed::class);
+        }
 
         // Bind service as singleton
         app()->singleton(ActivityLogService::class);

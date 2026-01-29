@@ -53,6 +53,13 @@ class LogsActivityTraitTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function getPackageProviders($app): array
+    {
+        return array_merge(parent::getPackageProviders($app), [
+            \Spatie\Activitylog\ActivitylogServiceProvider::class,
+        ]);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -81,6 +88,12 @@ class LogsActivityTraitTest extends TestCase
         $app['config']->set('core.activity.log_name', 'default');
         $app['config']->set('core.activity.include_workspace', true);
         $app['config']->set('core.activity.default_events', ['created', 'updated', 'deleted']);
+
+        // Set up spatie activitylog config
+        $app['config']->set('activitylog.default_log_name', 'default');
+        $app['config']->set('activitylog.default_auth_driver', null);
+        $app['config']->set('activitylog.table_name', 'activities');
+        $app['config']->set('activitylog.activity_model', Activity::class);
     }
 
     protected function defineDatabaseMigrations(): void
@@ -105,7 +118,7 @@ class LogsActivityTraitTest extends TestCase
         $model = TestActivityModel::create(['name' => 'Original Name']);
         $model->update(['name' => 'Updated Name']);
 
-        $activities = Activity::latest()->get();
+        $activities = Activity::orderBy('id', 'desc')->get();
 
         $this->assertCount(2, $activities);
 

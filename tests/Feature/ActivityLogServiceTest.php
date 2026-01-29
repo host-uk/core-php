@@ -15,6 +15,13 @@ class ActivityLogServiceTest extends TestCase
 
     protected ActivityLogService $service;
 
+    protected function getPackageProviders($app): array
+    {
+        return array_merge(parent::getPackageProviders($app), [
+            \Spatie\Activitylog\ActivitylogServiceProvider::class,
+        ]);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +36,12 @@ class ActivityLogServiceTest extends TestCase
         $app['config']->set('core.activity.enabled', true);
         $app['config']->set('core.activity.log_name', 'test');
         $app['config']->set('core.activity.retention_days', 90);
+
+        // Set up spatie activitylog config
+        $app['config']->set('activitylog.default_log_name', 'default');
+        $app['config']->set('activitylog.default_auth_driver', null);
+        $app['config']->set('activitylog.table_name', 'activities');
+        $app['config']->set('activitylog.activity_model', Activity::class);
     }
 
     protected function defineDatabaseMigrations(): void

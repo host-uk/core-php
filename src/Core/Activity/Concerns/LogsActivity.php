@@ -223,16 +223,6 @@ trait LogsActivity
      */
     public static function withoutActivityLogging(callable $callback): mixed
     {
-        $previousState = activity()->isEnabled();
-
-        activity()->disableLogging();
-
-        try {
-            return $callback();
-        } finally {
-            if ($previousState) {
-                activity()->enableLogging();
-            }
-        }
+        return activity()->withoutLogs($callback);
     }
 }
