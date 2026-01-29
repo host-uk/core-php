@@ -1,32 +1,49 @@
 import { defineConfig } from 'vitepress'
+import { fileURLToPath } from 'url'
+import path from 'path'
+import { getPackagesSidebar, getPackagesNav } from './sidebar.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const docsDir = path.resolve(__dirname, '..')
+
+// Auto-discover packages
+const packagesSidebar = getPackagesSidebar(docsDir)
+const packagesNav = getPackagesNav(docsDir)
+
+// Separate PHP/Go from ecosystem packages for nav
+const phpNav = packagesNav.find(p => p.link === '/packages/php/')
+const goNav = packagesNav.find(p => p.link === '/packages/go/')
+const ecosystemNav = packagesNav.filter(p =>
+  p.link !== '/packages/php/' && p.link !== '/packages/go/'
+)
 
 export default defineConfig({
-  title: 'Core PHP Framework',
-  description: 'Modular monolith framework for Laravel',
+  title: 'Host UK',
+  description: 'Native application frameworks for PHP and Go',
   base: '/',
 
   ignoreDeadLinks: [
     // Ignore localhost links
     /^https?:\/\/localhost/,
-    // Old monorepo changelog paths (packages now in separate repos)
-    /\/packages\/core-(php|admin|api|mcp)\/changelog/,
+    // Old paths during migration
+    /\/packages\/core/,
+    /\/core\//,
+    /\/architecture\//,
+    /\/patterns-guide\//,
     // Security pages not yet created
     /\/security\/(api-authentication|rate-limiting|workspace-isolation|sql-validation|gdpr)/,
     // Package pages not yet created
     /\/packages\/admin\/(tables|security|hlcrf|activity)/,
     /\/packages\/api\/(openapi|analytics|alerts|logging)/,
     /\/packages\/mcp\/commerce/,
-    /\/packages\/core\/(services|seeders|security|email-shield|action-gate|i18n)/,
-    // Architecture pages not yet created
-    /\/architecture\/(custom-events|performance)/,
-    // Patterns pages not yet created
-    /\/patterns-guide\/(multi-tenancy|workspace-caching|search|admin-menus|services|repositories|responsive-design|factories|webhooks)/,
+    /\/packages\/php\/(services|seeders|security|email-shield|action-gate|i18n)/,
     // Other pages not yet created
     /\/testing\//,
     /\/contributing/,
     /\/guide\/testing/,
-    // Ignore relative changelog paths
-    /\.\/packages\//,
+    // Go docs - relative paths
+    /\.\.\/configuration/,
+    /\.\.\/examples/,
   ],
 
   themeConfig: {
@@ -34,17 +51,20 @@ export default defineConfig({
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Patterns', link: '/patterns-guide/actions' },
+      {
+        text: 'PHP',
+        link: '/packages/php/',
+        activeMatch: '/packages/php/'
+      },
+      {
+        text: 'Go',
+        link: '/packages/go/',
+        activeMatch: '/packages/go/'
+      },
       {
         text: 'Packages',
-        items: [
-          { text: 'Core', link: '/packages/core/' },
-          { text: 'Admin', link: '/packages/admin/' },
-          { text: 'API', link: '/packages/api/' },
-          { text: 'MCP', link: '/packages/mcp/' }
-        ]
+        items: ecosystemNav
       },
-      { text: 'API', link: '/api/authentication' },
       { text: 'Security', link: '/security/overview' },
       {
         text: 'v1.0',
@@ -69,107 +89,16 @@ export default defineConfig({
         }
       ],
 
-      '/architecture/': [
+      // Packages index
+      '/packages/': [
         {
-          text: 'Architecture',
-          items: [
-            { text: 'Lifecycle Events', link: '/architecture/lifecycle-events' },
-            { text: 'Module System', link: '/architecture/module-system' },
-            { text: 'Lazy Loading', link: '/architecture/lazy-loading' },
-            { text: 'Multi-Tenancy', link: '/architecture/multi-tenancy' },
-            { text: 'Custom Events', link: '/architecture/custom-events' },
-            { text: 'Performance', link: '/architecture/performance' }
-          ]
+          text: 'Packages',
+          items: packagesNav.map(p => ({ text: p.text, link: p.link }))
         }
       ],
 
-      '/patterns-guide/': [
-        {
-          text: 'Patterns',
-          items: [
-            { text: 'Actions', link: '/patterns-guide/actions' },
-            { text: 'Activity Logging', link: '/patterns-guide/activity-logging' },
-            { text: 'Services', link: '/patterns-guide/services' },
-            { text: 'Repositories', link: '/patterns-guide/repositories' },
-            { text: 'Seeders', link: '/patterns-guide/seeders' },
-            { text: 'HLCRF Layouts', link: '/patterns-guide/hlcrf' }
-          ]
-        }
-      ],
-
-      '/packages/core/': [
-        {
-          text: 'Core Package',
-          items: [
-            { text: 'Overview', link: '/packages/core/' },
-            { text: 'Module System', link: '/packages/core/modules' },
-            { text: 'Multi-Tenancy', link: '/packages/core/tenancy' },
-            { text: 'CDN Integration', link: '/packages/core/cdn' },
-            { text: 'Actions', link: '/packages/core/actions' },
-            { text: 'Lifecycle Events', link: '/packages/core/events' },
-            { text: 'Configuration', link: '/packages/core/configuration' },
-            { text: 'Activity Logging', link: '/packages/core/activity' },
-            { text: 'Media Processing', link: '/packages/core/media' },
-            { text: 'Search', link: '/packages/core/search' },
-            { text: 'SEO Tools', link: '/packages/core/seo' },
-            { text: 'Service Contracts', link: '/packages/core/service-contracts' },
-            { text: 'Seeder System', link: '/packages/core/seeder-system' }
-          ]
-        }
-      ],
-
-      '/packages/admin/': [
-        {
-          text: 'Admin Package',
-          items: [
-            { text: 'Overview', link: '/packages/admin/' },
-            { text: 'Form Components', link: '/packages/admin/forms' },
-            { text: 'Livewire Modals', link: '/packages/admin/modals' },
-            { text: 'Global Search', link: '/packages/admin/search' },
-            { text: 'Admin Menus', link: '/packages/admin/menus' },
-            { text: 'Authorization', link: '/packages/admin/authorization' },
-            { text: 'UI Components', link: '/packages/admin/components' },
-            { text: 'Creating Admin Panels', link: '/packages/admin/creating-admin-panels' },
-            { text: 'HLCRF Deep Dive', link: '/packages/admin/hlcrf-deep-dive' },
-            { text: 'Components Reference', link: '/packages/admin/components-reference' }
-          ]
-        }
-      ],
-
-      '/packages/api/': [
-        {
-          text: 'API Package',
-          items: [
-            { text: 'Overview', link: '/packages/api/' },
-            { text: 'Authentication', link: '/packages/api/authentication' },
-            { text: 'Webhooks', link: '/packages/api/webhooks' },
-            { text: 'Rate Limiting', link: '/packages/api/rate-limiting' },
-            { text: 'Scopes', link: '/packages/api/scopes' },
-            { text: 'Documentation', link: '/packages/api/documentation' },
-            { text: 'Building REST APIs', link: '/packages/api/building-rest-apis' },
-            { text: 'Webhook Integration', link: '/packages/api/webhook-integration' },
-            { text: 'Endpoints Reference', link: '/packages/api/endpoints-reference' }
-          ]
-        }
-      ],
-
-      '/packages/mcp/': [
-        {
-          text: 'MCP Package',
-          items: [
-            { text: 'Overview', link: '/packages/mcp/' },
-            { text: 'Query Database', link: '/packages/mcp/query-database' },
-            { text: 'Creating Tools', link: '/packages/mcp/tools' },
-            { text: 'Security', link: '/packages/mcp/security' },
-            { text: 'Workspace Context', link: '/packages/mcp/workspace' },
-            { text: 'Analytics', link: '/packages/mcp/analytics' },
-            { text: 'Usage Quotas', link: '/packages/mcp/quotas' },
-            { text: 'Creating MCP Tools', link: '/packages/mcp/creating-mcp-tools' },
-            { text: 'SQL Security', link: '/packages/mcp/sql-security' },
-            { text: 'Tools Reference', link: '/packages/mcp/tools-reference' }
-          ]
-        }
-      ],
+      // Auto-discovered package sidebars (php, go, admin, api, mcp, etc.)
+      ...packagesSidebar,
 
       '/security/': [
         {
@@ -196,7 +125,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/host-uk/core-php' }
+      { icon: 'github', link: 'https://github.com/host-uk' }
     ],
 
     footer: {
