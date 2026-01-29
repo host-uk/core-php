@@ -37,6 +37,9 @@ export default defineConfig({
     /\/packages\/api\/(openapi|analytics|alerts|logging)/,
     /\/packages\/mcp\/commerce/,
     /\/packages\/php\/(services|seeders|security|email-shield|action-gate|i18n)/,
+    // Package root links (without trailing slash) - VitePress resolves these
+    /^\/packages\/(admin|api|mcp|php|go)$/,
+    /^\/packages\/(admin|api|mcp|php|go)#/,
     // Other pages not yet created
     /\/testing\//,
     /\/contributing/,

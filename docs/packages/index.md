@@ -23,6 +23,12 @@ const packages = [
     featured: true
   },
   {
+    name: 'Tenant',
+    slug: 'tenant',
+    description: 'Multi-tenancy, workspaces, user management, and entitlement systems',
+    icon: '🏢'
+  },
+  {
     name: 'Admin',
     slug: 'admin',
     description: 'Admin panel with Livewire modals, forms, and global search',
@@ -39,6 +45,24 @@ const packages = [
     slug: 'mcp',
     description: 'Model Context Protocol server for AI agent integration',
     icon: '🤖'
+  },
+  {
+    name: 'Commerce',
+    slug: 'commerce',
+    description: 'Billing, subscriptions, and payment processing with BTCPay and Stripe',
+    icon: '💳'
+  },
+  {
+    name: 'Content',
+    slug: 'content',
+    description: 'Headless CMS with AI generation, revision history, and webhooks',
+    icon: '📝'
+  },
+  {
+    name: 'Developer',
+    slug: 'developer',
+    description: 'Admin developer tools for debugging, monitoring, and server management',
+    icon: '🛠️'
   }
 ]
 
