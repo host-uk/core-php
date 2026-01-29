@@ -74,7 +74,7 @@ class EditableTable extends Component
         return count($this->columns) + ($this->selectable ? 1 : 0);
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.editable-table');
     }

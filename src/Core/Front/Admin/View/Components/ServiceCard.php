@@ -52,7 +52,7 @@ class ServiceCard extends Component
         $this->statusColor = $this->status === 'online' ? 'green' : 'red';
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.service-card');
     }

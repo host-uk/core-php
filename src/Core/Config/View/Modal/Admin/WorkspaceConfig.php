@@ -277,7 +277,7 @@ class WorkspaceConfig extends Component
         $this->dispatch('config-cleared');
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('core.config::admin.workspace-config')
             ->layout('hub::admin.layouts.app', ['title' => 'Settings']);

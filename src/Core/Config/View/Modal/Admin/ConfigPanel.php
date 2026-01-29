@@ -271,7 +271,7 @@ class ConfigPanel extends Component
         $this->dispatch('config-cleared');
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('core.config::admin.config-panel')
             ->layout('hub::admin.layouts.app', ['title' => 'Configuration']);

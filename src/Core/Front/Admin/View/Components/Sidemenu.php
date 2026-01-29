@@ -51,7 +51,7 @@ class Sidemenu extends Component
         return app(AdminMenuRegistry::class)->build($workspace, $isAdmin);
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.sidemenu');
     }

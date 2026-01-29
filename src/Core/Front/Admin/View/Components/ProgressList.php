@@ -52,7 +52,7 @@ class ProgressList extends Component
         return is_numeric($value) ? number_format($value) : (string) $value;
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.progress-list');
     }

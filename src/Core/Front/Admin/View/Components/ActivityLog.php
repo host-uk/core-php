@@ -57,7 +57,7 @@ class ActivityLog extends Component
         return is_array($value) ? json_encode($value) : (string) $value;
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.activity-log');
     }

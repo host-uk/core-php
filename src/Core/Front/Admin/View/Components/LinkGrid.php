@@ -44,7 +44,7 @@ class LinkGrid extends Component
         return $item['icon'] ?? 'arrow-right';
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.link-grid');
     }

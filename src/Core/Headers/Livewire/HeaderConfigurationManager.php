@@ -451,7 +451,7 @@ class HeaderConfigurationManager extends Component
     /**
      * Render the component.
      */
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('core::headers.livewire.header-configuration-manager');
     }

@@ -49,7 +49,7 @@ class Filter extends Component
         })->values()->all();
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.filter');
     }

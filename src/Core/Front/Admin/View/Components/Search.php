@@ -24,7 +24,7 @@ class Search extends Component
         $this->wireModel = $this->model ? "wire:model.live.debounce.300ms=\"{$this->model}\"" : '';
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('admin::components.search');
     }
