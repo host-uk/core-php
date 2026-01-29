@@ -61,6 +61,12 @@ curl -fsSL https://github.com/host-uk/core/releases/latest/download/core-$(uname
 |---------|-------------|
 | [`core docs`](cmd/docs.md) | Documentation management |
 
+### Integrations
+
+| Integration | Description |
+|-------------|-------------|
+| [Claude Code Skill](cmd/skill.md) | AI assistant integration for command guidance |
+
 ## Quick Start
 
 ```bash
@@ -111,6 +117,7 @@ Core uses `.core/` directory for project configuration:
 - [Setup](cmd/setup.md) - Clone repos from registry
 - [Work](cmd/work.md) - Multi-repo operations
 - [Docs](cmd/docs.md) - Documentation management
+- [Claude Code Skill](cmd/skill.md) - AI assistant integration
 
 ### Reference
 - [Configuration](configuration.md) - All config options
