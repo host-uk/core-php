@@ -92,7 +92,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'hits');
+        $this->doIncrement($driver, 'hits');
         $this->recordLatency($driver, $durationSeconds * 1000);
     }
 
@@ -105,7 +105,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'misses');
+        $this->doIncrement($driver, 'misses');
         $this->recordLatency($driver, $durationSeconds * 1000);
     }
 
@@ -118,7 +118,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'writes');
+        $this->doIncrement($driver, 'writes');
         $this->recordLatency($driver, $durationSeconds * 1000);
     }
 
@@ -131,7 +131,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'deletes');
+        $this->doIncrement($driver, 'deletes');
         $this->recordLatency($driver, $durationSeconds * 1000);
     }
 
@@ -144,7 +144,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'fallback_activations');
+        $this->doIncrement($driver, 'fallback_activations');
 
         $this->log('warning', 'Storage fallback activated', [
             'driver' => $driver,
@@ -162,9 +162,9 @@ class StorageMetrics
         }
 
         if ($newState === CircuitBreaker::STATE_OPEN) {
-            $this->increment($driver, 'circuit_opens');
+            $this->doIncrement($driver, 'circuit_opens');
         } elseif ($newState === CircuitBreaker::STATE_CLOSED && $oldState !== CircuitBreaker::STATE_CLOSED) {
-            $this->increment($driver, 'circuit_closes');
+            $this->doIncrement($driver, 'circuit_closes');
         }
 
         $this->log('info', 'Circuit breaker state change', [
@@ -172,6 +172,17 @@ class StorageMetrics
             'old_state' => $oldState,
             'new_state' => $newState,
         ]);
+    }
+
+    /**
+     * Increment a custom metric counter.
+     *
+     * Allows external code to record custom metrics beyond the standard
+     * hit/miss/write/delete metrics.
+     */
+    public function increment(string $driver, string $metric, int $amount = 1): void
+    {
+        $this->doIncrement($driver, $metric, $amount);
     }
 
     /**
@@ -183,7 +194,7 @@ class StorageMetrics
             return;
         }
 
-        $this->increment($driver, 'errors');
+        $this->doIncrement($driver, 'errors');
 
         $this->log('error', 'Storage operation error', [
             'driver' => $driver,
@@ -431,9 +442,9 @@ class StorageMetrics
     }
 
     /**
-     * Increment a metric counter.
+     * Internal metric counter increment.
      */
-    protected function increment(string $driver, string $metric, int $amount = 1): void
+    protected function doIncrement(string $driver, string $metric, int $amount = 1): void
     {
         if (! isset($this->metrics[$driver])) {
             $this->metrics[$driver] = $this->getDefaultMetrics();
