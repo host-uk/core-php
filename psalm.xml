@@ -8,6 +8,10 @@
     findUnusedBaselineEntry="false"
     findUnusedCode="false"
 >
+    <plugins>
+        <pluginClass class="Psalm\LaravelPlugin\Plugin" />
+    </plugins>
+
     <issueHandlers>
         <MissingOverrideAttribute>
             <errorLevel type="suppress">

@@ -20,3 +20,9 @@ public/build
 /coverage
 /docs/.vitepress/dist
 docs/.vitepress/cache/
+
+# QA tools
+.infection/
+infection.log
+infection-summary.log
+.rector-cache/
