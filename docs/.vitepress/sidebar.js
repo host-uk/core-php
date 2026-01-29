@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 
-// Auto-discover packages from docs/packages/
+// Auto-discover packages from docs/packages/ and docs/build/
 // Each package folder should have an index.md
 //
 // Frontmatter options:
@@ -12,23 +12,32 @@ import matter from 'gray-matter'
 //   collapsed: true               - Start group collapsed (for directories)
 
 export function getPackagesSidebar(docsDir) {
-  const packagesDir = path.join(docsDir, 'packages')
+  return {
+    ...getSidebarForDir(docsDir, 'packages'),
+    ...getSidebarForDir(docsDir, 'build'),
+    ...getSidebarForDir(docsDir, 'publish'),
+    ...getSidebarForDir(docsDir, 'deploy')
+  }
+}
 
-  if (!fs.existsSync(packagesDir)) {
+function getSidebarForDir(docsDir, dirName) {
+  const targetDir = path.join(docsDir, dirName)
+
+  if (!fs.existsSync(targetDir)) {
     return {}
   }
 
   const sidebar = {}
-  const packages = fs.readdirSync(packagesDir, { withFileTypes: true })
+  const packages = fs.readdirSync(targetDir, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => d.name)
     .sort()
 
   for (const pkg of packages) {
-    const pkgDir = path.join(packagesDir, pkg)
+    const pkgDir = path.join(targetDir, pkg)
 
     // Build sidebar tree recursively
-    const items = buildSidebarItems(pkgDir, `/packages/${pkg}`)
+    const items = buildSidebarItems(pkgDir, `/${dirName}/${pkg}`)
 
     if (items.length === 0) continue
 
@@ -46,7 +55,7 @@ export function getPackagesSidebar(docsDir) {
       }
     }
 
-    sidebar[`/packages/${pkg}/`] = [
+    sidebar[`/${dirName}/${pkg}/`] = [
       {
         text: packageTitle,
         items: items

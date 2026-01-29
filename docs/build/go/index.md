@@ -1,6 +1,6 @@
-# Core CLI
+# Core Go
 
-Core is a unified CLI for the host-uk ecosystem - build, release, and deploy Go, Wails, PHP, and container workloads.
+Core is a Go framework for the host-uk ecosystem - build, release, and deploy Go, Wails, PHP, and container workloads.
 
 ## Installation
 
@@ -20,21 +20,21 @@ See [Getting Started](getting-started.md) for all installation options including
 
 ## Command Reference
 
-See [cmd/](cmd/) for full command documentation.
+See [CLI](/build/cli/) for full command documentation.
 
 | Command | Description |
 |---------|-------------|
-| [go](cmd/go/) | Go development (test, fmt, lint, cov) |
-| [php](cmd/php/) | Laravel/PHP development |
-| [build](cmd/build/) | Build Go, Wails, Docker, LinuxKit projects |
-| [ci](cmd/ci/) | Publish releases (dry-run by default) |
-| [sdk](cmd/sdk/) | SDK generation and validation |
-| [dev](cmd/dev/) | Multi-repo workflow + dev environment |
-| [pkg](cmd/pkg/) | Package search and install |
-| [vm](cmd/vm/) | LinuxKit VM management |
-| [docs](cmd/docs/) | Documentation management |
-| [setup](cmd/setup/) | Clone repos from registry |
-| [doctor](cmd/doctor/) | Check development environment |
+| [go](/build/cli/go/) | Go development (test, fmt, lint, cov) |
+| [php](/build/cli/php/) | Laravel/PHP development |
+| [build](/build/cli/build/) | Build Go, Wails, Docker, LinuxKit projects |
+| [ci](/build/cli/ci/) | Publish releases (dry-run by default) |
+| [sdk](/build/cli/sdk/) | SDK generation and validation |
+| [dev](/build/cli/dev/) | Multi-repo workflow + dev environment |
+| [pkg](/build/cli/pkg/) | Package search and install |
+| [vm](/build/cli/vm/) | LinuxKit VM management |
+| [docs](/build/cli/docs/) | Documentation management |
+| [setup](/build/cli/setup/) | Clone repos from registry |
+| [doctor](/build/cli/doctor/) | Check development environment |
 
 ## Quick Start
 

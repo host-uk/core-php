@@ -6,16 +6,9 @@ import { getPackagesSidebar, getPackagesNav } from './sidebar.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const docsDir = path.resolve(__dirname, '..')
 
-// Auto-discover packages
+// Auto-discover packages and build items
 const packagesSidebar = getPackagesSidebar(docsDir)
 const packagesNav = getPackagesNav(docsDir)
-
-// Separate PHP/Go from ecosystem packages for nav
-const phpNav = packagesNav.find(p => p.link === '/packages/php/')
-const goNav = packagesNav.find(p => p.link === '/packages/go/')
-const ecosystemNav = packagesNav.filter(p =>
-  p.link !== '/packages/php/' && p.link !== '/packages/go/'
-)
 
 export default defineConfig({
   title: 'Host UK',
@@ -27,71 +20,74 @@ export default defineConfig({
     /^https?:\/\/localhost/,
     // Old paths during migration
     /\/packages\/core/,
+    /\/packages\/(php|go)/,
     /\/core\//,
     /\/architecture\//,
     /\/patterns-guide\//,
-    // Security pages not yet created
-    /\/security\/(api-authentication|rate-limiting|workspace-isolation|sql-validation|gdpr)/,
+    // Security pages moved to /build/php/
+    /\/security\//,
     // Package pages not yet created
     /\/packages\/admin\/(tables|security|hlcrf|activity)/,
     /\/packages\/api\/(openapi|analytics|alerts|logging)/,
     /\/packages\/mcp\/commerce/,
-    /\/packages\/php\/(services|seeders|security|email-shield|action-gate|i18n)/,
+    /\/build\/php\/(services|seeders|security|email-shield|action-gate|i18n)/,
     // Package root links (without trailing slash) - VitePress resolves these
-    /^\/packages\/(admin|api|mcp|php|go)$/,
-    /^\/packages\/(admin|api|mcp|php|go)#/,
+    /^\/packages\/(admin|api|mcp|tenant|commerce|content|developer)$/,
+    /^\/packages\/(admin|api|mcp|tenant|commerce|content|developer)#/,
+    /^\/build\/(php|go)$/,
+    /^\/build\/(php|go)#/,
+    // Guide moved to /build/php/
+    /\/guide\//,
     // Other pages not yet created
     /\/testing\//,
+    /\/changelog/,
     /\/contributing/,
-    /\/guide\/testing/,
-    // Go docs - relative paths
+    // Go docs - relative paths (cmd moved to /build/cli/)
     /\.\.\/configuration/,
     /\.\.\/examples/,
+    /\.\/cmd\//,
   ],
 
   themeConfig: {
     logo: '/logo.svg',
 
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
       {
-        text: 'PHP',
-        link: '/packages/php/',
-        activeMatch: '/packages/php/'
+        text: 'Build',
+        activeMatch: '/build/',
+        items: [
+          { text: 'PHP', link: '/build/php/' },
+          { text: 'Go', link: '/build/go/' },
+          { text: 'CLI', link: '/build/cli/' }
+        ]
       },
       {
-        text: 'Go',
-        link: '/packages/go/',
-        activeMatch: '/packages/go/'
+        text: 'Publish',
+        activeMatch: '/publish/',
+        items: [
+          { text: 'Overview', link: '/publish/' },
+          { text: 'GitHub', link: '/publish/github' },
+          { text: 'Docker', link: '/publish/docker' },
+          { text: 'npm', link: '/publish/npm' },
+          { text: 'Homebrew', link: '/publish/homebrew' },
+          { text: 'Scoop', link: '/publish/scoop' },
+          { text: 'AUR', link: '/publish/aur' },
+          { text: 'Chocolatey', link: '/publish/chocolatey' },
+          { text: 'LinuxKit', link: '/publish/linuxkit' }
+        ]
+      },
+      {
+        text: 'Deploy',
+        activeMatch: '/deploy/',
+        items: []
       },
       {
         text: 'Packages',
-        items: ecosystemNav
-      },
-      { text: 'Security', link: '/security/overview' },
-      {
-        text: 'v1.0',
-        items: [
-          { text: 'Changelog', link: '/changelog' },
-          { text: 'Contributing', link: '/contributing' }
-        ]
+        items: packagesNav
       }
     ],
 
     sidebar: {
-      '/guide/': [
-        {
-          text: 'Introduction',
-          items: [
-            { text: 'Getting Started', link: '/guide/getting-started' },
-            { text: 'Installation', link: '/guide/installation' },
-            { text: 'Configuration', link: '/guide/configuration' },
-            { text: 'Quick Start', link: '/guide/quick-start' },
-            { text: 'Testing', link: '/guide/testing' }
-          ]
-        }
-      ],
-
       // Packages index
       '/packages/': [
         {
@@ -100,20 +96,26 @@ export default defineConfig({
         }
       ],
 
-      // Auto-discovered package sidebars (php, go, admin, api, mcp, etc.)
-      ...packagesSidebar,
-
-      '/security/': [
+      // Publish section
+      '/publish/': [
         {
-          text: 'Security',
+          text: 'Publish',
           items: [
-            { text: 'Overview', link: '/security/overview' },
-            { text: 'Namespaces & Entitlements', link: '/security/namespaces' },
-            { text: 'Changelog', link: '/security/changelog' },
-            { text: 'Responsible Disclosure', link: '/security/responsible-disclosure' }
+            { text: 'Overview', link: '/publish/' },
+            { text: 'GitHub', link: '/publish/github' },
+            { text: 'Docker', link: '/publish/docker' },
+            { text: 'npm', link: '/publish/npm' },
+            { text: 'Homebrew', link: '/publish/homebrew' },
+            { text: 'Scoop', link: '/publish/scoop' },
+            { text: 'AUR', link: '/publish/aur' },
+            { text: 'Chocolatey', link: '/publish/chocolatey' },
+            { text: 'LinuxKit', link: '/publish/linuxkit' }
           ]
         }
       ],
+
+      // Auto-discovered package sidebars (php, go, admin, api, mcp, etc.)
+      ...packagesSidebar,
 
       '/api/': [
         {

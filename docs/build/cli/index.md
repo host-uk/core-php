@@ -28,4 +28,4 @@ go install github.com/host-uk/core/cmd/core@latest
 
 Verify: `core doctor`
 
-See [Getting Started](../getting-started.md) for all installation options.
+See [Getting Started](/build/go/getting-started) for all installation options.

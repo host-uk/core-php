@@ -168,7 +168,7 @@ Browse the Host UK package ecosystem.
 <div v-if="featured.length" class="section">
   <div class="section-title">Frameworks</div>
   <div class="grid grid-featured">
-    <a v-for="pkg in featured" :key="pkg.slug" :href="`./${pkg.slug}/`" class="card card-featured">
+    <a v-for="pkg in featured" :key="pkg.slug" :href="`/build/${pkg.slug}/`" class="card card-featured">
       <div class="card-icon">{{ pkg.icon }}</div>
       <div class="card-title">{{ pkg.name }}</div>
       <div class="card-desc">{{ pkg.description }}</div>
