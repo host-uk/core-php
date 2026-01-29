@@ -39,6 +39,7 @@ curl -fsSL https://github.com/host-uk/core/releases/latest/download/core-$(uname
 |---------|-------------|
 | [`core dev`](cmd/dev.md) | Portable development environment (100+ tools) |
 | [`core php`](cmd/php.md) | Laravel/PHP development tools |
+| [`core test`](cmd/test.md) | Run tests with coverage reporting |
 | [`core doctor`](cmd/doctor.md) | Check development environment |
 
 ### GitHub & Multi-Repo
@@ -104,6 +105,7 @@ Core uses `.core/` directory for project configuration:
 - [Templates](cmd/templates.md) - LinuxKit templates
 - [Dev](cmd/dev.md) - Portable development environment
 - [PHP](cmd/php.md) - Laravel development
+- [Test](cmd/test.md) - Run tests with coverage
 - [Doctor](cmd/doctor.md) - Environment check
 - [Search & Install](cmd/search.md) - GitHub integration
 - [Setup](cmd/setup.md) - Clone repos from registry
