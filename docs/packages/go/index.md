@@ -1,92 +1,65 @@
-# Go Framework
+# Core CLI
 
-Core is a native application framework for Go, built on Wails v3. It provides dependency injection, service lifecycle management, IPC messaging, and a unified CLI for building, releasing, and deploying applications.
+Core is a unified CLI for the host-uk ecosystem - build, release, and deploy Go, Wails, PHP, and container workloads.
 
 ## Installation
 
 ```bash
-# Go install
+# Via Go (recommended)
 go install github.com/host-uk/core/cmd/core@latest
 
-# Or download from releases
-curl -fsSL https://github.com/host-uk/core/releases/latest/download/core-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar -xzf - -C /usr/local/bin
+# Or download binary from releases
+curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-$(go env GOOS)-$(go env GOARCH)
+chmod +x core && sudo mv core /usr/local/bin/
+
+# Verify
+core doctor
 ```
 
-## Commands
+See [Getting Started](getting-started.md) for all installation options including building from source.
 
-### Build & Release
+## Command Reference
 
-| Command | Description |
-|---------|-------------|
-| [`core build`](cmd/build.md) | Build Go, Wails, Docker, and LinuxKit projects |
-| [`core release`](cmd/release.md) | Build and publish to GitHub, npm, Homebrew, etc. |
-| [`core sdk`](cmd/sdk.md) | Generate and manage API SDKs |
-
-### Containers
+See [cmd/](cmd/) for full command documentation.
 
 | Command | Description |
 |---------|-------------|
-| [`core run`](cmd/run.md) | Run LinuxKit images with qemu/hyperkit |
-| `core ps` | List running containers |
-| `core stop` | Stop running containers |
-| `core logs` | View container logs |
-| `core exec` | Execute commands in containers |
-| [`core templates`](cmd/templates.md) | Manage LinuxKit templates |
-
-### Development
-
-| Command | Description |
-|---------|-------------|
-| [`core dev`](cmd/dev.md) | Portable development environment (100+ tools) |
-| [`core php`](cmd/php.md) | Laravel/PHP development tools |
-| [`core test`](cmd/test.md) | Run tests with coverage reporting |
-| [`core doctor`](cmd/doctor.md) | Check development environment |
-
-### GitHub & Multi-Repo
-
-| Command | Description |
-|---------|-------------|
-| [`core search`](cmd/search.md) | Search GitHub for repositories |
-| [`core install`](cmd/search.md) | Clone a repository from GitHub |
-| [`core setup`](cmd/setup.md) | Clone all repos from registry |
-| [`core work`](cmd/work.md) | Multi-repo git operations |
-| [`core health`](cmd/work.md) | Quick health check across repos |
-| [`core issues`](cmd/work.md) | List open issues across repos |
-| [`core reviews`](cmd/work.md) | List PRs needing review |
-| [`core ci`](cmd/work.md) | Check CI status across repos |
-
-### Documentation
-
-| Command | Description |
-|---------|-------------|
-| [`core docs`](cmd/docs.md) | Documentation management |
-
-### Integrations
-
-| Integration | Description |
-|-------------|-------------|
-| [Claude Code Skill](cmd/skill.md) | AI assistant integration for command guidance |
+| [go](cmd/go/) | Go development (test, fmt, lint, cov) |
+| [php](cmd/php/) | Laravel/PHP development |
+| [build](cmd/build/) | Build Go, Wails, Docker, LinuxKit projects |
+| [ci](cmd/ci/) | Publish releases (dry-run by default) |
+| [sdk](cmd/sdk/) | SDK generation and validation |
+| [dev](cmd/dev/) | Multi-repo workflow + dev environment |
+| [pkg](cmd/pkg/) | Package search and install |
+| [vm](cmd/vm/) | LinuxKit VM management |
+| [docs](cmd/docs/) | Documentation management |
+| [setup](cmd/setup/) | Clone repos from registry |
+| [doctor](cmd/doctor/) | Check development environment |
 
 ## Quick Start
 
 ```bash
-# Build a Go project
-core build
+# Go development
+core go test              # Run tests
+core go test --coverage   # With coverage
+core go fmt               # Format code
+core go lint              # Lint code
 
-# Build for specific targets
+# Build
+core build                # Auto-detect and build
 core build --targets linux/amd64,darwin/arm64
 
-# Release to GitHub
-core release
+# Release (dry-run by default)
+core ci                   # Preview release
+core ci --we-are-go-for-launch  # Actually publish
 
-# Release to multiple package managers
-core release  # Publishes to all configured targets
+# Multi-repo workflow
+core dev work             # Status + commit + push
+core dev work --status    # Just show status
 
-# Start PHP dev environment
-core php dev
-
-# Run a LinuxKit image
-core run server.iso
+# PHP development
+core php dev              # Start dev environment
+core php test             # Run tests
 ```
 
 ## Configuration
@@ -98,35 +71,28 @@ Core uses `.core/` directory for project configuration:
 ├── release.yaml    # Release targets and settings
 ├── build.yaml      # Build configuration (optional)
 └── linuxkit/       # LinuxKit templates
-    └── server.yml
 ```
 
-## Documentation
+And `repos.yaml` in workspace root for multi-repo management.
 
-### Command Reference
-- [Build](cmd/build.md) - Cross-platform builds with code signing
-- [Release](cmd/release.md) - Publishing to package managers
-- [SDK](cmd/sdk.md) - Generate API clients from OpenAPI
-- [Run](cmd/run.md) - Container management
-- [Templates](cmd/templates.md) - LinuxKit templates
-- [Dev](cmd/dev.md) - Portable development environment
-- [PHP](cmd/php.md) - Laravel development
-- [Test](cmd/test.md) - Run tests with coverage
-- [Doctor](cmd/doctor.md) - Environment check
-- [Search & Install](cmd/search.md) - GitHub integration
-- [Setup](cmd/setup.md) - Clone repos from registry
-- [Work](cmd/work.md) - Multi-repo operations
-- [Docs](cmd/docs.md) - Documentation management
-- [Claude Code Skill](cmd/skill.md) - AI assistant integration
+## Guides
 
-### Reference
+- [Getting Started](getting-started.md) - Installation and first steps
+- [Workflows](workflows.md) - Common task sequences
+- [Troubleshooting](troubleshooting.md) - When things go wrong
+- [Migration](migration.md) - Moving from legacy tools
+
+## Reference
+
 - [Configuration](configuration.md) - All config options
-- [Examples](examples/) - Sample configurations
+- [Glossary](glossary.md) - Term definitions
 
-## Framework
+## Claude Code Skill
 
-Core also provides a Go framework for building desktop applications:
+Install the skill to teach Claude Code how to use the Core CLI:
 
-- [Framework Overview](framework/overview.md)
-- [Services](framework/services.md)
-- [Lifecycle](framework/lifecycle.md)
+```bash
+curl -fsSL https://raw.githubusercontent.com/host-uk/core/main/.claude/skills/core/install.sh | bash
+```
+
+See [skill/](skill/) for details.
