@@ -81,6 +81,7 @@ export default defineConfig({
         activeMatch: '/deploy/',
         items: [
           { text: 'Overview', link: '/deploy/' },
+          { text: 'PHP', link: '/deploy/php' },
           { text: 'LinuxKit VMs', link: '/deploy/linuxkit' },
           { text: 'Templates', link: '/deploy/templates' },
           { text: 'Docker', link: '/deploy/docker' }
@@ -125,6 +126,7 @@ export default defineConfig({
           text: 'Deploy',
           items: [
             { text: 'Overview', link: '/deploy/' },
+            { text: 'PHP', link: '/deploy/php' },
             { text: 'LinuxKit VMs', link: '/deploy/linuxkit' },
             { text: 'Templates', link: '/deploy/templates' },
             { text: 'Docker', link: '/deploy/docker' }

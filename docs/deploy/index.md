@@ -6,6 +6,7 @@ Deploy applications to VMs, containers, and cloud infrastructure.
 
 | Target | Description | Use Case |
 |--------|-------------|----------|
+| [PHP](php) | Laravel/PHP with FrankenPHP | Web applications, APIs |
 | [LinuxKit](linuxkit) | Lightweight immutable VMs | Production servers, edge nodes |
 | [Templates](templates) | Pre-configured VM images | Quick deployment, dev environments |
 | [Docker](docker) | Container orchestration | Kubernetes, Swarm, ECS |
