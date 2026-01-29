@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Configuration channel (voice/context substrate).
@@ -123,7 +124,7 @@ class Channel extends Model
 
         while ($current->parent_id !== null) {
             if (isset($seen[$current->parent_id])) {
-                \Log::error('Circular reference detected in channel inheritance', [
+                Log::error('Circular reference detected in channel inheritance', [
                     'channel_id' => $this->id,
                     'cycle_at' => $current->parent_id,
                 ]);

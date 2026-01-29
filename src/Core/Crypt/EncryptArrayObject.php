@@ -14,6 +14,7 @@ namespace Core\Crypt;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Cast for storing encrypted array data as ArrayObject.
@@ -36,7 +37,7 @@ class EncryptArrayObject implements CastsAttributes
             try {
                 $decrypted = Crypt::decryptString($attributes[$key]);
             } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                \Log::warning('Failed to decrypt array object', ['key' => $key, 'error' => $e->getMessage()]);
+                Log::warning('Failed to decrypt array object', ['key' => $key, 'error' => $e->getMessage()]);
 
                 return null;
             }
@@ -44,7 +45,7 @@ class EncryptArrayObject implements CastsAttributes
             $decoded = json_decode($decrypted, true);
 
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
-                \Log::warning('Failed to decode encrypted array', ['key' => $key, 'error' => json_last_error_msg()]);
+                Log::warning('Failed to decode encrypted array', ['key' => $key, 'error' => json_last_error_msg()]);
 
                 return null;
             }

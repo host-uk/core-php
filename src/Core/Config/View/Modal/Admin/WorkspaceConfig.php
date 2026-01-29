@@ -19,6 +19,17 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
+/**
+ * Workspace configuration panel.
+ *
+ * @property-read int $depth
+ * @property-read array<string> $namespaces
+ * @property-read ConfigProfile|null $workspaceProfile
+ * @property-read ConfigProfile $systemProfile
+ * @property-read object|null $workspace
+ * @property-read string $prefix
+ * @property-read array<int, array{namespace: string, label: string, keys: \Illuminate\Support\Collection}> $tabs
+ */
 class WorkspaceConfig extends Component
 {
     public ?string $path = null;

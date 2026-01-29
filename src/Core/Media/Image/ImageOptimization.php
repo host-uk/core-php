@@ -16,6 +16,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * Image optimisation record.
+ *
+ * @property int $id
+ * @property string $path
+ * @property string|null $original_path
+ * @property int $original_size
+ * @property int $optimized_size
+ * @property int $percentage_saved
+ * @property string|null $driver
+ * @property int|null $quality
+ * @property int|null $workspace_id
+ * @property string|null $optimizable_type
+ * @property int|null $optimizable_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class ImageOptimization extends Model
 {
     use HasFactory;

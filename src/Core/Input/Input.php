@@ -22,8 +22,8 @@ class Input
     {
         $sanitiser = new Sanitiser;
 
-        $_GET = $sanitiser->filter($_GET ?? []);
-        $_POST = $sanitiser->filter($_POST ?? []);
+        $_GET = $sanitiser->filter($_GET);
+        $_POST = $sanitiser->filter($_POST);
 
         return Request::capture();
     }

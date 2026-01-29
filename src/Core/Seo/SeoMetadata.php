@@ -14,6 +14,26 @@ namespace Core\Seo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * SEO metadata for any model.
+ *
+ * @property int $id
+ * @property string $seoable_type
+ * @property int $seoable_id
+ * @property string|null $title
+ * @property string|null $description
+ * @property string|null $canonical_url
+ * @property array<string, mixed>|null $og_data
+ * @property array<string, mixed>|null $twitter_data
+ * @property array<string, mixed>|null $schema_markup
+ * @property string|null $robots
+ * @property string|null $focus_keyword
+ * @property int|null $seo_score
+ * @property array<string>|null $seo_issues
+ * @property array<string>|null $seo_suggestions
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class SeoMetadata extends Model
 {
     protected $table = 'seo_metadata';

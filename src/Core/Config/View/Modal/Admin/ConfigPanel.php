@@ -19,6 +19,13 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
+/**
+ * Configuration panel for managing config keys and values.
+ *
+ * @property-read ConfigProfile $activeProfile
+ * @property-read array<string> $categories
+ * @property-read \Illuminate\Database\Eloquent\Collection $workspaces
+ */
 class ConfigPanel extends Component
 {
     #[Url]

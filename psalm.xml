@@ -31,8 +31,6 @@
                 <referencedClass name="Laravel\Horizon\Contracts\MasterSupervisorRepository" />
                 <referencedClass name="Flux\Flux" />
                 <referencedClass name="Flux\AssetManager" />
-                <!-- Laravel facades (global aliases) -->
-                <referencedClass name="Log" />
                 <!-- Runtime aliased classes (App\* namespace) -->
                 <referencedClass name="App\Traits\HasCdnUrls" />
                 <referencedClass name="App\Support\UtmHelper" />
