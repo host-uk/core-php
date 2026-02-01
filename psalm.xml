@@ -22,6 +22,10 @@
         <!-- Suppress optional dependency errors -->
         <UndefinedClass>
             <errorLevel type="suppress">
+                <!-- PHP extensions that may not be installed -->
+                <referencedClass name="MessageFormatter" />
+                <referencedClass name="GdImage" />
+                <referencedClass name="Redis" />
                 <!-- Optional CDN/storage dependencies -->
                 <referencedClass name="Bunny\Storage\Client" />
                 <referencedClass name="Predis\Client" />
@@ -57,6 +61,14 @@
                 <referencedClass name="Core\Config\Workspace" />
             </errorLevel>
         </UndefinedClass>
+
+        <!-- Suppress docblock references to optional PHP extensions -->
+        <UndefinedDocblockClass>
+            <errorLevel type="suppress">
+                <referencedClass name="MessageFormatter" />
+                <referencedClass name="GdImage" />
+            </errorLevel>
+        </UndefinedDocblockClass>
 
         <!-- Suppress false positives from strict type analysis -->
         <NoValue>
