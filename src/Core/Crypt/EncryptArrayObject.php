@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Core\Crypt;
 
+use Core\Crypt\Exceptions\EncryptedDataCorruptException;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Support\Facades\Crypt;
@@ -39,6 +40,10 @@ class EncryptArrayObject implements CastsAttributes
             } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
                 Log::warning('Failed to decrypt array object', ['key' => $key, 'error' => $e->getMessage()]);
 
+                if (config('core.encryption.strict_mode', false)) {
+                    throw new EncryptedDataCorruptException($key, $e);
+                }
+
                 return null;
             }
 
@@ -46,6 +51,10 @@ class EncryptArrayObject implements CastsAttributes
 
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
                 Log::warning('Failed to decode encrypted array', ['key' => $key, 'error' => json_last_error_msg()]);
+
+                if (config('core.encryption.strict_mode', false)) {
+                    throw new EncryptedDataCorruptException($key);
+                }
 
                 return null;
             }
