@@ -113,8 +113,43 @@ class BlocklistService
     public function isBlocked(string $ip): bool
     {
         $blocklist = $this->getBlocklist();
+        $normalized = $this->normalizeIp($ip);
 
-        return isset($blocklist[$ip]);
+        return isset($blocklist[$normalized]);
+    }
+
+    /**
+     * Normalize IP address to canonical form.
+     *
+     * Handles IPv6-mapped IPv4 addresses (::ffff:x.x.x.x) by converting
+     * them to plain IPv4 format for consistent blocklist lookups.
+     */
+    protected function normalizeIp(string $ip): string
+    {
+        // Handle IPv6-mapped IPv4 (::ffff:192.168.1.1)
+        if (str_starts_with(strtolower($ip), '::ffff:')) {
+            $ipv4 = substr($ip, 7);
+            if (filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return $ipv4;
+            }
+        }
+
+        // Normalize through inet_pton/inet_ntop for consistent representation
+        $packed = @inet_pton($ip);
+        if ($packed !== false) {
+            $normalized = inet_ntop($packed);
+            // Check again for IPv6-mapped IPv4 after normalization
+            if (str_starts_with(strtolower($normalized), '::ffff:')) {
+                $ipv4 = substr($normalized, 7);
+                if (filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                    return $ipv4;
+                }
+            }
+
+            return $normalized;
+        }
+
+        return $ip;
     }
 
     /**
@@ -122,8 +157,9 @@ class BlocklistService
      */
     public function block(string $ip, string $reason = 'manual', string $status = self::STATUS_APPROVED): void
     {
+        $normalized = $this->normalizeIp($ip);
         DB::table('blocked_ips')->updateOrInsert(
-            ['ip_address' => $ip],
+            ['ip_address' => $normalized],
             [
                 'reason' => $reason,
                 'status' => $status,
@@ -140,7 +176,8 @@ class BlocklistService
      */
     public function unblock(string $ip): void
     {
-        DB::table('blocked_ips')->where('ip_address', $ip)->delete();
+        $normalized = $this->normalizeIp($ip);
+        DB::table('blocked_ips')->where('ip_address', $normalized)->delete();
         $this->clearCache();
     }
 
@@ -272,8 +309,9 @@ class BlocklistService
      */
     public function approve(string $ip): bool
     {
+        $normalized = $this->normalizeIp($ip);
         $updated = DB::table('blocked_ips')
-            ->where('ip_address', $ip)
+            ->where('ip_address', $normalized)
             ->where('status', self::STATUS_PENDING)
             ->update(['status' => self::STATUS_APPROVED]);
 
@@ -289,8 +327,9 @@ class BlocklistService
      */
     public function reject(string $ip): bool
     {
+        $normalized = $this->normalizeIp($ip);
         $updated = DB::table('blocked_ips')
-            ->where('ip_address', $ip)
+            ->where('ip_address', $normalized)
             ->where('status', self::STATUS_PENDING)
             ->update(['status' => self::STATUS_REJECTED]);
 

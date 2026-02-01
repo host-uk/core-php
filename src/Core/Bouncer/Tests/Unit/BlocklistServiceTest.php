@@ -591,4 +591,122 @@ class BlocklistServiceTest extends TestCase
         $this->assertEquals('approved', BlocklistService::STATUS_APPROVED);
         $this->assertEquals('rejected', BlocklistService::STATUS_REJECTED);
     }
+
+    // =========================================================================
+    // IP Normalisation Tests
+    // =========================================================================
+
+    public function test_is_blocked_normalises_ipv6_mapped_ipv4(): void
+    {
+        // Block as IPv4
+        DB::table('blocked_ips')->insert([
+            'ip_address' => '192.168.1.100',
+            'reason' => 'test',
+            'status' => BlocklistService::STATUS_APPROVED,
+            'blocked_at' => now(),
+            'expires_at' => now()->addDay(),
+        ]);
+
+        Cache::forget('bouncer:blocklist');
+        Cache::forget('bouncer:blocked_ips_table_exists');
+
+        // Check with IPv6-mapped representation
+        $this->assertTrue($this->service->isBlocked('::ffff:192.168.1.100'));
+    }
+
+    public function test_block_normalises_ipv6_mapped_ipv4(): void
+    {
+        // Block using IPv6-mapped representation
+        $this->service->block('::ffff:192.168.1.100', 'test');
+
+        // Should be stored as plain IPv4
+        $this->assertDatabaseHas('blocked_ips', [
+            'ip_address' => '192.168.1.100',
+            'reason' => 'test',
+        ]);
+    }
+
+    public function test_unblock_normalises_ipv6_mapped_ipv4(): void
+    {
+        // Block as IPv4
+        DB::table('blocked_ips')->insert([
+            'ip_address' => '192.168.1.100',
+            'reason' => 'test',
+            'status' => BlocklistService::STATUS_APPROVED,
+            'blocked_at' => now(),
+        ]);
+
+        // Unblock using IPv6-mapped representation
+        $this->service->unblock('::ffff:192.168.1.100');
+
+        $this->assertDatabaseMissing('blocked_ips', [
+            'ip_address' => '192.168.1.100',
+        ]);
+    }
+
+    public function test_approve_normalises_ipv6_mapped_ipv4(): void
+    {
+        // Add pending entry as IPv4
+        DB::table('blocked_ips')->insert([
+            'ip_address' => '192.168.1.100',
+            'reason' => 'test',
+            'status' => BlocklistService::STATUS_PENDING,
+            'blocked_at' => now(),
+        ]);
+
+        // Approve using IPv6-mapped representation
+        $result = $this->service->approve('::ffff:192.168.1.100');
+
+        $this->assertTrue($result);
+        $this->assertDatabaseHas('blocked_ips', [
+            'ip_address' => '192.168.1.100',
+            'status' => BlocklistService::STATUS_APPROVED,
+        ]);
+    }
+
+    public function test_reject_normalises_ipv6_mapped_ipv4(): void
+    {
+        // Add pending entry as IPv4
+        DB::table('blocked_ips')->insert([
+            'ip_address' => '192.168.1.100',
+            'reason' => 'test',
+            'status' => BlocklistService::STATUS_PENDING,
+            'blocked_at' => now(),
+        ]);
+
+        // Reject using IPv6-mapped representation
+        $result = $this->service->reject('::ffff:192.168.1.100');
+
+        $this->assertTrue($result);
+        $this->assertDatabaseHas('blocked_ips', [
+            'ip_address' => '192.168.1.100',
+            'status' => BlocklistService::STATUS_REJECTED,
+        ]);
+    }
+
+    public function test_normalisation_handles_pure_ipv6_addresses(): void
+    {
+        $this->service->block('2001:db8::1', 'test');
+
+        $this->assertDatabaseHas('blocked_ips', [
+            'ip_address' => '2001:db8::1',
+            'reason' => 'test',
+        ]);
+
+        Cache::forget('bouncer:blocklist');
+        Cache::forget('bouncer:blocked_ips_table_exists');
+
+        $this->assertTrue($this->service->isBlocked('2001:db8::1'));
+    }
+
+    public function test_normalisation_handles_invalid_ip_addresses(): void
+    {
+        // Invalid IPs should be stored as-is (no crash)
+        $this->service->block('not-an-ip', 'test');
+
+        $this->assertDatabaseHas('blocked_ips', [
+            'ip_address' => 'not-an-ip',
+            'reason' => 'test',
+        ]);
+    }
 }

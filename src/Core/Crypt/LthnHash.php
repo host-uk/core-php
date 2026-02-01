@@ -117,6 +117,13 @@ namespace Core\Crypt;
  * - Security tokens (use `random_bytes()` instead)
  * - Cryptographic signatures
  * - Any security-sensitive operations
+ *
+ * ## Long-Running Processes (Octane/Swoole)
+ *
+ * This class uses static state for key maps. In long-running processes like
+ * Laravel Octane or Swoole, call `LthnHash::reset()` between requests to
+ * prevent state leakage between tenants or requests. See the `reset()` method
+ * documentation for integration examples.
  */
 class LthnHash
 {
@@ -379,6 +386,17 @@ class LthnHash
      * Reset to default state.
      *
      * Removes all custom key maps and resets to the default key map.
+     *
+     * IMPORTANT: In long-running processes (Octane, Swoole, queue workers),
+     * call this method between requests to prevent state leakage:
+     *
+     * ```php
+     * // In a service provider boot() method
+     * $this->app['events']->listen(
+     *     \Laravel\Octane\Events\RequestTerminated::class,
+     *     fn () => LthnHash::reset()
+     * );
+     * ```
      */
     public static function reset(): void
     {

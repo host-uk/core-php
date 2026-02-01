@@ -207,6 +207,11 @@ class ThumbnailController extends Controller
     {
         $color = config('images.lazy_thumbnails.placeholder_color', '#e5e7eb');
 
+        // Validate hex colour format to prevent XSS via SVG injection
+        if (! preg_match('/^#[0-9a-fA-F]{3,6}$/', $color)) {
+            $color = '#e5e7eb';
+        }
+
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="{$width}" height="{$height}" viewBox="0 0 {$width} {$height}">
     <rect width="100%" height="100%" fill="{$color}"/>

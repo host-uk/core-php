@@ -72,10 +72,26 @@ class SystemLogs
 
     /**
      * Get full file path for a log file.
+     *
+     * @throws \InvalidArgumentException If filename contains invalid characters or path traversal
      */
     public function getFilePath(string $name): string
     {
-        return $this->basePathForLogs().$name;
+        // Only allow safe characters: alphanumeric, dots, hyphens, underscores
+        if (! preg_match('/^[\w\-\.]+$/', $name)) {
+            throw new \InvalidArgumentException('Invalid log filename');
+        }
+
+        $basePath = $this->basePathForLogs();
+        $fullPath = $basePath.$name;
+
+        // Resolve to real path and verify it's within the logs directory
+        $realPath = realpath($fullPath);
+        if ($realPath !== false && ! str_starts_with($realPath, rtrim($basePath, DIRECTORY_SEPARATOR))) {
+            throw new \InvalidArgumentException('Invalid log path');
+        }
+
+        return $fullPath;
     }
 
     /**
