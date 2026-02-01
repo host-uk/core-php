@@ -59,7 +59,8 @@
     },
     "scripts": {
         "test": "vendor/bin/phpunit",
-        "pint": "vendor/bin/pint"
+        "pint": "vendor/bin/pint",
+        "stan": "vendor/bin/phpstan analyse --memory-limit=512M"
     },
     "extra": {
         "laravel": {
