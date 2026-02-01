@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectCodeStyleConfiguration">
+    <code_scheme name="Project" version="173">
+      <!-- PHP PSR-12 Style -->
+      <PHPCodeStyleSettings>
+        <option name="ALIGN_KEY_VALUE_PAIRS" value="false" />
+        <option name="ALIGN_PHPDOC_PARAM_NAMES" value="false" />
+        <option name="ALIGN_PHPDOC_COMMENTS" value="false" />
+        <option name="ALIGN_ASSIGNMENTS" value="false" />
+        <option name="BLANK_LINES_BEFORE_RETURN_STATEMENT" value="1" />
+        <option name="KEEP_RPAREN_AND_LBRACE_ON_ONE_LINE" value="true" />
+        <option name="LOWER_CASE_BOOLEAN_CONST" value="true" />
+        <option name="LOWER_CASE_NULL_CONST" value="true" />
+        <option name="FORCE_SHORT_DECLARATION_ARRAY_STYLE" value="true" />
+        <option name="PHPDOC_BLANK_LINE_BEFORE_TAGS" value="true" />
+        <option name="PHPDOC_WRAP_LONG_LINES" value="true" />
+        <option name="COMMA_AFTER_LAST_ARRAY_ELEMENT" value="true" />
+        <option name="COMMA_AFTER_LAST_PARAMETER" value="true" />
+        <option name="BLANK_LINE_BEFORE_RETURN_STATEMENT" value="true" />
+      </PHPCodeStyleSettings>
+      <codeStyleSettings language="PHP">
+        <option name="BLANK_LINES_AFTER_PACKAGE" value="1" />
+        <option name="BLANK_LINES_BEFORE_IMPORTS" value="1" />
+        <option name="BLANK_LINES_AFTER_IMPORTS" value="1" />
+        <option name="CLASS_BRACE_STYLE" value="1" />
+        <option name="METHOD_BRACE_STYLE" value="1" />
+        <option name="ELSE_ON_NEW_LINE" value="true" />
+        <option name="CATCH_ON_NEW_LINE" value="true" />
+        <option name="FINALLY_ON_NEW_LINE" value="true" />
+        <option name="IF_BRACE_FORCE" value="3" />
+        <option name="DOWHILE_BRACE_FORCE" value="3" />
+        <option name="WHILE_BRACE_FORCE" value="3" />
+        <option name="FOR_BRACE_FORCE" value="3" />
+      </codeStyleSettings>
+    </code_scheme>
+  </component>
+</project>

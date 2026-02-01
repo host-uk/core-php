@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Pint" type="ComposerRunConfigurationType">
+    <option name="command" value="pint" />
+    <option name="workingDir" value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Test (Unit)" type="PhpUnitRunConfigurationType" factoryName="PHPUnit">
+    <CommandLine workingDirectory="$PROJECT_DIR$" />
+    <TestRunner configuration="$PROJECT_DIR$/phpunit.xml" scope="XML" />
+    <option name="extraArguments" value="--testsuite=Unit" />
+    <method v="2" />
+  </configuration>
+</component>

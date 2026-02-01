@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProjectDictionaryState">
+  <dictionary name="core">
+    <words>
+      <w>activitylog</w>
+      <w>agentic</w>
+      <w>artisan</w>
+      <w>bootable</w>
+      <w>bouncer</w>
+      <w>cdn</w>
+      <w>eloquent</w>
+      <w>fileable</w>
+      <w>frontage</w>
+      <w>frontages</w>
+      <w>hlcrf</w>
+      <w>hostuk</w>
+      <w>laravel</w>
+      <w>lifecycle</w>
+      <w>livewire</w>
+      <w>mcp</w>
+      <w>middlewares</w>
+      <w>mockery</w>
+      <w>monolith</w>
+      <w>multitenancy</w>
+      <w>pennant</w>
+      <w>pint</w>
+      <w>phpstan</w>
+      <w>phpunit</w>
+      <w>psalm</w>
+      <w>rector</w>
+      <w>sanctum</w>
+      <w>seeders</w>
+      <w>seo</w>
+      <w>serializable</w>
+      <w>spatie</w>
+      <w>tailwindcss</w>
+      <w>testbench</w>
+      <w>uuid</w>
+      <w>uuids</w>
+    </words>
+  </dictionary>
+</component>

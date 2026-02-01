@@ -1,0 +1,16 @@
+# User-specific
+/workspace.xml
+/tasks.xml
+/shelf/
+/httpRequests/
+/dataSources/
+/dataSources.local.xml
+/copilot*.xml
+
+# Sensitive
+/webServers.xml
+/deployment.xml
+
+# OS/editor
+*.iws
+.DS_Store

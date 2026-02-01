@@ -2,7 +2,6 @@
 /packages/*/vendor
 composer.lock
 .DS_Store
-.idea/
 *.swp
 *.swo
 .env
@@ -26,3 +25,12 @@ docs/.vitepress/cache/
 infection.log
 infection-summary.log
 .rector-cache/
+
+# IDE - share configs, ignore user-specific
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/copilot*.xml
