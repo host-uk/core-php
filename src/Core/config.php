@@ -210,6 +210,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Encryption Behaviour
+    |--------------------------------------------------------------------------
+    |
+    | Configure how encrypted data is handled when decryption fails.
+    |
+    */
+    'encryption' => [
+        // When true, throw EncryptedDataCorruptException on decryption failure
+        // When false, log warning and return null (default, backwards compatible)
+        'strict_mode' => env('ENCRYPTION_STRICT_MODE', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Debug / Developer Mode
     |--------------------------------------------------------------------------
     |
