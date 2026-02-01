@@ -261,9 +261,26 @@ class CircuitBreaker
 
     /**
      * Increment and return failure count.
+     *
+     * Uses atomic increment when supported by cache driver (Redis),
+     * falls back to read-then-write for drivers that don't support it.
      */
     protected function incrementFailureCount(): int
     {
+        $cache = $this->getStateCache();
+        $key = $this->getCacheKey('failure_count');
+
+        // Try atomic increment first (supported by Redis)
+        if (method_exists($cache, 'increment')) {
+            // Ensure key exists with initial value
+            if ($cache->get($key) === null) {
+                $cache->put($key, 0, 86400);
+            }
+
+            return $cache->increment($key);
+        }
+
+        // Fallback for drivers without atomic increment
         $count = ((int) $this->getStateValue('failure_count')) + 1;
         $this->setStateValue('failure_count', $count);
 
@@ -280,9 +297,26 @@ class CircuitBreaker
 
     /**
      * Increment and return success count.
+     *
+     * Uses atomic increment when supported by cache driver (Redis),
+     * falls back to read-then-write for drivers that don't support it.
      */
     protected function incrementSuccessCount(): int
     {
+        $cache = $this->getStateCache();
+        $key = $this->getCacheKey('success_count');
+
+        // Try atomic increment first (supported by Redis)
+        if (method_exists($cache, 'increment')) {
+            // Ensure key exists with initial value
+            if ($cache->get($key) === null) {
+                $cache->put($key, 0, 86400);
+            }
+
+            return $cache->increment($key);
+        }
+
+        // Fallback for drivers without atomic increment
         $count = ((int) $this->getStateValue('success_count')) + 1;
         $this->setStateValue('success_count', $count);
 
