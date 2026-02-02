@@ -617,9 +617,11 @@ class LazyThumbnail
 
         // If dirty, force recalculation and ensure no bad cache lingers
         if (Cache::has($dirtyKey)) {
-            Cache::forget($cacheKey);
+            $stats = $this->calculateStats();
+            Cache::put($cacheKey, $stats, 86400 * 30);
+            Cache::forget($dirtyKey);
 
-            return $this->calculateStats();
+            return $stats;
         }
 
         $cached = Cache::get($cacheKey);
@@ -647,7 +649,7 @@ class LazyThumbnail
     protected function updateStatsOnDeleteMultiple(int $count, int $size): void
     {
         try {
-            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($count, $size) {
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->block(5, function () use ($count, $size) {
                 $cacheKey = 'lazy_thumbnails.stats';
                 $dirtyKey = 'lazy_thumbnails.stats_dirty';
 
@@ -682,7 +684,7 @@ class LazyThumbnail
     protected function updateStatsOnDelete(int $size): void
     {
         try {
-            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($size) {
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->block(5, function () use ($size) {
                 $cacheKey = 'lazy_thumbnails.stats';
                 $dirtyKey = 'lazy_thumbnails.stats_dirty';
 
@@ -719,7 +721,7 @@ class LazyThumbnail
         try {
             $size = $this->getThumbnailDisk()->size($path);
 
-            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($size) {
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->block(5, function () use ($size) {
                 $cacheKey = 'lazy_thumbnails.stats';
                 $dirtyKey = 'lazy_thumbnails.stats_dirty';
 

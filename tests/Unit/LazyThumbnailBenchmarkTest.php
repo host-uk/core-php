@@ -84,7 +84,8 @@ class LazyThumbnailBenchmarkTest extends TestCase
         $stats = $service->getStats();
         $this->assertEquals(1, $stats['count']);
 
-        // Should NOT have cached
-        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('lazy_thumbnails.stats'));
+        // Should have cached (now that we improved the dirty handling)
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('lazy_thumbnails.stats'));
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('lazy_thumbnails.stats_dirty'));
     }
 }
