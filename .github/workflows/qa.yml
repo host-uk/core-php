@@ -181,13 +181,13 @@ jobs:
         id: psalm
         run: |
           set +e
-          vendor/bin/psalm --output-format=json --show-info=false > psalm.json
+          vendor/bin/psalm --output-format=github --show-info=false > psalm.txt
           EXIT_CODE=$?
 
           # Generate SARIF for GitHub Security
           vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
 
-          ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
+          ERRORS=$(wc -l < psalm.txt)
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
 
           if [ $EXIT_CODE -eq 0 ]; then
