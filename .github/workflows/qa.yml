@@ -185,7 +185,14 @@ jobs:
           EXIT_CODE=$?
 
           # Generate SARIF for GitHub Security
-          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
+          vendor/bin/psalm --output-format=sarif --show-info=false > psalm_raw.sarif || true
+
+          # Sanitize SARIF: Ensure all region values are >= 1
+          if [ -s psalm_raw.sarif ]; then
+            jq 'walk(if type == "object" and has("region") then .region |= with_entries(.value = if .value < 1 then 1 else .value end) else . end)' psalm_raw.sarif > psalm.sarif
+          else
+            touch psalm.sarif
+          fi
 
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
