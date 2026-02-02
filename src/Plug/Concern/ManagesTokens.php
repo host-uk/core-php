@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Plug\Concern;
 
-use Exception;
+use Core\Exception\AuthorizationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
@@ -28,12 +28,12 @@ trait ManagesTokens
     /**
      * Get the current access token.
      *
-     * @throws Exception If no token is configured
+     * @throws AuthorizationException If no token is configured
      */
     public function getToken(): array
     {
         if (empty($this->token)) {
-            throw new Exception('No access token configured.');
+            throw new AuthorizationException('No access token configured.');
         }
 
         return $this->token;
