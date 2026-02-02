@@ -179,6 +179,8 @@ class LazyThumbnail
                 $cacheTtl = config('images.lazy_thumbnails.cache_ttl', 86400);
                 Cache::put($cacheKey, $thumbnailPath, $cacheTtl);
 
+                $this->updateStatsOnGenerate($thumbnailPath);
+
                 Log::debug('LazyThumbnail: Generated thumbnail', [
                     'source' => $sourcePath,
                     'thumbnail' => $thumbnailPath,
@@ -324,7 +326,24 @@ class LazyThumbnail
 
         // Delete file if it exists
         if ($this->thumbnailExists($thumbnailPath)) {
-            return $this->getThumbnailDisk()->delete($thumbnailPath);
+            $disk = $this->getThumbnailDisk();
+            $size = 0;
+
+            try {
+                $size = $disk->size($thumbnailPath);
+            } catch (\Throwable $e) {
+                // Ignore size retrieval errors
+            }
+
+            if ($disk->delete($thumbnailPath)) {
+                if ($size > 0) {
+                    $this->updateStatsOnDelete($size);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         return true;
@@ -358,6 +377,10 @@ class LazyThumbnail
             $disk->deleteDirectory($directory);
         }
 
+        if ($deleted > 0) {
+            Cache::forget('lazy_thumbnails.stats');
+        }
+
         return $deleted;
     }
 
@@ -372,6 +395,7 @@ class LazyThumbnail
         $disk = $this->getThumbnailDisk();
         $cutoff = now()->subDays($maxAgeDays)->timestamp;
         $deleted = 0;
+        $deletedSize = 0;
 
         $files = $disk->allFiles($this->thumbnailPrefix);
 
@@ -379,10 +403,23 @@ class LazyThumbnail
             $lastModified = $disk->lastModified($file);
 
             if ($lastModified < $cutoff) {
+                $size = 0;
+
+                try {
+                    $size = $disk->size($file);
+                } catch (\Throwable $e) {
+                    // Ignore size retrieval errors
+                }
+
                 if ($disk->delete($file)) {
                     $deleted++;
+                    $deletedSize += $size;
                 }
             }
+        }
+
+        if ($deleted > 0) {
+            $this->updateStatsOnDeleteMultiple($deleted, $deletedSize);
         }
 
         return $deleted;
@@ -574,6 +611,142 @@ class LazyThumbnail
      * @return array{count: int, total_size: int, total_size_human: string}
      */
     public function getStats(): array
+    {
+        $cacheKey = 'lazy_thumbnails.stats';
+        $dirtyKey = 'lazy_thumbnails.stats_dirty';
+
+        // If dirty, force recalculation and ensure no bad cache lingers
+        if (Cache::has($dirtyKey)) {
+            Cache::forget($cacheKey);
+
+            return $this->calculateStats();
+        }
+
+        $cached = Cache::get($cacheKey);
+
+        if ($cached) {
+            return $cached;
+        }
+
+        $stats = $this->calculateStats();
+
+        // Check dirty again before saving
+        if (Cache::has($dirtyKey)) {
+            return $stats;
+        }
+
+        // Cache for 30 days
+        Cache::add($cacheKey, $stats, 86400 * 30);
+
+        return $stats;
+    }
+
+    /**
+     * Update stats cache after multiple deletions.
+     */
+    protected function updateStatsOnDeleteMultiple(int $count, int $size): void
+    {
+        try {
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($count, $size) {
+                $cacheKey = 'lazy_thumbnails.stats';
+                $dirtyKey = 'lazy_thumbnails.stats_dirty';
+
+                $stats = Cache::get($cacheKey);
+
+                if ($stats) {
+                    $stats['count'] -= $count;
+                    $stats['total_size'] -= $size;
+
+                    if ($stats['count'] < 0) {
+                        $stats['count'] = 0;
+                    }
+                    if ($stats['total_size'] < 0) {
+                        $stats['total_size'] = 0;
+                    }
+
+                    $stats['total_size_human'] = $this->formatBytes($stats['total_size']);
+
+                    Cache::put($cacheKey, $stats, 86400 * 30);
+                } else {
+                    Cache::put($dirtyKey, true, 60);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning('LazyThumbnail: Failed to update stats on purge', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update stats cache after deletion.
+     */
+    protected function updateStatsOnDelete(int $size): void
+    {
+        try {
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($size) {
+                $cacheKey = 'lazy_thumbnails.stats';
+                $dirtyKey = 'lazy_thumbnails.stats_dirty';
+
+                $stats = Cache::get($cacheKey);
+
+                if ($stats) {
+                    $stats['count']--;
+                    $stats['total_size'] -= $size;
+
+                    if ($stats['count'] < 0) {
+                        $stats['count'] = 0;
+                    }
+                    if ($stats['total_size'] < 0) {
+                        $stats['total_size'] = 0;
+                    }
+
+                    $stats['total_size_human'] = $this->formatBytes($stats['total_size']);
+
+                    Cache::put($cacheKey, $stats, 86400 * 30);
+                } else {
+                    Cache::put($dirtyKey, true, 60);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning('LazyThumbnail: Failed to update stats on delete', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update stats cache after generation.
+     */
+    protected function updateStatsOnGenerate(string $path): void
+    {
+        try {
+            $size = $this->getThumbnailDisk()->size($path);
+
+            Cache::lock('lazy_thumbnails.stats_lock', 5)->get(function () use ($size) {
+                $cacheKey = 'lazy_thumbnails.stats';
+                $dirtyKey = 'lazy_thumbnails.stats_dirty';
+
+                $stats = Cache::get($cacheKey);
+
+                if ($stats) {
+                    $stats['count']++;
+                    $stats['total_size'] += $size;
+                    $stats['total_size_human'] = $this->formatBytes($stats['total_size']);
+
+                    Cache::put($cacheKey, $stats, 86400 * 30);
+                } else {
+                    Cache::put($dirtyKey, true, 60);
+                }
+            });
+        } catch (\Throwable $e) {
+            // Don't fail generation if stats update fails
+            Log::warning('LazyThumbnail: Failed to update stats', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Calculate statistics by iterating all files.
+     *
+     * @return array{count: int, total_size: int, total_size_human: string}
+     */
+    protected function calculateStats(): array
     {
         $disk = $this->getThumbnailDisk();
         $files = $disk->allFiles($this->thumbnailPrefix);
