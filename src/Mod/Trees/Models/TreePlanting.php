@@ -237,6 +237,23 @@ class TreePlanting extends Model
     }
 
     /**
+     * Mark a batch of confirmed trees as planted.
+     *
+     * @param iterable $ids IDs of the plantings to update
+     * @param string $batchReference The TFTF batch reference
+     * @return int Number of updated records
+     */
+    public static function markBatchAsPlanted(iterable $ids, string $batchReference): int
+    {
+        return static::whereKey($ids)
+            ->update([
+                'status' => self::STATUS_PLANTED,
+                'tftf_reference' => $batchReference,
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
      * Mark this planting as planted (part of TFTF donation).
      */
     public function markPlanted(string $batchReference): self

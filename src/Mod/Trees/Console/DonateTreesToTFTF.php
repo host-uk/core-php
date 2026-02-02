@@ -92,11 +92,10 @@ class DonateTreesToTFTF extends Command
         $this->info("Created donation batch: {$donation->batch_reference}");
 
         // Mark all confirmed trees as planted
-        $updated = 0;
-        foreach ($confirmedTrees as $planting) {
-            $planting->markPlanted($batchReference);
-            $updated++;
-        }
+        $updated = TreePlanting::markBatchAsPlanted(
+            $confirmedTrees->modelKeys(),
+            $batchReference
+        );
 
         Log::info('Monthly tree donation batch created', [
             'batch_reference' => $batchReference,
