@@ -187,6 +187,22 @@ jobs:
           # Generate SARIF for GitHub Security
           vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
 
+          # Sanitize SARIF file (remove invalid locations where line/column < 1)
+          if [ -f psalm.sarif ]; then
+            jq '
+              .runs[].results[] |= (
+                if .locations then
+                  .locations[] |= (
+                    if .physicalLocation.region.startLine < 1 then .physicalLocation.region.startLine = 1 else . end |
+                    if .physicalLocation.region.startColumn < 1 then .physicalLocation.region.startColumn = 1 else . end |
+                    if .physicalLocation.region.endLine < 1 then .physicalLocation.region.endLine = 1 else . end |
+                    if .physicalLocation.region.endColumn < 1 then .physicalLocation.region.endColumn = 1 else . end
+                  )
+                else . end
+              )
+            ' psalm.sarif > psalm.sarif.tmp && mv psalm.sarif.tmp psalm.sarif
+          fi
+
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
 
