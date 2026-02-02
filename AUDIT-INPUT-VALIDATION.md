@@ -59,28 +59,37 @@ The `ReferralController@track` method also accepts unsanitized `provider` and `m
 
 ## 4. Remediation Recommendations
 
-### Recommendation 1: Sanitize All Request Input
+### Recommendation 1: Use Middleware for Route Parameter Sanitization
 
-The `Core\Input\Input` class should be expanded to sanitize all sources of request data, not just `$_GET` and `$_POST`.
+For global sanitization of route parameters, a middleware is the most effective approach. This ensures that any parameter from the URL is cleaned before it reaches the controller.
 
-**Example:** Modify `Core\Input\Input::capture()` to also filter `$_COOKIE`, `$_REQUEST`, and route parameters.
+**Example:** Create a `SanitizeRouteParameters` middleware.
 
 ```php
-// In Core\Input\Input.php
+// app/Http/Middleware/SanitizeRouteParameters.php (new file)
+namespace App\Http\Middleware;
 
-public static function capture(): Request
+use Closure;
+use Core\Input\Sanitiser;
+
+class SanitizeRouteParameters
 {
-    $sanitiser = new Sanitiser;
+    public function handle($request, Closure $next)
+    {
+        $sanitiser = new Sanitiser;
+        $routeParameters = $request->route()->parameters();
 
-    $_GET = $sanitiser->filter($_GET);
-    $_POST = $sanitiser->filter($_POST);
-    $_COOKIE = $sanitiser->filter($_COOKIE);
+        $sanitizedParameters = $sanitiser->filter($routeParameters);
 
-    // This will also cover route parameters
-    $_REQUEST = $sanitiser->filter($_REQUEST);
+        foreach ($sanitizedParameters as $key => $value) {
+            $request->route()->setParameter($key, $value);
+        }
 
-    return Request::capture();
+        return $next($request);
+    }
 }
+
+// Then, register this middleware in app/Http/Kernel.php in the 'api' or 'web' group.
 ```
 
 ### Recommendation 2: Implement Strict Validation in Controllers
