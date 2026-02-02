@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -59,54 +60,49 @@ class PlantTreeWithTFTF implements ShouldQueue
             return;
         }
 
-        $trees = $this->planting->trees;
+        DB::transaction(function () {
+            $trees = $this->planting->trees;
 
-        // Check if reserve has available trees
-        if (! TreeReserve::hasAvailable($trees)) {
-            Log::warning('Tree reserve depleted, planting queued', [
-                'planting_id' => $this->planting->id,
-                'trees' => $trees,
-                'reserve' => TreeReserve::current(),
-            ]);
+            // Lock the reserve for update and check if there are enough trees
+            $reserve = TreeReserve::query()->lockForUpdate()->first();
 
-            // If not already queued, mark as queued
-            if (! $this->planting->isQueued()) {
-                $this->planting->update(['status' => TreePlanting::STATUS_QUEUED]);
+            if (! $reserve || $reserve->trees < $trees) {
+                Log::warning('Tree reserve depleted, planting queued', [
+                    'planting_id' => $this->planting->id,
+                    'trees' => $trees,
+                    'reserve' => $reserve ? $reserve->trees : 0,
+                ]);
+
+                // If not already queued, mark as queued
+                if (! $this->planting->isQueued()) {
+                    $this->planting->update(['status' => TreePlanting::STATUS_QUEUED]);
+                }
+
+                return;
             }
 
-            return;
-        }
+            // Decrement the reserve
+            $reserve->decrement('trees', $trees);
 
-        // Decrement the reserve
-        $decremented = TreeReserve::decrementReserve($trees);
+            // Mark as confirmed
+            $this->planting->update(['status' => TreePlanting::STATUS_CONFIRMED]);
 
-        if (! $decremented) {
-            Log::error('Failed to decrement tree reserve', [
+            // Update stats
+            TreePlantingStats::incrementOrCreate(
+                $this->planting->provider ?? 'unknown',
+                $this->planting->model,
+                $trees,
+                $this->planting->source === TreePlanting::SOURCE_AGENT_REFERRAL ? 1 : 0
+            );
+
+            Log::info('Tree planting confirmed', [
                 'planting_id' => $this->planting->id,
                 'trees' => $trees,
+                'source' => $this->planting->source,
+                'provider' => $this->planting->provider,
+                'reserve_remaining' => $reserve->trees,
             ]);
-
-            return;
-        }
-
-        // Mark as confirmed
-        $this->planting->update(['status' => TreePlanting::STATUS_CONFIRMED]);
-
-        // Update stats
-        TreePlantingStats::incrementOrCreate(
-            $this->planting->provider ?? 'unknown',
-            $this->planting->model,
-            $trees,
-            $this->planting->source === TreePlanting::SOURCE_AGENT_REFERRAL ? 1 : 0
-        );
-
-        Log::info('Tree planting confirmed', [
-            'planting_id' => $this->planting->id,
-            'trees' => $trees,
-            'source' => $this->planting->source,
-            'provider' => $this->planting->provider,
-            'reserve_remaining' => TreeReserve::current(),
-        ]);
+        });
     }
 
     /**
