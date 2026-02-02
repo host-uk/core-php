@@ -30,21 +30,13 @@ class LazyThumbnailBenchmarkTest extends TestCase
         $service = new LazyThumbnail('public', 'public');
 
         // Measure first run (uncached/baseline)
-        $start = microtime(true);
         $stats = $service->getStats();
-        $duration = microtime(true) - $start;
-
-        echo "\n[Baseline] Processed {$count} files in ".number_format($duration * 1000, 2)."ms\n";
 
         $this->assertEquals($count, $stats['count']);
         $this->assertEquals($count * 1024, $stats['total_size']);
 
         // Measure second run (should be faster if cached)
-        $start2 = microtime(true);
-        $stats2 = $service->getStats();
-        $duration2 = microtime(true) - $start2;
-
-        echo "\n[Subsequent] Processed {$count} files in ".number_format($duration2 * 1000, 2)."ms\n";
+        $service->getStats();
     }
 
     public function test_stats_updates_correctly(): void
