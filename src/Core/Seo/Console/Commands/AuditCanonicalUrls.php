@@ -11,8 +11,10 @@ declare(strict_types=1);
 
 namespace Core\Seo\Console\Commands;
 
+use Core\Seo\SeoMetadata;
 use Core\Seo\Validation\CanonicalUrlValidator;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Audit canonical URLs across the site for conflicts and issues.
@@ -134,15 +136,23 @@ class AuditCanonicalUrls extends Command
         $fixed = 0;
 
         // Fix protocol issues (HTTP -> HTTPS)
-        foreach ($audit['protocol_issues'] as $record) {
+        $protocolIssues = $audit['protocol_issues'];
+        $idsToUpdate = [];
+
+        foreach ($protocolIssues as $record) {
             $oldUrl = $record->canonical_url;
             $newUrl = str_replace('http://', 'https://', $oldUrl);
 
-            $record->canonical_url = $newUrl;
-            $record->save();
-
             $this->line("  Fixed protocol: {$oldUrl} -> {$newUrl}");
+            $idsToUpdate[] = $record->id;
             $fixed++;
+        }
+
+        if (! empty($idsToUpdate)) {
+            SeoMetadata::whereIn('id', $idsToUpdate)->update([
+                'canonical_url' => DB::raw("REPLACE(canonical_url, 'http://', 'https://')"),
+                'updated_at' => now(),
+            ]);
         }
 
         // Note: Duplicates and www inconsistencies require manual review
