@@ -198,13 +198,13 @@ jobs:
 
           exit $EXIT_CODE
 
-      - name: Upload Psalm SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: psalm.sarif
-          category: psalm
-        continue-on-error: true
+#      - name: Upload Psalm SARIF
+#        if: always()
+#        uses: github/codeql-action/upload-sarif@v3
+#        with:
+#          sarif_file: psalm.sarif
+#          category: psalm
+#        continue-on-error: true
 
       - name: Upload Psalm results
         if: always()
