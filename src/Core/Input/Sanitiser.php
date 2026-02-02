@@ -102,6 +102,13 @@ class Sanitiser
     protected array $schema = [];
 
     /**
+     * Cache of pre-merged effective schemas for performance.
+     *
+     * @var array<string, array>
+     */
+    protected array $preparedSchema = [];
+
+    /**
      * Optional logger for audit logging.
      */
     protected ?LoggerInterface $logger = null;
@@ -207,6 +214,8 @@ class Sanitiser
         $this->normalizeUnicode = $normalizeUnicode;
         $this->maxLength = $maxLength;
         $this->allowedHtmlTags = $allowedHtmlTags;
+
+        $this->prepareSchema();
     }
 
     /**
@@ -230,6 +239,7 @@ class Sanitiser
     {
         $clone = clone $this;
         $clone->schema = $schema;
+        $clone->prepareSchema();
 
         return $clone;
     }
@@ -449,7 +459,29 @@ class Sanitiser
             }
         }
 
+        $clone->prepareSchema();
+
         return $clone;
+    }
+
+    /**
+     * Prepare effective schemas for all fields.
+     */
+    protected function prepareSchema(): void
+    {
+        $globalSchema = $this->schema['*'] ?? [];
+        $this->preparedSchema = [];
+
+        // Pre-calculate for known fields
+        foreach ($this->schema as $field => $fieldSchema) {
+            if ($field === '*') {
+                continue;
+            }
+            $this->preparedSchema[$field] = array_merge($globalSchema, $fieldSchema);
+        }
+
+        // Store global schema for fallback
+        $this->preparedSchema['*'] = $globalSchema;
     }
 
     // =========================================================================
@@ -688,11 +720,7 @@ class Sanitiser
     protected function filterString(string $value, string $path, string $fieldName): string
     {
         $original = $value;
-        $fieldSchema = $this->schema[$fieldName] ?? [];
-        $globalSchema = $this->schema['*'] ?? [];
-
-        // Merge global schema with field-specific schema (field takes precedence)
-        $effectiveSchema = array_merge($globalSchema, $fieldSchema);
+        $effectiveSchema = $this->preparedSchema[$fieldName] ?? $this->preparedSchema['*'];
 
         // Step 0: Apply before hooks
         $value = $this->applyBeforeHooks($value, $fieldName);
