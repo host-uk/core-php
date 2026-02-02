@@ -369,10 +369,41 @@ class LazyThumbnail
      */
     public function purgeStale(int $maxAgeDays = 30): int
     {
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = $this->getThumbnailDisk();
         $cutoff = now()->subDays($maxAgeDays)->timestamp;
         $deleted = 0;
 
+        try {
+            // Optimization: Use listContents to get metadata in one go
+            // This avoids N+1 calls to lastModified() which is slow on remote storage
+            $contents = $disk->listContents($this->thumbnailPrefix, true);
+
+            foreach ($contents as $attributes) {
+                if ($attributes instanceof \League\Flysystem\FileAttributes) {
+                    try {
+                        $timestamp = $attributes->lastModified();
+
+                        if ($timestamp !== null && $timestamp < $cutoff) {
+                            if ($disk->delete($attributes->path())) {
+                                $deleted++;
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        // Skip files where metadata cannot be read
+                        continue;
+                    }
+                }
+            }
+
+            return $deleted;
+        } catch (\Throwable $e) {
+            Log::warning('LazyThumbnail: listContents optimization failed, falling back to slow method', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Fallback for disks that don't support listContents or other errors
         $files = $disk->allFiles($this->thumbnailPrefix);
 
         foreach ($files as $file) {
