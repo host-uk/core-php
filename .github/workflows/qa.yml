@@ -130,11 +130,11 @@ jobs:
         id: stan
         run: |
           set +e
-          vendor/bin/phpstan analyse --error-format=json --no-progress > phpstan.json 2>&1
+          vendor/bin/phpstan analyse --error-format=json --no-progress > phpstan.json
           EXIT_CODE=$?
 
           # Also run for GitHub format
-          vendor/bin/phpstan analyse --error-format=github --no-progress 2>&1 || true
+          vendor/bin/phpstan analyse --error-format=github --no-progress || true
 
           ERRORS=$(jq '.totals.file_errors // 0' phpstan.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
@@ -181,11 +181,11 @@ jobs:
         id: psalm
         run: |
           set +e
-          vendor/bin/psalm --output-format=json --show-info=false > psalm.json 2>&1
+          vendor/bin/psalm --output-format=json --show-info=false > psalm.json
           EXIT_CODE=$?
 
           # Generate SARIF for GitHub Security
-          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif 2>&1 || true
+          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
 
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
@@ -200,7 +200,7 @@ jobs:
 
       - name: Upload Psalm SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: psalm.sarif
           category: psalm
@@ -242,7 +242,7 @@ jobs:
         id: fmt
         run: |
           set +e
-          OUTPUT=$(vendor/bin/pint --test --format=json 2>&1)
+          OUTPUT=$(vendor/bin/pint --test --format=json)
           EXIT_CODE=$?
           echo "$OUTPUT" > pint.json
 
@@ -292,7 +292,7 @@ jobs:
         id: audit
         run: |
           set +e
-          composer audit --format=json > audit.json 2>&1
+          composer audit --format=json > audit.json
           EXIT_CODE=$?
 
           VULNS=$(jq '.advisories | to_entries | map(.value | length) | add // 0' audit.json 2>/dev/null || echo "0")
