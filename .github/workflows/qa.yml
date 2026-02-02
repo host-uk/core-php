@@ -187,6 +187,11 @@ jobs:
           # Generate SARIF for GitHub Security
           vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
 
+          # Sanitize SARIF: Ensure all location coordinates are >= 1
+          if [ -f psalm.sarif ]; then
+            jq 'walk(if type == "object" and has("region") then .region |= with_entries(if .value < 1 then .value = 1 else . end) else . end)' psalm.sarif > psalm.sarif.tmp && mv psalm.sarif.tmp psalm.sarif
+          fi
+
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
 
