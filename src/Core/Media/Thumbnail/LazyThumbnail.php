@@ -369,6 +369,7 @@ class LazyThumbnail
      */
     public function purgeStale(int $maxAgeDays = 30): int
     {
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = $this->getThumbnailDisk();
         $cutoff = now()->subDays($maxAgeDays)->timestamp;
         $deleted = 0;
