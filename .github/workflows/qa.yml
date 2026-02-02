@@ -130,7 +130,7 @@ jobs:
         id: stan
         run: |
           set +e
-          vendor/bin/phpstan analyse --error-format=json --no-progress > phpstan.json 2>&1
+          vendor/bin/phpstan analyse --error-format=json --no-progress > phpstan.json
           EXIT_CODE=$?
 
           # Also run for GitHub format
@@ -181,11 +181,16 @@ jobs:
         id: psalm
         run: |
           set +e
-          vendor/bin/psalm --output-format=json --show-info=false > psalm.json 2>&1
+          vendor/bin/psalm --output-format=json --show-info=false > psalm.json
           EXIT_CODE=$?
 
           # Generate SARIF for GitHub Security
-          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif 2>&1 || true
+          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
+
+          # Sanitize SARIF: Ensure all location coordinates are >= 1
+          if [ -f psalm.sarif ]; then
+            jq 'walk(if type == "object" then with_entries(if (.key | test("^(start|end)(Line|Column)$")) and (.value < 1) then .value = 1 else . end) else . end)' psalm.sarif > psalm.sarif.tmp && mv psalm.sarif.tmp psalm.sarif
+          fi
 
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
@@ -200,7 +205,7 @@ jobs:
 
       - name: Upload Psalm SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: psalm.sarif
           category: psalm
@@ -242,7 +247,7 @@ jobs:
         id: fmt
         run: |
           set +e
-          OUTPUT=$(vendor/bin/pint --test --format=json 2>&1)
+          OUTPUT=$(vendor/bin/pint --test --format=json)
           EXIT_CODE=$?
           echo "$OUTPUT" > pint.json
 
@@ -292,7 +297,7 @@ jobs:
         id: audit
         run: |
           set +e
-          composer audit --format=json > audit.json 2>&1
+          composer audit --format=json > audit.json
           EXIT_CODE=$?
 
           VULNS=$(jq '.advisories | to_entries | map(.value | length) | add // 0' audit.json 2>/dev/null || echo "0")

@@ -295,16 +295,28 @@ class ConfigVersioning
      */
     protected function pruneOldVersions(int $profileId): void
     {
-        $versions = ConfigVersion::where('profile_id', $profileId)
+        // Find the oldest version we want to keep (the Nth newest)
+        $cutoff = ConfigVersion::where('profile_id', $profileId)
             ->orderByDesc('created_at')
-            ->get();
+            ->orderByDesc('id')
+            ->skip($this->maxVersions - 1)
+            ->take(1)
+            ->first();
 
-        if ($versions->count() > $this->maxVersions) {
-            $toDelete = $versions->slice($this->maxVersions);
-            foreach ($toDelete as $version) {
-                $version->delete();
-            }
+        if ($cutoff === null) {
+            return;
         }
+
+        // Delete versions older than the cutoff
+        ConfigVersion::where('profile_id', $profileId)
+            ->where(function ($query) use ($cutoff) {
+                $query->where('created_at', '<', $cutoff->created_at)
+                    ->orWhere(function ($q) use ($cutoff) {
+                        $q->where('created_at', $cutoff->created_at)
+                            ->where('id', '<', $cutoff->id);
+                    });
+            })
+            ->delete();
     }
 
     /**
