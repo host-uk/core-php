@@ -198,6 +198,14 @@ jobs:
 
           exit $EXIT_CODE
 
+      - name: Debug Psalm Output
+        if: always()
+        run: |
+          echo "--- psalm.json ---"
+          cat psalm.json || echo "psalm.json not found"
+          echo "--- psalm.sarif ---"
+          cat psalm.sarif || echo "psalm.sarif not found"
+
       - name: Upload Psalm SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
