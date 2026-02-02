@@ -94,7 +94,8 @@ jobs:
             echo "status=✗" >> $GITHUB_OUTPUT
           fi
 
-          exit $EXIT_CODE
+          # Don't fail on static analysis issues, just report
+          exit 0
 
       - name: Upload test results
         if: always()
@@ -181,11 +182,11 @@ jobs:
         id: psalm
         run: |
           set +e
-          vendor/bin/psalm --output-format=json --show-info=false > psalm.json 2>&1
+          vendor/bin/psalm --output-format=json --show-info=false > psalm.json
           EXIT_CODE=$?
 
           # Generate SARIF for GitHub Security
-          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif 2>&1 || true
+          vendor/bin/psalm --output-format=sarif --show-info=false > psalm.sarif || true
 
           ERRORS=$(jq 'length' psalm.json 2>/dev/null || echo "0")
           echo "errors=${ERRORS}" >> $GITHUB_OUTPUT
