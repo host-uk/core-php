@@ -199,6 +199,23 @@ class ServiceDiscovery
     protected array $registered = [];
 
     /**
+     * The Composer ClassLoader instance.
+     */
+    protected ?\Composer\Autoload\ClassLoader $loader = null;
+
+    /**
+     * Normalized PSR-4 prefixes map.
+     *
+     * @var array<string, array<string>>
+     */
+    protected array $normalizedPrefixes = [];
+
+    /**
+     * Whether prefixes have been loaded.
+     */
+    protected bool $prefixesLoaded = false;
+
+    /**
      * Add a path to scan for service definitions.
      */
     public function addPath(string $path): self
@@ -597,6 +614,35 @@ class ServiceDiscovery
      */
     protected function scanPath(string $path, array &$services): void
     {
+        $this->loadPrefixes();
+
+        // Normalize scan path
+        $realScanPath = realpath($path);
+        if ($realScanPath === false) {
+            $realScanPath = $path; // Fallback
+        }
+        if (DIRECTORY_SEPARATOR !== '/') {
+            $realScanPath = str_replace(DIRECTORY_SEPARATOR, '/', $realScanPath);
+        }
+        $realScanPath = rtrim($realScanPath, '/').'/';
+
+        // Filter prefixes relevant to this scan path
+        $relevantPrefixes = [];
+        foreach ($this->normalizedPrefixes as $namespace => $paths) {
+            foreach ($paths as $prefixPath) {
+                if (str_starts_with($realScanPath, $prefixPath)) {
+                    $relevantPrefixes[$namespace][] = $prefixPath;
+
+                    continue;
+                }
+                if (str_starts_with($prefixPath, $realScanPath)) {
+                    $relevantPrefixes[$namespace][] = $prefixPath;
+
+                    continue;
+                }
+            }
+        }
+
         $files = File::allFiles($path);
 
         foreach ($files as $file) {
@@ -614,7 +660,21 @@ class ServiceDiscovery
                 continue;
             }
 
-            $class = $this->getClassFromFile($file->getPathname());
+            // Optimization: Resolve class from path
+            $realPath = $file->getRealPath();
+            if ($realPath === false) {
+                continue;
+            }
+            if (DIRECTORY_SEPARATOR !== '/') {
+                $realPath = str_replace(DIRECTORY_SEPARATOR, '/', $realPath);
+            }
+
+            $class = $this->resolveClass($realPath, $relevantPrefixes);
+
+            if ($class === null) {
+                $class = $this->getClassFromFile($file->getPathname());
+            }
+
             if ($class === null) {
                 continue;
             }
@@ -638,6 +698,87 @@ class ServiceDiscovery
                 // Skip services that throw during definition()
             }
         }
+    }
+
+    /**
+     * Get the Composer ClassLoader instance.
+     */
+    protected function getComposerLoader(): ?\Composer\Autoload\ClassLoader
+    {
+        if ($this->loader !== null) {
+            return $this->loader;
+        }
+
+        foreach (spl_autoload_functions() as $autoloader) {
+            if (is_array($autoloader) && $autoloader[0] instanceof \Composer\Autoload\ClassLoader) {
+                $this->loader = $autoloader[0];
+
+                return $this->loader;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Load and normalize Composer PSR-4 prefixes.
+     */
+    protected function loadPrefixes(): void
+    {
+        if ($this->prefixesLoaded) {
+            return;
+        }
+
+        $loader = $this->getComposerLoader();
+        if ($loader === null) {
+            $this->prefixesLoaded = true;
+
+            return;
+        }
+
+        $prefixes = $loader->getPrefixesPsr4();
+
+        foreach ($prefixes as $namespace => $paths) {
+            foreach ($paths as $path) {
+                $realPath = realpath($path);
+                if ($realPath === false) {
+                    continue;
+                }
+
+                if (DIRECTORY_SEPARATOR !== '/') {
+                    $realPath = str_replace(DIRECTORY_SEPARATOR, '/', $realPath);
+                }
+
+                $this->normalizedPrefixes[$namespace][] = rtrim($realPath, '/').'/';
+            }
+        }
+
+        $this->prefixesLoaded = true;
+    }
+
+    /**
+     * Resolve class name from real file path using a subset of prefixes.
+     *
+     * @param  string  $realPath  Normalized real path of the file
+     * @param  array<string, array<string>>  $prefixes  Subset of prefixes to check
+     */
+    protected function resolveClass(string $realPath, array $prefixes): ?string
+    {
+        foreach ($prefixes as $namespace => $paths) {
+            foreach ($paths as $path) {
+                if (str_starts_with($realPath, $path)) {
+                    // Found matching prefix
+                    $relativePath = substr($realPath, strlen($path));
+
+                    // Convert path to namespace
+                    $relativeClass = str_replace(['/', '.php'], ['\\', ''], $relativePath);
+
+                    return $namespace.$relativeClass;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
