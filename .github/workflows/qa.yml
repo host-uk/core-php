@@ -190,15 +190,15 @@ jobs:
           # Sanitize SARIF file (remove invalid locations where line/column < 1)
           if [ -f psalm.sarif ]; then
             jq '
-              .runs[].results[] |= (
-                if .locations then
-                  .locations[] |= (
-                    if .physicalLocation.region.startLine < 1 then .physicalLocation.region.startLine = 1 else . end |
-                    if .physicalLocation.region.startColumn < 1 then .physicalLocation.region.startColumn = 1 else . end |
-                    if .physicalLocation.region.endLine < 1 then .physicalLocation.region.endLine = 1 else . end |
-                    if .physicalLocation.region.endColumn < 1 then .physicalLocation.region.endColumn = 1 else . end
-                  )
-                else . end
+              walk(
+                if type == "object" and has("physicalLocation") then
+                  .physicalLocation.region.startLine |= (if . < 1 then 1 else . end) |
+                  .physicalLocation.region.startColumn |= (if . < 1 then 1 else . end) |
+                  .physicalLocation.region.endLine |= (if . < 1 then 1 else . end) |
+                  .physicalLocation.region.endColumn |= (if . < 1 then 1 else . end)
+                else
+                  .
+                end
               )
             ' psalm.sarif > psalm.sarif.tmp && mv psalm.sarif.tmp psalm.sarif
           fi
