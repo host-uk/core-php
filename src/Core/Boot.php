@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Core;
 
-use Core\Exception\Handler;
-use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -70,8 +68,8 @@ class Boot
                 Front\Boot::middleware($middleware);
             })
             ->withExceptions(function (Exceptions $exceptions): void {
-                $exceptions->forget(app(ExceptionHandler::class));
-                $exceptions->replace(app(ExceptionHandler::class), new Handler(app()));
+                // Clean exception handling for open-source
+                // Apps can add Sentry, custom error pages, etc.
             })->create();
     }
 

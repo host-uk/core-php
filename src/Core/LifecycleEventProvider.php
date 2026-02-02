@@ -19,6 +19,8 @@ use Core\Events\FrameworkBooted;
 use Core\Events\McpToolsRegistering;
 use Core\Events\QueueWorkerBooting;
 use Core\Events\WebRoutesRegistering;
+use Core\Exception\Handler;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -189,6 +191,12 @@ class LifecycleEventProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Register exception handler
+        $this->app->singleton(
+            ExceptionHandler::class,
+            Handler::class
+        );
+
         // Register infrastructure
         $this->app->singleton(ModuleScanner::class);
         $this->app->singleton(ModuleRegistry::class, function ($app) {
